@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,88 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { useUser } from '../src/context/UserContext';
+import { categoryApi, transactionApi } from '../src/services/api.service';
+import { Category, CreateTransactionDto } from '../src/types';
 
-export default function AddScreen() {
-  const [entryType, setEntryType] = useState('income'); // 'income' or 'expense'
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [amount, setAmount] = useState('');
-  const [notes, setNotes] = useState('');
+export default function AddScreen(): JSX.Element {
+  const { isAuthenticated } = useUser();
+  const [entryType, setEntryType] = useState<'income' | 'expense'>('income');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [amount, setAmount] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
-  const incomeCategories = ['Sales', 'Processing', 'Packaging', 'Other'];
-  const expenseCategories = ['Seeds', 'Transport', 'Labor', 'Utilities'];
+  const loadCategories = useCallback(async () => {
+    if (!isAuthenticated) return;
 
-  const categories = entryType === 'income' ? incomeCategories : expenseCategories;
+    try {
+      setLoadingCategories(true);
+      const type = entryType === 'income' ? 'INCOME' : 'EXPENSE';
+      const cats = await categoryApi.getAll(type);
+      setCategories(cats);
+      setSelectedCategory('');
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      Alert.alert('Error', 'Failed to load categories');
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, [entryType, isAuthenticated]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCategories();
+    }, [loadCategories])
+  );
+
+  const handleSave = async () => {
+    if (!selectedCategory || !amount) {
+      Alert.alert('Error', 'Please select a category and enter an amount');
+      return;
+    }
+
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data: CreateTransactionDto = {
+        type: entryType.toUpperCase() as 'INCOME' | 'EXPENSE',
+        amount: amountNum,
+        categoryId: selectedCategory,
+        description: notes || undefined,
+      };
+
+      await transactionApi.create(data);
+      Alert.alert('Success', `Transaction saved successfully`);
+
+      // Reset form
+      setAmount('');
+      setNotes('');
+      setSelectedCategory('');
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      Alert.alert('Error', 'Failed to save transaction');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAndNew = async () => {
+    await handleSave();
+    // Form is already reset, just need to keep entry type
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -31,7 +100,10 @@ export default function AddScreen() {
         <View style={styles.typeSelector}>
           <TouchableOpacity
             style={[styles.typeButton, entryType === 'income' && styles.typeButtonActive]}
-            onPress={() => setEntryType('income')}
+            onPress={() => {
+              setEntryType('income');
+              setSelectedCategory('');
+            }}
           >
             <Icon name="add" size={24} color={entryType === 'income' ? '#fff' : '#4CAF50'} />
             <Text
@@ -45,7 +117,10 @@ export default function AddScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.typeButton, entryType === 'expense' && styles.typeButtonActive]}
-            onPress={() => setEntryType('expense')}
+            onPress={() => {
+              setEntryType('expense');
+              setSelectedCategory('');
+            }}
           >
             <Icon name="remove" size={24} color={entryType === 'expense' ? '#fff' : '#F44336'} />
             <Text
@@ -68,27 +143,31 @@ export default function AddScreen() {
 
         {/* Category Selection */}
         <Text style={styles.label}>Category</Text>
-        <View style={styles.categoryButtons}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.categoryButton,
-                selectedCategory === cat && styles.categoryButtonActive,
-              ]}
-              onPress={() => setSelectedCategory(cat)}
-            >
-              <Text
+        {loadingCategories ? (
+          <ActivityIndicator size="small" color="#4CAF50" style={styles.loader} />
+        ) : (
+          <View style={styles.categoryButtons}>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
                 style={[
-                  styles.categoryButtonText,
-                  selectedCategory === cat && styles.categoryButtonTextActive,
+                  styles.categoryButton,
+                  selectedCategory === cat.id && styles.categoryButtonActive,
                 ]}
+                onPress={() => setSelectedCategory(cat.id)}
               >
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Text
+                  style={[
+                    styles.categoryButtonText,
+                    selectedCategory === cat.id && styles.categoryButtonTextActive,
+                  ]}
+                >
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Amount Input */}
         <Text style={styles.label}>Amount</Text>
@@ -111,17 +190,6 @@ export default function AddScreen() {
           onChangeText={setNotes}
         />
 
-        {/* File Attachment */}
-        <View style={styles.fileAttachment}>
-          <Text style={styles.fileLabel}>
-            {entryType === 'income' ? 'Attach photo/receipt:' : 'Attach receipt:'}
-          </Text>
-          <TouchableOpacity style={styles.fileButton}>
-            <Icon name="attach-file" size={20} color="#4CAF50" />
-            <Text style={styles.fileButtonText}>Choose File</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Save Buttons */}
         <View style={styles.saveButtons}>
           <TouchableOpacity
@@ -129,12 +197,22 @@ export default function AddScreen() {
               styles.saveButton,
               entryType === 'income' ? styles.saveIncomeButton : styles.saveExpenseButton,
             ]}
+            onPress={handleSave}
+            disabled={loading}
           >
-            <Text style={styles.saveButtonText}>
-              Save {entryType === 'income' ? 'Income' : 'Expense'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>
+                Save {entryType === 'income' ? 'Income' : 'Expense'}
+              </Text>
+            )}
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.saveButton, styles.saveNewButton]}>
+          <TouchableOpacity
+            style={[styles.saveButton, styles.saveNewButton]}
+            onPress={handleSaveAndNew}
+            disabled={loading}
+          >
             <Text style={styles.saveButtonText}>Save & New</Text>
           </TouchableOpacity>
         </View>
@@ -211,6 +289,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 12,
   },
+  loader: {
+    marginVertical: 12,
+  },
   categoryButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -248,30 +329,6 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-  },
-  fileAttachment: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-  },
-  fileLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  fileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  fileButtonText: {
-    fontSize: 14,
-    color: '#4CAF50',
-    fontWeight: '500',
   },
   saveButtons: {
     flexDirection: 'row',
