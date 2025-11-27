@@ -12,14 +12,28 @@ This guide explains how to configure and run the AgriBooks app on a physical dev
 
 ### 1. API Configuration
 
-The app is already configured to use IP `192.168.0.105:3001` for physical device testing.
+The app uses environment variables for API configuration. This allows each developer to use their own IP address.
 
-**File**: `mobile/src/config/api.ts`
+**Create `.env` file** in the `mobile/` directory:
 
-```typescript
-const PHYSICAL_DEVICE_IP = '192.168.0.105';
-const API_PORT = 3001;
+```bash
+cd mobile
+cp .env.example .env
 ```
+
+**Edit `.env`** with your computer's IP address:
+
+```env
+EXPO_PUBLIC_API_HOST=192.168.0.129  # Replace with your IP
+EXPO_PUBLIC_API_PORT=3001
+EXPO_PUBLIC_ANDROID_EMULATOR=false
+```
+
+**Find your IP address**:
+- Windows: `ipconfig` (look for IPv4 Address)
+- macOS/Linux: `ifconfig | grep "inet "`
+
+**Note**: The old hardcoded IP has been replaced with environment variables. See `CONFIG.md` for detailed configuration options.
 
 ### 2. Backend Server Setup
 
@@ -53,8 +67,9 @@ const API_PORT = 3001;
    - **iOS**: Open Camera app and scan the QR code (opens in Expo Go)
 
 3. **Verify Connection**:
-   - Check the console for: `🌐 API Base URL: http://192.168.0.105:3001/api`
+   - Check the console for the API Base URL (should match your `.env` configuration)
    - The app should connect to your backend automatically
+   - If connection fails, verify your IP address in `.env` matches your computer's IP
 
 #### Option B: Using Development Build
 

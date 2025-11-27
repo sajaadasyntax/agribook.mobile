@@ -1,21 +1,32 @@
 {
   "cli": {
-    "version": ">= 5.0.0"
+    "version": ">= 5.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "credentialsSource": "remote"
     },
     "preview": {
       "distribution": "internal",
+      "credentialsSource": "remote",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "withoutCredentials": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://getbk.xyz"
       }
     },
     "production": {
+      "credentialsSource": "remote",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://getbk.xyz"
       }
     }
   },

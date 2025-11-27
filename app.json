@@ -56,8 +56,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "9d6e8753-e267-4e16-bdc9-5c515a9219f2"
+        "projectId": "acd78c3a-9c9d-4869-9132-547116873f5f"
       }
-    }
+    },
+    "owner": "sajaadammar"
   }
 }

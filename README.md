@@ -27,20 +27,46 @@ A comprehensive mobile application for managing agricultural business finances, 
 npm install
 ```
 
-2. Start the development server:
+2. Configure environment variables (optional but recommended):
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env and set your configuration:
+# - EXPO_PUBLIC_API_HOST: Your computer's IP for physical device testing
+# - EXPO_PUBLIC_API_PORT: Backend server port (default: 3001)
+# - EXPO_PUBLIC_API_URL: Production API URL (for production builds)
+```
+
+3. Start the development server:
 ```bash
 npm start
 ```
 
-3. Run on iOS:
+4. Run on iOS:
 ```bash
 npm run ios
 ```
 
-4. Run on Android:
+5. Run on Android:
 ```bash
 npm run android
 ```
+
+## Configuration
+
+### Environment Variables
+
+The app uses Expo environment variables (prefixed with `EXPO_PUBLIC_`) for configuration:
+
+- **EXPO_PUBLIC_API_HOST**: Your computer's IP address for physical device testing (default: `localhost`)
+- **EXPO_PUBLIC_API_PORT**: Backend server port (default: `3001`)
+- **EXPO_PUBLIC_API_URL**: Full production API URL (e.g., `https://api.agribooks.com`)
+- **EXPO_PUBLIC_ANDROID_EMULATOR**: Set to `true` if running in Android emulator
+
+Create a `.env` file in the `mobile/` directory with your configuration. See `.env.example` for a template.
+
+**Note**: For Expo apps, environment variables must be prefixed with `EXPO_PUBLIC_` to be accessible in the app.
 
 ## Project Structure
 

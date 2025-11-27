@@ -1,32 +1,77 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-// Physical Device Configuration
-// Your computer's IP address for physical device testing
-const PHYSICAL_DEVICE_IP = '192.168.0.129';
-const API_PORT = 3001;
+// API Configuration from Environment Variables
+// These can be set in a .env file or through Expo's environment variables
+// See .env.example for configuration options
 
-// Development configuration
-// - For iOS Simulator: Uses localhost (works automatically)
-// - For Android Emulator: Uses 10.0.2.2 (special IP for host machine)
-// - For Physical Device: Uses your computer's IP address (192.168.0.129)
-const getApiUrl = () => {
+// Production API URL (full URL including protocol)
+// Example: https://api.agribooks.com/api
+// Must be set via EXPO_PUBLIC_API_URL environment variable in production
+const PRODUCTION_API_URL = process.env.EXPO_PUBLIC_API_URL || '';
+
+// Development API Configuration
+// Host: Your computer's IP address for physical device testing
+// Port: Backend server port (default: 3001)
+const DEV_API_HOST = process.env.EXPO_PUBLIC_API_HOST || 'localhost';
+const DEV_API_PORT = process.env.EXPO_PUBLIC_API_PORT || '3001';
+const IS_ANDROID_EMULATOR = process.env.EXPO_PUBLIC_ANDROID_EMULATOR === 'true';
+
+/**
+ * Get the appropriate API URL based on environment
+ * 
+ * Development:
+ * - If EXPO_PUBLIC_API_URL is set, uses it (allows testing against production API)
+ * - Otherwise: iOS Simulator uses localhost, Android Emulator uses 10.0.2.2, Physical Device uses EXPO_PUBLIC_API_HOST
+ * 
+ * Production:
+ * - Uses EXPO_PUBLIC_API_URL (REQUIRED in production)
+ * - Throws error if not set to prevent security issues
+ */
+const getApiUrl = (): string => {
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  
+  // If production API URL is explicitly set, use it (works in both dev and production)
+  if (envApiUrl && envApiUrl.trim() !== '') {
+    // Ensure it ends with /api
+    return envApiUrl.endsWith('/api') 
+      ? envApiUrl 
+      : `${envApiUrl}/api`;
+  }
+  
+  // Production mode - strict validation (only if EXPO_PUBLIC_API_URL not set)
   if (!__DEV__) {
-    return `https://${PHYSICAL_DEVICE_IP}:${API_PORT}/api`; // Production URL
+    const errorMessage = '❌ CRITICAL: EXPO_PUBLIC_API_URL must be set for production builds. ' +
+      'Production builds cannot use development configuration for security reasons. ' +
+      'Please set EXPO_PUBLIC_API_URL in your .env file or build configuration before building. ' +
+      'Example: EXPO_PUBLIC_API_URL=https://getbk.xyz';
+    console.error(errorMessage);
+    throw new Error('EXPO_PUBLIC_API_URL is required for production builds');
   }
   
+  // Development mode only (when EXPO_PUBLIC_API_URL is not set)
   // Check if we're in an Android emulator
-  if (process.env.EXPO_PUBLIC_ANDROID_EMULATOR === 'true') {
-    return `http://10.0.2.2:${API_PORT}/api`; // Android emulator uses 10.0.2.2 for host
+  if (IS_ANDROID_EMULATOR) {
+    return `http://10.0.2.2:${DEV_API_PORT}/api`; // Android emulator uses 10.0.2.2 for host
   }
   
-  // For physical device testing, use your computer's IP
-  // Make sure your phone and computer are on the same WiFi network
+  // For physical device or iOS simulator, use configured host
   // For iOS Simulator, localhost works, but using IP also works for physical devices
-  return `http://${PHYSICAL_DEVICE_IP}:${API_PORT}/api`;
+  return `http://${DEV_API_HOST}:${DEV_API_PORT}/api`;
 };
 
 const API_BASE_URL = getApiUrl();
+
+// Log API configuration in development
+if (__DEV__) {
+  console.log('🌐 API Configuration:', {
+    baseURL: API_BASE_URL,
+    host: DEV_API_HOST,
+    port: DEV_API_PORT,
+    isAndroidEmulator: IS_ANDROID_EMULATOR,
+    productionUrl: PRODUCTION_API_URL || 'not set',
+  });
+}
 
 class ApiClient {
   private client: AxiosInstance;
