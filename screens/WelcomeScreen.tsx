@@ -14,14 +14,16 @@ import {
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useI18n } from '../src/context/I18nContext';
 import { useUser } from '../src/context/UserContext';
+import { useTheme } from '../src/context/ThemeContext';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
 }
 
-export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): JSX.Element {
+export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React.JSX.Element {
   const { t, isRTL } = useI18n();
   const { login, isAuthenticated } = useUser();
+  const { colors } = useTheme();
   const [isSignIn, setIsSignIn] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

@@ -14,6 +14,8 @@ import { BarChart } from 'react-native-charts-wrapper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
+import { useI18n } from '../src/context/I18nContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { useReportData, ReportPeriod } from '../src/hooks/useReportData';
 import { formatDisplayDate, addDays, addWeeks, addMonths } from '../src/utils/date';
 import { Transaction } from '../src/types';
@@ -22,6 +24,8 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function ReportsScreen(): React.JSX.Element {
   const { isAuthenticated } = useUser();
+  const { isRTL } = useI18n();
+  const { colors } = useTheme();
   const [period, setPeriod] = useState<ReportPeriod>('week');
   const [date, setDate] = useState(new Date());
   
@@ -125,14 +129,14 @@ export default function ReportsScreen(): React.JSX.Element {
   };
 
   const renderPeriodSelector = () => (
-    <View style={styles.periodSelector}>
+    <View style={styles.periodSelector(colors)}>
       {(['day', 'week', 'month'] as ReportPeriod[]).map((p) => (
         <TouchableOpacity
           key={p}
-          style={[styles.periodButton, period === p && styles.periodButtonActive]}
+          style={[styles.periodButton(colors), period === p && styles.periodButtonActive(colors)]}
           onPress={() => setPeriod(p)}
         >
-          <Text style={[styles.periodButtonText, period === p && styles.periodButtonTextActive]}>
+          <Text style={[styles.periodButtonText(colors), period === p && styles.periodButtonTextActive]}>
             {p.charAt(0).toUpperCase() + p.slice(1)}
           </Text>
         </TouchableOpacity>
@@ -141,34 +145,34 @@ export default function ReportsScreen(): React.JSX.Element {
   );
 
   const renderDateNavigator = () => (
-    <View style={styles.dateNavigator}>
-      <TouchableOpacity onPress={handlePrevious} style={styles.navButton}>
-        <Icon name="chevron-left" size={28} color="#333" />
+    <View style={[styles.dateNavigator, isRTL && styles.dateNavigatorRTL]}>
+      <TouchableOpacity onPress={handlePrevious} style={styles.navButton(colors)}>
+        <Icon name={isRTL ? "chevron-right" : "chevron-left"} size={28} color={colors.text} />
       </TouchableOpacity>
-      <Text style={styles.dateText}>{formatDisplayDate(date)}</Text>
-      <TouchableOpacity onPress={handleNext} style={styles.navButton}>
-        <Icon name="chevron-right" size={28} color="#333" />
+      <Text style={styles.dateText(colors)}>{formatDisplayDate(date)}</Text>
+      <TouchableOpacity onPress={handleNext} style={styles.navButton(colors)}>
+        <Icon name={isRTL ? "chevron-left" : "chevron-right"} size={28} color={colors.text} />
       </TouchableOpacity>
     </View>
   );
 
   const renderSummaryCards = () => (
-    <View style={styles.summaryContainer}>
-      <View style={[styles.summaryCard, { backgroundColor: '#E8F5E9' }]}>
-        <Text style={styles.summaryLabel}>Income</Text>
-        <Text style={[styles.summaryValue, { color: '#2E7D32' }]}>
+    <View style={[styles.summaryContainer, isRTL && styles.summaryContainerRTL]}>
+      <View style={[styles.summaryCard(colors), { backgroundColor: colors.income + '20' }]}>
+        <Text style={styles.summaryLabel(colors)}>Income</Text>
+        <Text style={[styles.summaryValue, { color: colors.income }]}>
           ${summary.income.toLocaleString()}
         </Text>
       </View>
-      <View style={[styles.summaryCard, { backgroundColor: '#FFEBEE' }]}>
-        <Text style={styles.summaryLabel}>Expense</Text>
-        <Text style={[styles.summaryValue, { color: '#C62828' }]}>
+      <View style={[styles.summaryCard(colors), { backgroundColor: colors.expense + '20' }]}>
+        <Text style={styles.summaryLabel(colors)}>Expense</Text>
+        <Text style={[styles.summaryValue, { color: colors.expense }]}>
           ${summary.expense.toLocaleString()}
         </Text>
       </View>
-      <View style={[styles.summaryCard, { backgroundColor: '#E3F2FD' }]}>
-        <Text style={styles.summaryLabel}>Balance</Text>
-        <Text style={[styles.summaryValue, { color: '#1565C0' }]}>
+      <View style={[styles.summaryCard(colors), { backgroundColor: colors.primary + '20' }]}>
+        <Text style={styles.summaryLabel(colors)}>Balance</Text>
+        <Text style={[styles.summaryValue, { color: colors.primary }]}>
           ${summary.balance.toLocaleString()}
         </Text>
       </View>
@@ -176,28 +180,28 @@ export default function ReportsScreen(): React.JSX.Element {
   );
 
   const renderTransactionItem = ({ item }: { item: Transaction }) => (
-    <View style={styles.transactionItem}>
+    <View style={[styles.transactionItem(colors), isRTL && styles.transactionItemRTL]}>
       <View style={styles.transactionLeft}>
         <View style={[
-          styles.transactionIcon, 
-          { backgroundColor: item.type === 'INCOME' ? '#E8F5E9' : '#FFEBEE' }
+          styles.transactionIcon(colors), 
+          { backgroundColor: item.type === 'INCOME' ? colors.income + '20' : colors.expense + '20' }
         ]}>
           <Icon 
             name={item.type === 'INCOME' ? 'arrow-downward' : 'arrow-upward'} 
             size={20} 
-            color={item.type === 'INCOME' ? '#2E7D32' : '#C62828'} 
+            color={item.type === 'INCOME' ? colors.income : colors.expense} 
           />
         </View>
         <View>
-          <Text style={styles.transactionCategory}>{item.category?.name || 'Uncategorized'}</Text>
-          <Text style={styles.transactionDate}>
+          <Text style={styles.transactionCategory(colors)}>{item.category?.name || 'Uncategorized'}</Text>
+          <Text style={styles.transactionDate(colors)}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
       </View>
       <Text style={[
         styles.transactionAmount,
-        { color: item.type === 'INCOME' ? '#2E7D32' : '#C62828' }
+        { color: item.type === 'INCOME' ? colors.income : colors.expense }
       ]}>
         {item.type === 'INCOME' ? '+' : '-'}${parseFloat(item.amount.toString()).toLocaleString()}
       </Text>
@@ -209,19 +213,19 @@ export default function ReportsScreen(): React.JSX.Element {
   const hasNoData = chartData.datasets[0].data.length === 0 && transactions.length === 0;
   if (loading && hasNoData) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+      <View style={[styles.container(colors), styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={styles.container(colors)}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Analytics</Text>
+      <View style={styles.header(colors)}>
+        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>Analytics</Text>
       </View>
 
       {renderPeriodSelector()}
@@ -239,8 +243,8 @@ export default function ReportsScreen(): React.JSX.Element {
         ) * 1.2;
         
         return (
-          <View style={styles.chartContainer}>
-            <Text style={styles.sectionTitle}>Overview</Text>
+          <View style={styles.chartContainer(colors)}>
+            <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Overview</Text>
             <BarChart
               style={styles.barChart}
               data={barChartData}
@@ -250,9 +254,9 @@ export default function ReportsScreen(): React.JSX.Element {
                 granularityEnabled: true,
                 position: 'BOTTOM',
                 textSize: 10,
-                textColor: '#666',
-                axisLineColor: '#E0E0E0',
-                gridColor: '#E0E0E0',
+                textColor: colors.textSecondary,
+                axisLineColor: colors.border,
+                gridColor: colors.border,
                 avoidFirstLastClipping: true,
               }}
               yAxis={{
@@ -260,9 +264,9 @@ export default function ReportsScreen(): React.JSX.Element {
                   axisMinimum: 0,
                   axisMaximum: maxValue,
                   textSize: 10,
-                  textColor: '#666',
-                  axisLineColor: '#E0E0E0',
-                  gridColor: 'rgba(0, 0, 0, 0.1)',
+                  textColor: colors.textSecondary,
+                  axisLineColor: colors.border,
+                  gridColor: colors.border + '40',
                   valueFormatter: '$#',
                 },
                 right: {
@@ -294,24 +298,24 @@ export default function ReportsScreen(): React.JSX.Element {
 
       {/* Category Breakdown */}
       {categoryData.length > 0 && (
-        <View style={styles.chartContainer}>
-          <Text style={styles.sectionTitle}>Top Expenses</Text>
+        <View style={styles.chartContainer(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Top Expenses</Text>
           <View style={styles.pieChartContainer}>
             <PieChart
               data={transformPieChartData()}
               radius={90}
               showText
-              textColor="#333"
+              textColor={colors.text}
               textSize={12}
               focusOnPress
               showGradient
               donut
               innerRadius={60}
-              innerCircleColor="#fff"
+              innerCircleColor={colors.surface}
               centerLabelComponent={() => (
                 <View style={styles.pieChartCenter}>
-                  <Text style={styles.pieChartCenterText}>Total</Text>
-                  <Text style={styles.pieChartCenterValue}>
+                  <Text style={styles.pieChartCenterText(colors)}>Total</Text>
+                  <Text style={styles.pieChartCenterValue(colors)}>
                     ${categoryData.reduce((sum, item) => sum + item.population, 0).toLocaleString()}
                   </Text>
                 </View>
@@ -322,8 +326,8 @@ export default function ReportsScreen(): React.JSX.Element {
       )}
 
       {/* Recent Transactions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
+      <View style={styles.section(colors)}>
+        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Recent Transactions</Text>
         {transactions.length > 0 ? (
           transactions.slice(0, 5).map(t => (
             <View key={t.id} style={{ marginBottom: 10 }}>
@@ -331,185 +335,200 @@ export default function ReportsScreen(): React.JSX.Element {
             </View>
           ))
         ) : (
-          <Text style={styles.emptyText}>No transactions found for this period.</Text>
+          <Text style={styles.emptyText(colors)}>No transactions found for this period.</Text>
         )}
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = {
+  container: (colors: any) => ({
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: colors.background,
+  }),
   centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
-  header: {
-    backgroundColor: '#fff',
+  header: (colors: any) => ({
+    backgroundColor: colors.surface,
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerTitle: {
+    borderBottomColor: colors.border,
+  }),
+  headerTitle: (colors: any) => ({
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
+  }),
+  headerTitleRTL: {
+    textAlign: 'right' as const,
   },
-  periodSelector: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
+  periodSelector: (colors: any) => ({
+    flexDirection: 'row' as const,
+    backgroundColor: colors.surface,
     margin: 16,
     borderRadius: 8,
     padding: 4,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  periodButton: {
+    borderColor: colors.border,
+  }),
+  periodButton: (colors: any) => ({
     flex: 1,
     paddingVertical: 8,
-    alignItems: 'center',
+    alignItems: 'center' as const,
     borderRadius: 6,
-  },
-  periodButtonActive: {
-    backgroundColor: '#4CAF50',
-  },
-  periodButtonText: {
-    color: '#666',
-    fontWeight: '600',
-  },
+  }),
+  periodButtonActive: (colors: any) => ({
+    backgroundColor: colors.primary,
+  }),
+  periodButtonText: (colors: any) => ({
+    color: colors.textSecondary,
+    fontWeight: '600' as const,
+  }),
   periodButtonTextActive: {
     color: '#fff',
   },
   dateNavigator: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  navButton: {
+  dateNavigatorRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  navButton: (colors: any) => ({
     padding: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     elevation: 2,
-  },
-  dateText: {
+  }),
+  dateText: (colors: any) => ({
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
+    fontWeight: '600' as const,
+    color: colors.text,
+  }),
   summaryContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     paddingHorizontal: 16,
     gap: 12,
     marginBottom: 20,
   },
-  summaryCard: {
+  summaryContainerRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  summaryCard: (colors: any) => ({
     flex: 1,
     padding: 12,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: 'center' as const,
     elevation: 2,
-  },
-  summaryLabel: {
+  }),
+  summaryLabel: (colors: any) => ({
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 4,
-  },
+  }),
   summaryValue: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
-  chartContainer: {
-    backgroundColor: '#fff',
+  chartContainer: (colors: any) => ({
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
     borderRadius: 12,
     elevation: 2,
-  },
-  section: {
+  }),
+  section: (colors: any) => ({
     paddingHorizontal: 16,
     marginBottom: 20,
-  },
-  sectionTitle: {
+  }),
+  sectionTitle: (colors: any) => ({
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     marginBottom: 12,
-    color: '#333',
+    color: colors.text,
+  }),
+  sectionTitleRTL: {
+    textAlign: 'right' as const,
   },
-  transactionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+  transactionItem: (colors: any) => ({
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
+  }),
+  transactionItemRTL: {
+    flexDirection: 'row-reverse' as const,
   },
   transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 12,
   },
-  transactionIcon: {
+  transactionIcon: (colors: any) => ({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  transactionCategory: {
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  }),
+  transactionCategory: (colors: any) => ({
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  transactionDate: {
+    fontWeight: '500' as const,
+    color: colors.text,
+  }),
+  transactionDate: (colors: any) => ({
     fontSize: 12,
-    color: '#666',
-  },
+    color: colors.textSecondary,
+  }),
   transactionAmount: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
+  emptyText: (colors: any) => ({
+    textAlign: 'center' as const,
+    color: colors.textSecondary,
     marginTop: 20,
-  },
+  }),
   pieChartContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     paddingVertical: 20,
   },
   pieChartCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  pieChartCenterText: {
+  pieChartCenterText: (colors: any) => ({
     fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  pieChartCenterValue: {
+    color: colors.textSecondary,
+    fontWeight: '500' as const,
+  }),
+  pieChartCenterValue: (colors: any) => ({
     fontSize: 18,
-    color: '#333',
-    fontWeight: 'bold',
+    color: colors.text,
+    fontWeight: 'bold' as const,
     marginTop: 4,
-  },
+  }),
   legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     marginTop: 16,
     gap: 24,
   },
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 8,
   },
   legendColor: {
@@ -520,10 +539,10 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
   barChart: {
     height: 240,
     marginVertical: 12,
   },
-});
+};

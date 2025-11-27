@@ -22,7 +22,7 @@ import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from 
 
 const screenWidth = Dimensions.get('window').width;
 
-export default function HomeScreen(): JSX.Element {
+export default function HomeScreen(): React.JSX.Element {
   const navigation = useNavigation<any>();
   const { user, isAuthenticated } = useUser();
   const { t, isRTL } = useI18n();
@@ -489,230 +489,234 @@ export default function HomeScreen(): JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = {
+  container: (colors: any) => ({
     flex: 1,
-    backgroundColor: '#E8F5E9',
-  },
+    backgroundColor: colors.background,
+  }),
   centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
-  loadingText: {
+  loadingText: (colors: any) => ({
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
-  appBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    color: colors.textSecondary,
+  }),
+  appBar: (colors: any) => ({
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 16,
     paddingVertical: 16,
     paddingTop: 50,
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.primary,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-  },
+  }),
   appBarTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     color: '#fff',
+  },
+  appBarTitleRTL: {
+    textAlign: 'right' as const,
   },
   scrollView: {
     flex: 1,
   },
-  section: {
-    backgroundColor: '#fff',
+  section: (colors: any) => ({
+    backgroundColor: colors.surface,
     margin: 10,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  sectionTitle: {
+  }),
+  sectionTitle: (colors: any) => ({
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
     marginBottom: 12,
-  },
+  }),
   sectionTitleRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   financialCards: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 10,
   },
   financialCardsRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row-reverse' as const,
   },
-  financialCard: {
+  financialCard: (colors: any) => ({
     flex: 1,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#F5F5F5',
-  },
-  incomeCard: {
+    backgroundColor: colors.inputBackground,
+  }),
+  incomeCard: (colors: any) => ({
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  expenseCard: {
+    borderLeftColor: colors.income,
+  }),
+  expenseCard: (colors: any) => ({
     borderLeftWidth: 4,
-    borderLeftColor: '#F44336',
-  },
-  balanceCard: {
+    borderLeftColor: colors.expense,
+  }),
+  balanceCard: (colors: any) => ({
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  financialLabel: {
+    borderLeftColor: colors.income,
+  }),
+  financialLabel: (colors: any) => ({
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 8,
-  },
+  }),
   financialAmount: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
-  incomeAmount: {
-    color: '#4CAF50',
-  },
-  expenseAmount: {
-    color: '#F44336',
-  },
-  balanceAmount: {
-    color: '#4CAF50',
-  },
+  incomeAmount: (colors: any) => ({
+    color: colors.income,
+  }),
+  expenseAmount: (colors: any) => ({
+    color: colors.expense,
+  }),
+  balanceAmount: (colors: any) => ({
+    color: colors.income,
+  }),
   actionButtons: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
   },
   actionButtonsRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row-reverse' as const,
   },
   actionButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     padding: 16,
     borderRadius: 12,
     gap: 8,
   },
-  addIncomeButton: {
-    backgroundColor: '#4CAF50',
-  },
-  addExpenseButton: {
-    backgroundColor: '#F44336',
-  },
+  addIncomeButton: (colors: any) => ({
+    backgroundColor: colors.income,
+  }),
+  addExpenseButton: (colors: any) => ({
+    backgroundColor: colors.expense,
+  }),
   actionButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
-  chartContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  chartContainer: (colors: any) => ({
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     marginVertical: 12,
     paddingVertical: 12,
     paddingHorizontal: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
-  },
+  }),
   chart: {
     marginVertical: 4,
     borderRadius: 16,
   },
   chartInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
     marginTop: 8,
   },
   chartInfoRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row-reverse' as const,
   },
-  chartLabel: {
+  chartLabel: (colors: any) => ({
     fontSize: 14,
-    color: '#666',
-  },
+    color: colors.textSecondary,
+  }),
   categoryButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
     gap: 8,
     marginBottom: 12,
   },
-  categoryButton: {
+  categoryButton: (colors: any) => ({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#4CAF50',
-  },
-  categoryButtonText: {
-    color: '#4CAF50',
+    borderColor: colors.primary,
+  }),
+  categoryButtonActive: (colors: any) => ({
+    backgroundColor: colors.primary,
+  }),
+  categoryButtonText: (colors: any) => ({
+    color: colors.primary,
     fontSize: 14,
-    fontWeight: '500',
-  },
+    fontWeight: '500' as const,
+  }),
   categoryButtonTextActive: {
     color: '#fff',
   },
-  fullInput: {
+  fullInput: (colors: any) => ({
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
     marginBottom: 12,
-    backgroundColor: '#fff',
-  },
+    backgroundColor: colors.surface,
+    color: colors.text,
+  }),
   fullInputRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   saveButtons: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
   },
   saveButtonsRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row-reverse' as const,
   },
   saveButton: {
     flex: 1,
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  saveIncomeButton: {
-    backgroundColor: '#4CAF50',
-  },
-  saveExpenseButton: {
-    backgroundColor: '#F44336',
-  },
-  saveNewButton: {
-    backgroundColor: '#81C784',
-  },
+  saveIncomeButton: (colors: any) => ({
+    backgroundColor: colors.income,
+  }),
+  saveExpenseButton: (colors: any) => ({
+    backgroundColor: colors.expense,
+  }),
+  saveNewButton: (colors: any) => ({
+    backgroundColor: colors.primaryLight,
+  }),
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
   barChart: {
     height: 280,
     marginVertical: 12,
   },
-});
+};
 

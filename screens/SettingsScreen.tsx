@@ -21,7 +21,7 @@ import { transactionApi, categoryApi, alertApi, reminderApi } from '../src/servi
 
 const HAS_PIN_FLAG = 'agribooks_has_pin';
 
-export default function SettingsScreen(): JSX.Element {
+export default function SettingsScreen(): React.JSX.Element {
   const { user, settings, updateSettings, isLoading, isOffline, pendingCount: contextPendingCount, syncData } = useUser();
   const { t, setLocale, isRTL, locale } = useI18n();
   const { colors } = useTheme();
@@ -304,7 +304,9 @@ export default function SettingsScreen(): JSX.Element {
 
     try {
       setSaving(true);
-      await updateSettings({ pin: pinString, pinEnabled: true });
+      // Store PIN hash in SecureStore (in production, hash it first)
+      await SecureStore.setItemAsync('user_pin', pinString);
+      await updateSettings({ pinEnabled: true });
       await SecureStore.setItemAsync(HAS_PIN_FLAG, 'true');
       setHasSavedPin(true);
       Alert.alert(t('app.success'), t('settings.pinSaved'));
@@ -550,7 +552,7 @@ export default function SettingsScreen(): JSX.Element {
           
           <TouchableOpacity
             style={[styles.syncButton(colors), (!isOnline || syncing) && styles.syncButtonDisabled(colors)]}
-            onPress={handleManualSync}
+            onPress={() => handleManualSync()}
             disabled={!isOnline || syncing}
           >
             {syncing ? (

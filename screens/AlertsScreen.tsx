@@ -12,11 +12,15 @@ import {
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
+import { useI18n } from '../src/context/I18nContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { alertApi, reminderApi, settingsApi } from '../src/services/api.service';
 import { Alert as AlertType, Reminder } from '../src/types';
 
-export default function AlertsScreen(): JSX.Element {
+export default function AlertsScreen(): React.JSX.Element {
   const { isAuthenticated, settings, updateSettings } = useUser();
+  const { isRTL } = useI18n();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [alerts, setAlerts] = useState<AlertType[]>([]);
@@ -127,40 +131,40 @@ export default function AlertsScreen(): JSX.Element {
 
   if (loading && alerts.length === 0) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Loading alerts...</Text>
+      <View style={[styles.container(colors), styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText(colors)}>Loading alerts...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={styles.container(colors)}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reminders & Alerts</Text>
+      <View style={styles.header(colors)}>
+        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>Reminders & Alerts</Text>
       </View>
 
       {/* Active Alerts */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Active Alerts</Text>
+      <View style={styles.section(colors)}>
+        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Active Alerts</Text>
         {alerts.length === 0 ? (
-          <Text style={styles.emptyText}>No active alerts</Text>
+          <Text style={styles.emptyText(colors)}>No active alerts</Text>
         ) : (
           alerts.map((alert) => {
             const color = getAlertColor(alert.type);
             return (
               <TouchableOpacity
                 key={alert.id}
-                style={styles.alertItem}
+                style={[styles.alertItem(colors), isRTL && styles.alertItemRTL]}
                 onPress={() => handleMarkAsRead(alert.id)}
               >
                 <View style={[styles.alertDot, { backgroundColor: color }]} />
                 <View style={styles.alertContent}>
-                  <Text style={styles.alertMessage}>{alert.message}</Text>
-                  <Text style={styles.alertTime}>{formatTimeAgo(alert.createdAt)}</Text>
+                  <Text style={styles.alertMessage(colors)}>{alert.message}</Text>
+                  <Text style={styles.alertTime(colors)}>{formatTimeAgo(alert.createdAt)}</Text>
                 </View>
                 <Icon name={getIconName(alert.type)} size={24} color={color} />
               </TouchableOpacity>
@@ -170,31 +174,31 @@ export default function AlertsScreen(): JSX.Element {
       </View>
 
       {/* Reminders */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Reminders</Text>
+      <View style={styles.section(colors)}>
+        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Reminders</Text>
         {reminders.length === 0 ? (
-          <Text style={styles.emptyText}>No reminders</Text>
+          <Text style={styles.emptyText(colors)}>No reminders</Text>
         ) : (
           reminders.map((reminder) => (
             <TouchableOpacity
               key={reminder.id}
-              style={styles.reminderItem}
+              style={[styles.reminderItem(colors), isRTL && styles.reminderItemRTL]}
               onPress={() => handleToggleReminder(reminder.id)}
             >
               <View style={styles.reminderContent}>
-                <Text style={styles.reminderTitle}>{reminder.title}</Text>
+                <Text style={styles.reminderTitle(colors)}>{reminder.title}</Text>
                 {reminder.description && (
-                  <Text style={styles.reminderDescription}>{reminder.description}</Text>
+                  <Text style={styles.reminderDescription(colors)}>{reminder.description}</Text>
                 )}
-                <Text style={styles.reminderDate}>
+                <Text style={styles.reminderDate(colors)}>
                   Due: {new Date(reminder.dueDate).toLocaleDateString()}
                 </Text>
               </View>
               <TouchableOpacity
-                style={[styles.checkbox, reminder.completed && styles.checkboxCompleted]}
+                style={[styles.checkbox(colors), reminder.completed && styles.checkboxCompleted(colors)]}
                 onPress={() => handleToggleReminder(reminder.id)}
               >
-                {reminder.completed && <Icon name="check" size={20} color="#fff" />}
+                {reminder.completed && <Icon name="check" size={20} color={colors.textInverse} />}
               </TouchableOpacity>
             </TouchableOpacity>
           ))
@@ -203,54 +207,54 @@ export default function AlertsScreen(): JSX.Element {
 
       {/* Alert Settings */}
       {settings && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alert Settings</Text>
-          <View style={styles.settingItem}>
+        <View style={styles.section(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Alert Settings</Text>
+          <View style={[styles.settingItem(colors), isRTL && styles.settingItemRTL]}>
             <View style={styles.settingContent}>
-              <Text style={styles.settingLabel}>Push Notifications</Text>
-              <Text style={styles.settingDescription}>Receive alerts on your device</Text>
+              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>Push Notifications</Text>
+              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>Receive alerts on your device</Text>
             </View>
             <TouchableOpacity
-              style={styles.toggle}
+              style={styles.toggle(colors)}
               onPress={() => handleToggleSetting('pushNotifications', !settings.pushNotifications)}
             >
               <View
                 style={[
-                  styles.toggleCircle,
-                  settings.pushNotifications && styles.toggleActive,
+                  styles.toggleCircle(colors),
+                  settings.pushNotifications && styles.toggleActive(colors),
                 ]}
               />
             </TouchableOpacity>
           </View>
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem(colors), isRTL && styles.settingItemRTL]}>
             <View style={styles.settingContent}>
-              <Text style={styles.settingLabel}>Email Notifications</Text>
-              <Text style={styles.settingDescription}>Receive alerts via email</Text>
+              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>Email Notifications</Text>
+              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>Receive alerts via email</Text>
             </View>
             <TouchableOpacity
-              style={styles.toggle}
+              style={styles.toggle(colors)}
               onPress={() => handleToggleSetting('emailNotifications', !settings.emailNotifications)}
             >
               <View
-                style={[styles.toggleCircle, settings.emailNotifications && styles.toggleActive]}
+                style={[styles.toggleCircle(colors), settings.emailNotifications && styles.toggleActive(colors)]}
               />
             </TouchableOpacity>
           </View>
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem(colors), isRTL && styles.settingItemRTL]}>
             <View style={styles.settingContent}>
-              <Text style={styles.settingLabel}>Expense Threshold Alert</Text>
-              <Text style={styles.settingDescription}>Alert when expenses exceed limit</Text>
+              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>Expense Threshold Alert</Text>
+              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>Alert when expenses exceed limit</Text>
             </View>
             <TouchableOpacity
-              style={styles.toggle}
+              style={styles.toggle(colors)}
               onPress={() =>
                 handleToggleSetting('expenseThresholdAlert', !settings.expenseThresholdAlert)
               }
             >
               <View
                 style={[
-                  styles.toggleCircle,
-                  settings.expenseThresholdAlert && styles.toggleActive,
+                  styles.toggleCircle(colors),
+                  settings.expenseThresholdAlert && styles.toggleActive(colors),
                 ]}
               />
             </TouchableOpacity>
@@ -261,62 +265,71 @@ export default function AlertsScreen(): JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = {
+  container: (colors: any) => ({
     flex: 1,
-    backgroundColor: '#E8F5E9',
-  },
+    backgroundColor: colors.background,
+  }),
   centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
-  loadingText: {
+  loadingText: (colors: any) => ({
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#999',
+    color: colors.textSecondary,
+  }),
+  emptyText: (colors: any) => ({
+    textAlign: 'center' as const,
+    color: colors.textSecondary,
     fontSize: 14,
     padding: 20,
-  },
-  header: {
-    backgroundColor: '#fff',
+  }),
+  header: (colors: any) => ({
+    backgroundColor: colors.surface,
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerTitle: {
+    borderBottomColor: colors.border,
+  }),
+  headerTitle: (colors: any) => ({
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
+  }),
+  headerTitleRTL: {
+    textAlign: 'right' as const,
   },
-  section: {
-    backgroundColor: '#fff',
+  section: (colors: any) => ({
+    backgroundColor: colors.surface,
     margin: 10,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  sectionTitle: {
+  }),
+  sectionTitle: (colors: any) => ({
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
     marginBottom: 16,
+  }),
+  sectionTitleRTL: {
+    textAlign: 'right' as const,
   },
-  alertItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  alertItem: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     padding: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.inputBackground,
     borderRadius: 8,
     marginBottom: 8,
     gap: 12,
+  }),
+  alertItemRTL: {
+    flexDirection: 'row-reverse' as const,
   },
   alertDot: {
     width: 12,
@@ -326,93 +339,105 @@ const styles = StyleSheet.create({
   alertContent: {
     flex: 1,
   },
-  alertMessage: {
+  alertMessage: (colors: any) => ({
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
     marginBottom: 4,
-  },
-  alertTime: {
+  }),
+  alertTime: (colors: any) => ({
     fontSize: 12,
-    color: '#666',
-  },
-  reminderItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    color: colors.textSecondary,
+  }),
+  reminderItem: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     padding: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.inputBackground,
     borderRadius: 8,
     marginBottom: 8,
     gap: 12,
+  }),
+  reminderItemRTL: {
+    flexDirection: 'row-reverse' as const,
   },
   reminderContent: {
     flex: 1,
   },
-  reminderTitle: {
+  reminderTitle: (colors: any) => ({
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
     marginBottom: 4,
-  },
-  reminderDescription: {
+  }),
+  reminderDescription: (colors: any) => ({
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 4,
-  },
-  reminderDate: {
+  }),
+  reminderDate: (colors: any) => ({
     fontSize: 12,
-    color: '#999',
-  },
-  checkbox: {
+    color: colors.textSecondary,
+  }),
+  checkbox: (colors: any) => ({
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#4CAF50',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxCompleted: {
-    backgroundColor: '#4CAF50',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderColor: colors.primary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  }),
+  checkboxCompleted: (colors: any) => ({
+    backgroundColor: colors.primary,
+  }),
+  settingItem: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     padding: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.inputBackground,
     borderRadius: 8,
     marginBottom: 8,
+  }),
+  settingItemRTL: {
+    flexDirection: 'row-reverse' as const,
   },
   settingContent: {
     flex: 1,
   },
-  settingLabel: {
+  settingLabel: (colors: any) => ({
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '600' as const,
+    color: colors.text,
     marginBottom: 4,
+  }),
+  settingLabelRTL: {
+    textAlign: 'right' as const,
   },
-  settingDescription: {
+  settingDescription: (colors: any) => ({
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
+  }),
+  settingDescriptionRTL: {
+    textAlign: 'right' as const,
   },
-  toggle: {
+  toggle: (colors: any) => ({
     width: 50,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center',
+    backgroundColor: colors.border,
+    justifyContent: 'center' as const,
     padding: 2,
-  },
-  toggleCircle: {
+  }),
+  toggleCircle: (colors: any) => ({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#fff',
-  },
-  toggleActive: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#4CAF50',
-  },
-});
+    backgroundColor: colors.surface,
+  }),
+  toggleActive: (colors: any) => ({
+    alignSelf: 'flex-end' as const,
+    backgroundColor: colors.primary,
+  }),
+};
 

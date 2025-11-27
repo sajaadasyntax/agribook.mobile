@@ -13,13 +13,15 @@ import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { categoryApi, transactionApi } from '../src/services/api.service';
 import syncService from '../src/services/sync.service';
 import { Category, CreateTransactionDto } from '../src/types';
 
-export default function AddScreen(): JSX.Element {
+export default function AddScreen(): React.JSX.Element {
   const { isAuthenticated, isOffline, settings, pendingCount } = useUser();
   const { t, isRTL } = useI18n();
+  const { colors } = useTheme();
   const [entryType, setEntryType] = useState<'income' | 'expense'>('income');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
@@ -256,14 +258,14 @@ export default function AddScreen(): JSX.Element {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={styles.container(colors)}>
+      <View style={styles.header(colors)}>
         <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
           {t('add.title') || 'Add Transaction'}
         </Text>
         {(isOffline || settings?.offlineMode) && (
           <View style={styles.offlineBadge}>
-            <Icon name="cloud-off" size={16} color="#fff" />
+            <Icon name="cloud-off" size={16} color={colors.textInverse} />
             <Text style={styles.offlineBadgeText}>
               {t('settings.offline') || 'Offline'}
             </Text>
@@ -273,9 +275,9 @@ export default function AddScreen(): JSX.Element {
 
       {/* Pending sync indicator */}
       {pendingCount > 0 && (
-        <View style={styles.pendingBanner}>
-          <Icon name="sync-problem" size={20} color="#FF9800" />
-          <Text style={styles.pendingText}>
+        <View style={styles.pendingBanner(colors)}>
+          <Icon name="sync-problem" size={20} color={colors.warning} />
+          <Text style={styles.pendingText(colors)}>
             {t('settings.pendingItems', { count: pendingCount }) || 
               `${pendingCount} item(s) pending sync`}
           </Text>
@@ -283,19 +285,19 @@ export default function AddScreen(): JSX.Element {
       )}
 
       {/* Type Selector */}
-      <View style={styles.section}>
-        <View style={styles.typeSelector}>
+      <View style={styles.section(colors)}>
+        <View style={[styles.typeSelector, isRTL && styles.typeSelectorRTL]}>
           <TouchableOpacity
-            style={[styles.typeButton, entryType === 'income' && styles.typeButtonActive]}
+            style={[styles.typeButton(colors), entryType === 'income' && styles.typeButtonActive(colors)]}
             onPress={() => {
               setEntryType('income');
               setSelectedCategory('');
             }}
           >
-            <Icon name="add" size={24} color={entryType === 'income' ? '#fff' : '#4CAF50'} />
+            <Icon name="add" size={24} color={entryType === 'income' ? colors.textInverse : colors.income} />
             <Text
               style={[
-                styles.typeButtonText,
+                styles.typeButtonText(colors),
                 entryType === 'income' && styles.typeButtonTextActive,
               ]}
             >
@@ -303,17 +305,17 @@ export default function AddScreen(): JSX.Element {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.typeButton, entryType === 'expense' && styles.typeButtonActiveExpense]}
+            style={[styles.typeButton(colors), entryType === 'expense' && styles.typeButtonActiveExpense(colors)]}
             onPress={() => {
               setEntryType('expense');
               setSelectedCategory('');
             }}
           >
-            <Icon name="remove" size={24} color={entryType === 'expense' ? '#fff' : '#F44336'} />
+            <Icon name="remove" size={24} color={entryType === 'expense' ? colors.textInverse : colors.expense} />
             <Text
               style={[
-                styles.typeButtonText,
-                styles.typeButtonTextExpense,
+                styles.typeButtonText(colors),
+                styles.typeButtonTextExpense(colors),
                 entryType === 'expense' && styles.typeButtonTextActive,
               ]}
             >
@@ -324,8 +326,8 @@ export default function AddScreen(): JSX.Element {
       </View>
 
       {/* Entry Form */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>
+      <View style={styles.section(colors)}>
+        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
           {entryType === 'income' 
             ? (t('add.incomeEntry') || 'Income Entry')
             : (t('add.expenseEntry') || 'Expense Entry')
@@ -333,19 +335,19 @@ export default function AddScreen(): JSX.Element {
         </Text>
 
         {/* Category Selection */}
-        <Text style={[styles.label, isRTL && styles.labelRTL]}>
+        <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
           {t('add.category') || 'Category'}
         </Text>
         {loadingCategories ? (
-          <ActivityIndicator size="small" color="#4CAF50" style={styles.loader} />
+          <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
         ) : categories.length === 0 ? (
           <View style={styles.noCategoriesContainer}>
-            <Icon name="category" size={40} color="#ccc" />
-            <Text style={styles.noCategoriesText}>
+            <Icon name="category" size={40} color={colors.textSecondary} />
+            <Text style={styles.noCategoriesText(colors)}>
               {t('add.noCategories') || 'No categories available'}
             </Text>
             {(isOffline || settings?.offlineMode) && (
-              <Text style={styles.noCategoriesHint}>
+              <Text style={styles.noCategoriesHint(colors)}>
                 {t('add.connectToLoadCategories') || 'Connect to internet to load categories'}
               </Text>
             )}
@@ -356,14 +358,14 @@ export default function AddScreen(): JSX.Element {
               <TouchableOpacity
                 key={cat.id}
                 style={[
-                  styles.categoryButton,
-                  selectedCategory === cat.id && styles.categoryButtonActive,
+                  styles.categoryButton(colors),
+                  selectedCategory === cat.id && styles.categoryButtonActive(colors),
                 ]}
                 onPress={() => setSelectedCategory(cat.id)}
               >
                 <Text
                   style={[
-                    styles.categoryButtonText,
+                    styles.categoryButtonText(colors),
                     selectedCategory === cat.id && styles.categoryButtonTextActive,
                   ]}
                 >
@@ -375,15 +377,16 @@ export default function AddScreen(): JSX.Element {
         )}
 
         {/* Amount Input */}
-        <Text style={[styles.label, isRTL && styles.labelRTL]}>
+        <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
           {t('add.amount') || 'Amount'}
         </Text>
         <TextInput
-          style={[styles.input, isRTL && styles.inputRTL]}
+          style={[styles.input(colors), isRTL && styles.inputRTL]}
           placeholder={entryType === 'income' 
             ? (t('add.amountPlaceholderIncome') || 'e.g., 1200')
             : (t('add.amountPlaceholderExpense') || 'e.g., 450')
           }
+          placeholderTextColor={colors.textSecondary}
           keyboardType="numeric"
           value={amount}
           onChangeText={setAmount}
@@ -391,12 +394,13 @@ export default function AddScreen(): JSX.Element {
         />
 
         {/* Notes Input */}
-        <Text style={[styles.label, isRTL && styles.labelRTL]}>
+        <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
           {t('add.notes') || 'Notes'}
         </Text>
         <TextInput
-          style={[styles.input, styles.textArea, isRTL && styles.inputRTL]}
+          style={[styles.input(colors), styles.textArea, isRTL && styles.inputRTL]}
           placeholder={t('add.notesPlaceholder') || 'Add description'}
+          placeholderTextColor={colors.textSecondary}
           multiline
           numberOfLines={4}
           value={notes}
@@ -405,22 +409,22 @@ export default function AddScreen(): JSX.Element {
         />
 
         {/* Save Buttons */}
-        <View style={styles.saveButtons}>
+        <View style={[styles.saveButtons, isRTL && styles.saveButtonsRTL]}>
           <TouchableOpacity
             style={[
               styles.saveButton,
-              entryType === 'income' ? styles.saveIncomeButton : styles.saveExpenseButton,
+              entryType === 'income' ? styles.saveIncomeButton(colors) : styles.saveExpenseButton(colors),
               loading && styles.saveButtonDisabled,
             ]}
             onPress={handleSave}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textInverse} />
             ) : (
               <>
                 {(isOffline || settings?.offlineMode) && (
-                  <Icon name="cloud-off" size={18} color="#fff" style={styles.saveButtonIcon} />
+                  <Icon name="cloud-off" size={18} color={colors.textInverse} style={styles.saveButtonIcon} />
                 )}
                 <Text style={styles.saveButtonText}>
                   {t('add.save') || 'Save'} {entryType === 'income' 
@@ -432,7 +436,7 @@ export default function AddScreen(): JSX.Element {
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.saveButton, styles.saveNewButton, loading && styles.saveButtonDisabled]}
+            style={[styles.saveButton, styles.saveNewButton(colors), loading && styles.saveButtonDisabled]}
             onPress={handleSaveAndNew}
             disabled={loading}
           >
@@ -446,30 +450,30 @@ export default function AddScreen(): JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = {
+  container: (colors: any) => ({
     flex: 1,
-    backgroundColor: '#E8F5E9',
-  },
-  header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.background,
+  }),
+  header: (colors: any) => ({
+    backgroundColor: colors.primary,
     padding: 16,
     paddingTop: 50,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  }),
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     color: '#fff',
   },
   headerTitleRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   offlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     backgroundColor: 'rgba(0,0,0,0.2)',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -479,157 +483,164 @@ const styles = StyleSheet.create({
   offlineBadgeText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
-  pendingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+  pendingBanner: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.warning + '20',
     padding: 12,
     margin: 10,
     borderRadius: 8,
     gap: 8,
-  },
-  pendingText: {
-    color: '#E65100',
+  }),
+  pendingText: (colors: any) => ({
+    color: colors.warning,
     fontSize: 14,
     flex: 1,
-  },
-  section: {
-    backgroundColor: '#fff',
+  }),
+  section: (colors: any) => ({
+    backgroundColor: colors.surface,
     margin: 10,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  sectionTitle: {
+  }),
+  sectionTitle: (colors: any) => ({
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
     marginBottom: 16,
-  },
+  }),
   sectionTitleRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   typeSelector: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
   },
-  typeButton: {
+  typeSelectorRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  typeButton: (colors: any) => ({
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#4CAF50',
-    backgroundColor: '#fff',
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
     gap: 8,
-  },
-  typeButtonActive: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  typeButtonActiveExpense: {
-    backgroundColor: '#F44336',
-    borderColor: '#F44336',
-  },
-  typeButtonText: {
+  }),
+  typeButtonActive: (colors: any) => ({
+    backgroundColor: colors.income,
+    borderColor: colors.income,
+  }),
+  typeButtonActiveExpense: (colors: any) => ({
+    backgroundColor: colors.expense,
+    borderColor: colors.expense,
+  }),
+  typeButtonText: (colors: any) => ({
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  typeButtonTextExpense: {
-    color: '#F44336',
-  },
+    fontWeight: 'bold' as const,
+    color: colors.income,
+  }),
+  typeButtonTextExpense: (colors: any) => ({
+    color: colors.expense,
+  }),
   typeButtonTextActive: {
     color: '#fff',
   },
-  label: {
+  label: (colors: any) => ({
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '600' as const,
+    color: colors.text,
     marginBottom: 8,
     marginTop: 12,
-  },
+  }),
   labelRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   loader: {
     marginVertical: 12,
   },
   noCategoriesContainer: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
     paddingVertical: 24,
   },
-  noCategoriesText: {
+  noCategoriesText: (colors: any) => ({
     marginTop: 8,
-    color: '#999',
+    color: colors.textSecondary,
     fontSize: 14,
-  },
-  noCategoriesHint: {
+  }),
+  noCategoriesHint: (colors: any) => ({
     marginTop: 4,
-    color: '#ccc',
+    color: colors.textSecondary,
     fontSize: 12,
-  },
+  }),
   categoryButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
     gap: 8,
     marginBottom: 8,
   },
-  categoryButton: {
+  categoryButton: (colors: any) => ({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#4CAF50',
-  },
-  categoryButtonText: {
-    color: '#4CAF50',
+    borderColor: colors.primary,
+  }),
+  categoryButtonActive: (colors: any) => ({
+    backgroundColor: colors.primary,
+  }),
+  categoryButtonText: (colors: any) => ({
+    color: colors.primary,
     fontSize: 14,
-    fontWeight: '500',
-  },
+    fontWeight: '500' as const,
+  }),
   categoryButtonTextActive: {
     color: '#fff',
   },
-  input: {
+  input: (colors: any) => ({
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
+    color: colors.text,
     marginBottom: 8,
-  },
+  }),
   inputRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: 'top' as const,
   },
   saveButtons: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
     marginTop: 16,
   },
+  saveButtonsRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
   saveButton: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   saveButtonDisabled: {
     opacity: 0.6,
@@ -637,18 +648,18 @@ const styles = StyleSheet.create({
   saveButtonIcon: {
     marginRight: 6,
   },
-  saveIncomeButton: {
-    backgroundColor: '#4CAF50',
-  },
-  saveExpenseButton: {
-    backgroundColor: '#F44336',
-  },
-  saveNewButton: {
-    backgroundColor: '#81C784',
-  },
+  saveIncomeButton: (colors: any) => ({
+    backgroundColor: colors.income,
+  }),
+  saveExpenseButton: (colors: any) => ({
+    backgroundColor: colors.expense,
+  }),
+  saveNewButton: (colors: any) => ({
+    backgroundColor: colors.primaryLight,
+  }),
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
-});
+};
