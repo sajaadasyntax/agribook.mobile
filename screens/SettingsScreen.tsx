@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,51 +12,33 @@ import {
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
-import syncService from '../src/services/sync.service';
+import { useTheme } from '../src/context/ThemeContext';
+import syncService, { SyncStatus } from '../src/services/sync.service';
 import { transactionApi, categoryApi, alertApi, reminderApi } from '../src/services/api.service';
 
+const HAS_PIN_FLAG = 'agribooks_has_pin';
+
 export default function SettingsScreen(): JSX.Element {
-  const { user, settings, updateSettings, isLoading } = useUser();
+  const { user, settings, updateSettings, isLoading, isOffline, pendingCount: contextPendingCount, syncData } = useUser();
   const { t, setLocale, isRTL, locale } = useI18n();
+  const { colors } = useTheme();
   const [saving, setSaving] = useState(false);
   const [pin, setPin] = useState<string[]>(['', '', '', '']);
   const [language, setLanguage] = useState<'en' | 'ar'>(locale as 'en' | 'ar');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('');
-  const [isOnline, setIsOnline] = useState(true);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(!isOffline);
+  const [pendingCount, setPendingCount] = useState(contextPendingCount);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [hasSavedPin, setHasSavedPin] = useState(false);
 
-  // Check biometric availability and sync status on mount
-  useEffect(() => {
-    checkBiometricAvailability();
-    checkSyncStatus();
-    
-    // Listen for connectivity changes
-    const unsubscribe = syncService.addConnectivityListener((online) => {
-      setIsOnline(online);
-      // Auto-sync when coming back online if autoSync is enabled
-      if (online && settings?.autoSync) {
-        handleManualSync();
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (settings) {
-      const lang = (settings.language as 'en' | 'ar') || 'en';
-      setLanguage(lang);
-    }
-  }, [settings]);
-
-  const checkSyncStatus = async (): Promise<void> => {
+  const checkSyncStatus = useCallback(async (): Promise<void> => {
     try {
       const online = await syncService.checkNetworkStatus();
       setIsOnline(online);
@@ -72,7 +54,145 @@ export default function SettingsScreen(): JSX.Element {
     } catch (error) {
       console.error('Error checking sync status:', error);
     }
-  };
+  }, []);
+
+  const handleManualSync = useCallback(async (onlineOverride?: boolean): Promise<void> => {
+    const currentlyOnline = typeof onlineOverride === 'boolean'
+      ? onlineOverride
+      : syncService.getIsOnline();
+
+    if (!currentlyOnline) {
+      Alert.alert(t('app.error'), t('settings.offlineCannotSync'));
+      return;
+    }
+
+    try {
+      setSyncing(true);
+      
+      // First sync pending transactions
+      const pendingTransactions = await syncService.getPendingTransactions();
+      
+      for (const transaction of pendingTransactions) {
+        try {
+          await transactionApi.create({
+            type: transaction.type,
+            amount: transaction.amount,
+            categoryId: transaction.categoryId,
+            description: transaction.description,
+          });
+          // Remove successfully synced transaction
+          await syncService.removePendingTransaction(transaction.id);
+        } catch (error) {
+          console.error('Error syncing transaction:', error);
+          // Update retry count for failed transactions
+          if (syncService.shouldRetry({ ...transaction, retryCount: transaction.retryCount || 0 } as any)) {
+            await syncService.updatePendingTransaction(transaction.id, {
+              retryCount: (transaction.retryCount || 0) + 1,
+            });
+          } else {
+            // Max retries reached, remove from queue
+            await syncService.removePendingTransaction(transaction.id);
+          }
+        }
+      }
+      
+      // Also sync any pending operations from UserContext
+      await syncData();
+      
+      // Fetch fresh data from server and cache it
+      const [transactionsResponse, categories, alerts, reminders] = await Promise.all([
+        transactionApi.getAll({ limit: 100 }),
+        categoryApi.getAll(),
+        alertApi.getAll(),
+        reminderApi.getAll(),
+      ]);
+      
+      await Promise.all([
+        syncService.cacheTransactions(transactionsResponse.data),
+        syncService.cacheCategories(categories),
+        syncService.cacheAlerts(alerts),
+        syncService.cacheReminders(reminders),
+      ]);
+      
+      await syncService.updateLastSyncTime();
+      await checkSyncStatus();
+      
+      Alert.alert(t('app.success'), t('settings.syncComplete'));
+    } catch (error) {
+      console.error('Error syncing:', error);
+      Alert.alert(t('app.error'), t('settings.syncFailed'));
+    } finally {
+      setSyncing(false);
+    }
+  }, [checkSyncStatus, t, syncData]);
+
+  // Check biometric availability and sync status on mount / updates
+  useEffect(() => {
+    checkBiometricAvailability();
+    checkSyncStatus();
+  }, [checkSyncStatus]);
+
+  // Listen to sync status changes
+  useEffect(() => {
+    const unsubscribe = syncService.addSyncStatusListener((status: SyncStatus) => {
+      setIsOnline(status.isOnline);
+      setPendingCount(status.pendingCount);
+      setSyncing(status.isSyncing);
+      if (status.lastSyncTime) {
+        setLastSyncTime(status.lastSyncTime);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Handle auto-sync when coming online
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const unsubscribe = syncService.addConnectivityListener((online) => {
+      setIsOnline(online);
+      if (online && settings?.autoSync && pendingCount > 0) {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          handleManualSync(true);
+        }, 1000);
+      }
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [settings?.autoSync, pendingCount, handleManualSync]);
+
+  useEffect(() => {
+    if (settings) {
+      const lang = (settings.language as 'en' | 'ar') || 'en';
+      setLanguage(lang);
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    const loadHasPinFlag = async (): Promise<void> => {
+      try {
+        if (settings?.pinEnabled) {
+          setHasSavedPin(true);
+          await SecureStore.setItemAsync(HAS_PIN_FLAG, 'true');
+          return;
+        }
+
+        const storedFlag = await SecureStore.getItemAsync(HAS_PIN_FLAG);
+        if (storedFlag === 'true') {
+          setHasSavedPin(true);
+        }
+      } catch (error) {
+        console.error('Error loading PIN flag:', error);
+      }
+    };
+
+    loadHasPinFlag();
+  }, [settings?.pinEnabled]);
 
   const checkBiometricAvailability = async (): Promise<void> => {
     try {
@@ -185,6 +305,8 @@ export default function SettingsScreen(): JSX.Element {
     try {
       setSaving(true);
       await updateSettings({ pin: pinString, pinEnabled: true });
+      await SecureStore.setItemAsync(HAS_PIN_FLAG, 'true');
+      setHasSavedPin(true);
       Alert.alert(t('app.success'), t('settings.pinSaved'));
       setPin(['', '', '', '']);
     } catch (error) {
@@ -196,19 +318,28 @@ export default function SettingsScreen(): JSX.Element {
   };
 
   const handleTogglePinLock = async (): Promise<void> => {
-    // If trying to enable lock but no PIN has been saved
-    if (!settings?.pinEnabled) {
-      // Check if user has a PIN saved (we don't store the actual PIN client-side for security)
-      // Just prompt them to set one first
-      Alert.alert(
-        t('settings.enableLock'),
-        t('settings.setPin'),
-        [{ text: t('app.ok') }]
-      );
+    if (!settings) return;
+
+    if (!settings.pinEnabled) {
+      if (!hasSavedPin) {
+        Alert.alert(
+          t('settings.enableLock'),
+          t('settings.setPin'),
+          [{ text: t('app.ok') }]
+        );
+        return;
+      }
+
+      try {
+        await updateSettings({ pinEnabled: true });
+        Alert.alert(t('app.success'), t('settings.lockEnabled'));
+      } catch (error) {
+        console.error('Error enabling lock:', error);
+        Alert.alert(t('app.error'), t('settings.errorUpdating'));
+      }
       return;
     }
-    
-    // Disabling the lock
+
     try {
       await updateSettings({ pinEnabled: false });
       Alert.alert(t('app.success'), t('settings.lockDisabled'));
@@ -273,64 +404,6 @@ export default function SettingsScreen(): JSX.Element {
     } catch (error) {
       console.error('Error toggling auto sync:', error);
       Alert.alert(t('app.error'), t('settings.errorUpdating'));
-    }
-  };
-
-  const handleManualSync = async (): Promise<void> => {
-    if (!isOnline) {
-      Alert.alert(t('app.error'), t('settings.offlineCannotSync'));
-      return;
-    }
-
-    try {
-      setSyncing(true);
-      
-      // Sync pending transactions
-      const pendingTransactions = await syncService.getPendingTransactions();
-      
-      for (const transaction of pendingTransactions) {
-        try {
-          await transactionApi.create({
-            type: transaction.type,
-            amount: transaction.amount,
-            categoryId: transaction.categoryId,
-            description: transaction.description,
-          });
-        } catch (error) {
-          console.error('Error syncing transaction:', error);
-        }
-      }
-      
-      // Clear pending after successful sync
-      await syncService.clearPendingTransactions();
-      
-      // Update cache with fresh data
-      const [transactionsResponse, categories, alerts, reminders] = await Promise.all([
-        transactionApi.getAll({ limit: 100 }),
-        categoryApi.getAll(),
-        alertApi.getAll(),
-        reminderApi.getAll(),
-      ]);
-      
-      await Promise.all([
-        syncService.cacheTransactions(transactionsResponse.data),
-        syncService.cacheCategories(categories),
-        syncService.cacheAlerts(alerts),
-        syncService.cacheReminders(reminders),
-      ]);
-      
-      // Update sync time
-      await syncService.updateLastSyncTime();
-      
-      // Refresh status
-      await checkSyncStatus();
-      
-      Alert.alert(t('app.success'), t('settings.syncComplete'));
-    } catch (error) {
-      console.error('Error syncing:', error);
-      Alert.alert(t('app.error'), t('settings.syncFailed'));
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -414,26 +487,26 @@ export default function SettingsScreen(): JSX.Element {
 
   if (isLoading || !settings) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>{t('settings.loading')}</Text>
+      <View style={[styles.container(colors), styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText(colors)}>{t('settings.loading')}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.appBar}>
+    <View style={styles.container(colors)}>
+      <View style={styles.appBar(colors)}>
         <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('settings.title')}</Text>
       </View>
 
       <ScrollView style={styles.scrollView}>
         {/* Offline & Sync Section */}
-        <View style={styles.section}>
+        <View style={styles.section(colors)}>
           <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
-            <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('settings.offlineSync')}</Text>
-            <View style={[styles.statusBadge, isOnline ? styles.onlineBadge : styles.offlineBadge]}>
-              <Icon name={isOnline ? 'cloud-done' : 'cloud-off'} size={14} color="#fff" />
+            <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.offlineSync')}</Text>
+            <View style={[styles.statusBadge, isOnline ? styles.onlineBadge(colors) : styles.offlineBadge(colors)]}>
+              <Icon name={isOnline ? 'cloud-done' : 'cloud-off'} size={14} color={colors.textInverse} />
               <Text style={styles.statusBadgeText}>
                 {isOnline ? t('settings.online') : t('settings.offline')}
               </Text>
@@ -441,49 +514,49 @@ export default function SettingsScreen(): JSX.Element {
           </View>
           
           {pendingCount > 0 && (
-            <View style={styles.pendingBanner}>
-              <Icon name="sync-problem" size={20} color="#FF9800" />
-              <Text style={styles.pendingText}>
+            <View style={styles.pendingBanner(colors)}>
+              <Icon name="sync-problem" size={20} color={colors.warning} />
+              <Text style={styles.pendingText(colors)}>
                 {t('settings.pendingItems', { count: pendingCount })}
               </Text>
             </View>
           )}
           
-          <View style={[styles.settingRow, isRTL && styles.settingRowRTL]}>
+          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel, isRTL && styles.settingLabelRTL]}>{t('settings.offlineMode')}</Text>
-              <Text style={[styles.settingDescription, isRTL && styles.settingDescriptionRTL]}>{t('settings.offlineModeDesc')}</Text>
+              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.offlineMode')}</Text>
+              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.offlineModeDesc')}</Text>
             </View>
             <Switch
               value={settings.offlineMode}
               onValueChange={handleToggleOfflineMode}
-              trackColor={{ false: '#E0E0E0', true: '#81C784' }}
-              thumbColor={settings.offlineMode ? '#4CAF50' : '#f4f3f4'}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={settings.offlineMode ? colors.primary : colors.inputBackground}
             />
           </View>
           
-          <View style={[styles.settingRow, isRTL && styles.settingRowRTL]}>
+          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel, isRTL && styles.settingLabelRTL]}>{t('settings.autoSync')}</Text>
-              <Text style={[styles.settingDescription, isRTL && styles.settingDescriptionRTL]}>{t('settings.autoSyncDesc')}</Text>
+              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.autoSync')}</Text>
+              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.autoSyncDesc')}</Text>
             </View>
             <Switch
               value={settings.autoSync}
               onValueChange={handleToggleAutoSync}
-              trackColor={{ false: '#E0E0E0', true: '#81C784' }}
-              thumbColor={settings.autoSync ? '#4CAF50' : '#f4f3f4'}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={settings.autoSync ? colors.primary : colors.inputBackground}
             />
           </View>
           
           <TouchableOpacity
-            style={[styles.syncButton, (!isOnline || syncing) && styles.syncButtonDisabled]}
+            style={[styles.syncButton(colors), (!isOnline || syncing) && styles.syncButtonDisabled(colors)]}
             onPress={handleManualSync}
             disabled={!isOnline || syncing}
           >
             {syncing ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.textInverse} />
             ) : (
-              <Icon name="sync" size={20} color="#fff" />
+              <Icon name="sync" size={20} color={colors.textInverse} />
             )}
             <Text style={styles.syncButtonText}>
               {syncing ? t('settings.syncing') : t('settings.syncNow')}
@@ -491,21 +564,21 @@ export default function SettingsScreen(): JSX.Element {
           </TouchableOpacity>
           
           {lastSyncTime && (
-            <Text style={[styles.lastSyncText, isRTL && styles.lastSyncTextRTL]}>
+            <Text style={[styles.lastSyncText(colors), isRTL && styles.lastSyncTextRTL]}>
               {t('settings.lastSync')}: {formatLastTime(lastSyncTime)}
             </Text>
           )}
         </View>
 
         {/* PIN / Biometric Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('settings.pinBiometric')}</Text>
+        <View style={styles.section(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.pinBiometric')}</Text>
           <View style={styles.pinContainer}>
             {pin.map((digit, index) => (
               <TextInput
                 key={index}
                 ref={(ref) => { pinInputRefs.current[index] = ref; }}
-                style={styles.pinInput}
+                style={styles.pinInput(colors)}
                 value={digit}
                 onChangeText={(value) => handlePinChange(index, value)}
                 onKeyPress={({ nativeEvent }) => handlePinKeyPress(index, nativeEvent.key)}
@@ -517,28 +590,28 @@ export default function SettingsScreen(): JSX.Element {
             ))}
           </View>
           <TouchableOpacity
-            style={[styles.savePinButton, saving && styles.savePinButtonDisabled]}
+            style={[styles.savePinButton(colors), saving && styles.savePinButtonDisabled]}
             onPress={handleSavePin}
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textInverse} />
             ) : (
               <Text style={styles.savePinButtonText}>{t('settings.savePin')}</Text>
             )}
           </TouchableOpacity>
-          <View style={styles.securityButtons}>
+          <View style={[styles.securityButtons, isRTL && styles.securityButtonsRTL]}>
             <TouchableOpacity
               style={[
-                styles.securityButton,
-                settings.pinEnabled && styles.securityButtonActive,
+                styles.securityButton(colors),
+                settings.pinEnabled && styles.securityButtonActive(colors),
               ]}
               onPress={handleTogglePinLock}
             >
-              <Icon name="lock" size={20} color={settings.pinEnabled ? '#fff' : '#4CAF50'} />
+              <Icon name="lock" size={20} color={settings.pinEnabled ? colors.textInverse : colors.primary} />
               <Text
                 style={[
-                  styles.securityButtonText,
+                  styles.securityButtonText(colors),
                   settings.pinEnabled && styles.securityButtonTextActive,
                 ]}
               >
@@ -547,10 +620,10 @@ export default function SettingsScreen(): JSX.Element {
             </TouchableOpacity>
             <TouchableOpacity
               style={[
-                styles.securityButton,
-                styles.fingerprintButton,
-                settings.fingerprintEnabled && styles.securityButtonActive,
-                !biometricAvailable && styles.securityButtonDisabled,
+                styles.securityButton(colors),
+                styles.fingerprintButton(colors),
+                settings.fingerprintEnabled && styles.securityButtonActive(colors),
+                !biometricAvailable && styles.securityButtonDisabled(colors),
               ]}
               onPress={handleBiometricToggle}
               disabled={!biometricAvailable && !settings.fingerprintEnabled}
@@ -558,13 +631,13 @@ export default function SettingsScreen(): JSX.Element {
               <Icon
                 name="fingerprint"
                 size={20}
-                color={settings.fingerprintEnabled ? '#fff' : biometricAvailable ? '#4CAF50' : '#999'}
+                color={settings.fingerprintEnabled ? colors.textInverse : biometricAvailable ? colors.primary : colors.textSecondary}
               />
               <Text
                 style={[
-                  styles.securityButtonText,
+                  styles.securityButtonText(colors),
                   settings.fingerprintEnabled && styles.securityButtonTextActive,
-                  !biometricAvailable && !settings.fingerprintEnabled && styles.securityButtonTextDisabled,
+                  !biometricAvailable && !settings.fingerprintEnabled && styles.securityButtonTextDisabled(colors),
                 ]}
               >
                 {biometricType || t('settings.useFingerprint')}
@@ -574,90 +647,90 @@ export default function SettingsScreen(): JSX.Element {
         </View>
 
         {/* Language Settings */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('settings.language')}</Text>
+        <View style={styles.section(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.language')}</Text>
           <View style={styles.languageOptions}>
             <TouchableOpacity
-              style={[styles.languageOption, language === 'en' && styles.languageOptionActive]}
+              style={[styles.languageOption(colors), language === 'en' && styles.languageOptionActive(colors)]}
               onPress={() => handleLanguageChange('en')}
             >
-              <Text style={[styles.languageText, language === 'en' && styles.languageTextActive]}>
+              <Text style={[styles.languageText(colors), language === 'en' && styles.languageTextActive(colors)]}>
                 {t('settings.english')}
               </Text>
-              {language === 'en' && <Icon name="check" size={20} color="#4CAF50" />}
+              {language === 'en' && <Icon name="check" size={20} color={colors.primary} />}
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.languageOption, language === 'ar' && styles.languageOptionActive]}
+              style={[styles.languageOption(colors), language === 'ar' && styles.languageOptionActive(colors)]}
               onPress={() => handleLanguageChange('ar')}
             >
-              <Text style={[styles.languageText, language === 'ar' && styles.languageTextActive]}>
+              <Text style={[styles.languageText(colors), language === 'ar' && styles.languageTextActive(colors)]}>
                 {t('settings.arabic')}
               </Text>
-              {language === 'ar' && <Icon name="check" size={20} color="#4CAF50" />}
+              {language === 'ar' && <Icon name="check" size={20} color={colors.primary} />}
             </TouchableOpacity>
           </View>
         </View>
 
         {/* App Settings */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('settings.appSettings')}</Text>
-          <View style={[styles.settingRow, isRTL && styles.settingRowRTL]}>
+        <View style={styles.section(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.appSettings')}</Text>
+          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel, isRTL && styles.settingLabelRTL]}>{t('settings.darkMode')}</Text>
-              <Text style={[styles.settingDescription, isRTL && styles.settingDescriptionRTL]}>{t('settings.darkModeDesc')}</Text>
+              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.darkMode')}</Text>
+              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.darkModeDesc')}</Text>
             </View>
             <Switch
               value={settings.darkMode}
               onValueChange={(value) => handleToggleSetting('darkMode', value)}
-              trackColor={{ false: '#E0E0E0', true: '#81C784' }}
-              thumbColor={settings.darkMode ? '#4CAF50' : '#f4f3f4'}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={settings.darkMode ? colors.primary : colors.inputBackground}
             />
           </View>
-          <View style={[styles.settingRow, isRTL && styles.settingRowRTL]}>
+          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel, isRTL && styles.settingLabelRTL]}>{t('settings.autoBackup')}</Text>
-              <Text style={[styles.settingDescription, isRTL && styles.settingDescriptionRTL]}>{t('settings.autoBackupDesc')}</Text>
+              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.autoBackup')}</Text>
+              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.autoBackupDesc')}</Text>
             </View>
             <Switch
               value={settings.autoBackup}
               onValueChange={handleToggleAutoBackup}
-              trackColor={{ false: '#E0E0E0', true: '#81C784' }}
-              thumbColor={settings.autoBackup ? '#4CAF50' : '#f4f3f4'}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={settings.autoBackup ? colors.primary : colors.inputBackground}
             />
           </View>
           
           <TouchableOpacity
-            style={[styles.backupButton, backingUp && styles.backupButtonDisabled]}
+            style={[styles.backupButton(colors), backingUp && styles.backupButtonDisabled]}
             onPress={handleManualBackup}
             disabled={backingUp}
           >
             {backingUp ? (
-              <ActivityIndicator size="small" color="#4CAF50" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Icon name="backup" size={20} color="#4CAF50" />
+              <Icon name="backup" size={20} color={colors.primary} />
             )}
-            <Text style={styles.backupButtonText}>
+            <Text style={styles.backupButtonText(colors)}>
               {backingUp ? t('settings.backingUp') : t('settings.backupNow')}
             </Text>
           </TouchableOpacity>
           
           {lastBackupTime && (
-            <Text style={[styles.lastSyncText, isRTL && styles.lastSyncTextRTL]}>
+            <Text style={[styles.lastSyncText(colors), isRTL && styles.lastSyncTextRTL]}>
               {t('settings.lastBackup')}: {formatLastTime(lastBackupTime)}
             </Text>
           )}
         </View>
 
         {/* About Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('settings.about')}</Text>
-          <View style={[styles.aboutItem, isRTL && styles.aboutItemRTL]}>
-            <Text style={[styles.aboutLabel, isRTL && styles.aboutLabelRTL]}>{t('settings.appVersion')}</Text>
-            <Text style={styles.aboutValue}>1.0.0</Text>
+        <View style={styles.section(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.about')}</Text>
+          <View style={[styles.aboutItem(colors), isRTL && styles.aboutItemRTL]}>
+            <Text style={[styles.aboutLabel(colors), isRTL && styles.aboutLabelRTL]}>{t('settings.appVersion')}</Text>
+            <Text style={styles.aboutValue(colors)}>1.0.0</Text>
           </View>
-          <View style={[styles.aboutItem, isRTL && styles.aboutItemRTL]}>
-            <Text style={[styles.aboutLabel, isRTL && styles.aboutLabelRTL]}>{t('settings.userId')}</Text>
-            <Text style={styles.aboutValue}>{user?.id.substring(0, 8)}...</Text>
+          <View style={[styles.aboutItem(colors), isRTL && styles.aboutItemRTL]}>
+            <Text style={[styles.aboutLabel(colors), isRTL && styles.aboutLabelRTL]}>{t('settings.userId')}</Text>
+            <Text style={styles.aboutValue(colors)}>{user?.id.substring(0, 8)}...</Text>
           </View>
         </View>
       </ScrollView>
@@ -665,301 +738,305 @@ export default function SettingsScreen(): JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = {
+  container: (colors: any) => ({
     flex: 1,
-    backgroundColor: '#E8F5E9',
-  },
+    backgroundColor: colors.background,
+  }),
   centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
-  loadingText: {
+  loadingText: (colors: any) => ({
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
-  appBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    color: colors.textSecondary,
+  }),
+  appBar: (colors: any) => ({
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 16,
     paddingVertical: 16,
     paddingTop: 50,
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.primary,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-  },
+  }),
   appBarTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     color: '#fff',
   },
   appBarTitleRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   scrollView: {
     flex: 1,
   },
-  section: {
-    backgroundColor: '#fff',
+  section: (colors: any) => ({
+    backgroundColor: colors.surface,
     margin: 10,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
+  }),
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     marginBottom: 16,
   },
   sectionHeaderRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row-reverse' as const,
   },
-  sectionTitle: {
+  sectionTitle: (colors: any) => ({
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
+    fontWeight: 'bold' as const,
+    color: colors.text,
+  }),
   sectionTitleRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
   },
-  onlineBadge: {
-    backgroundColor: '#4CAF50',
-  },
-  offlineBadge: {
-    backgroundColor: '#9E9E9E',
-  },
+  onlineBadge: (colors: any) => ({
+    backgroundColor: colors.success,
+  }),
+  offlineBadge: (colors: any) => ({
+    backgroundColor: colors.textSecondary,
+  }),
   statusBadgeText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
-  pendingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+  pendingBanner: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.warning + '20',
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
     gap: 8,
-  },
-  pendingText: {
-    color: '#E65100',
+  }),
+  pendingText: (colors: any) => ({
+    color: colors.warning,
     fontSize: 14,
     flex: 1,
-  },
-  syncButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4CAF50',
+  }),
+  syncButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: colors.primary,
     padding: 12,
     borderRadius: 8,
     marginTop: 8,
     gap: 8,
-  },
-  syncButtonDisabled: {
-    backgroundColor: '#A5D6A7',
-  },
+  }),
+  syncButtonDisabled: (colors: any) => ({
+    backgroundColor: colors.disabled,
+  }),
   syncButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
-  backupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E8F5E9',
+  backupButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: colors.background,
     padding: 12,
     borderRadius: 8,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#4CAF50',
+    borderColor: colors.primary,
     gap: 8,
-  },
+  }),
   backupButtonDisabled: {
     opacity: 0.6,
   },
-  backupButtonText: {
-    color: '#4CAF50',
+  backupButtonText: (colors: any) => ({
+    color: colors.primary,
     fontSize: 14,
-    fontWeight: '600',
-  },
-  lastSyncText: {
+    fontWeight: '600' as const,
+  }),
+  lastSyncText: (colors: any) => ({
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
-    textAlign: 'center',
-  },
+    textAlign: 'center' as const,
+  }),
   lastSyncTextRTL: {
-    textAlign: 'center',
+    textAlign: 'center' as const,
   },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  settingRow: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     padding: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.inputBackground,
     borderRadius: 8,
     marginBottom: 8,
-  },
+  }),
   settingRowRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row-reverse' as const,
   },
   settingContent: {
     flex: 1,
   },
-  settingLabel: {
+  settingLabel: (colors: any) => ({
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '600' as const,
+    color: colors.text,
     marginBottom: 4,
-  },
+  }),
   settingLabelRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
-  settingDescription: {
+  settingDescription: (colors: any) => ({
     fontSize: 12,
-    color: '#666',
-  },
+    color: colors.textSecondary,
+  }),
   settingDescriptionRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
   pinContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
     gap: 12,
     marginBottom: 16,
   },
-  pinInput: {
+  pinInput: (colors: any) => ({
     width: 50,
     height: 50,
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: colors.primary,
     borderRadius: 8,
-    textAlign: 'center',
+    textAlign: 'center' as const,
     fontSize: 20,
-    fontWeight: 'bold',
-    backgroundColor: '#fff',
-  },
-  savePinButton: {
-    backgroundColor: '#4CAF50',
+    fontWeight: 'bold' as const,
+    backgroundColor: colors.surface,
+    color: colors.text,
+  }),
+  savePinButton: (colors: any) => ({
+    backgroundColor: colors.primary,
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: 'center' as const,
     marginBottom: 16,
-  },
+  }),
   savePinButtonDisabled: {
     opacity: 0.6,
   },
   savePinButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
   securityButtons: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
   },
-  securityButton: {
+  securityButtonsRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  securityButton: (colors: any) => ({
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     padding: 12,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#4CAF50',
-    backgroundColor: '#fff',
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
     gap: 8,
-  },
-  fingerprintButton: {
-    backgroundColor: '#E8F5E9',
-  },
-  securityButtonActive: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  securityButtonText: {
+  }),
+  fingerprintButton: (colors: any) => ({
+    backgroundColor: colors.background,
+  }),
+  securityButtonActive: (colors: any) => ({
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  }),
+  securityButtonText: (colors: any) => ({
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
+    fontWeight: 'bold' as const,
+    color: colors.primary,
+  }),
   securityButtonTextActive: {
     color: '#fff',
   },
-  securityButtonDisabled: {
-    borderColor: '#ccc',
-    backgroundColor: '#f5f5f5',
-  },
-  securityButtonTextDisabled: {
-    color: '#999',
-  },
+  securityButtonDisabled: (colors: any) => ({
+    borderColor: colors.border,
+    backgroundColor: colors.inputBackground,
+  }),
+  securityButtonTextDisabled: (colors: any) => ({
+    color: colors.textSecondary,
+  }),
   languageOptions: {
     gap: 8,
   },
-  languageOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  languageOption: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     padding: 16,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.inputBackground,
     borderRadius: 8,
-  },
-  languageOptionActive: {
-    backgroundColor: '#E8F5E9',
+  }),
+  languageOptionActive: (colors: any) => ({
+    backgroundColor: colors.background,
     borderWidth: 2,
-    borderColor: '#4CAF50',
-  },
-  languageText: {
+    borderColor: colors.primary,
+  }),
+  languageText: (colors: any) => ({
     fontSize: 16,
-    color: '#333',
-  },
-  languageTextActive: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
-  },
-  aboutItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    color: colors.text,
+  }),
+  languageTextActive: (colors: any) => ({
+    color: colors.primary,
+    fontWeight: 'bold' as const,
+  }),
+  aboutItem: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     padding: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.inputBackground,
     borderRadius: 8,
     marginBottom: 8,
-  },
+  }),
   aboutItemRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row-reverse' as const,
   },
-  aboutLabel: {
+  aboutLabel: (colors: any) => ({
     fontSize: 14,
-    color: '#666',
-  },
+    color: colors.textSecondary,
+  }),
   aboutLabelRTL: {
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
-  aboutValue: {
+  aboutValue: (colors: any) => ({
     fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
-  },
-});
+    color: colors.text,
+    fontWeight: '500' as const,
+  }),
+};
 

@@ -39,11 +39,27 @@
     "title": "إضافة معاملة",
     "income": "دخل",
     "expense": "مصروف",
+    "incomeEntry": "إدخال الدخل",
+    "expenseEntry": "إدخال المصروف",
     "category": "الفئة",
     "amount": "المبلغ",
+    "amountPlaceholderIncome": "مثال: 1200",
+    "amountPlaceholderExpense": "مثال: 450",
     "notes": "ملاحظات",
+    "notesPlaceholder": "إضافة وصف",
     "save": "حفظ",
     "saveNew": "حفظ و جديد",
+    "saveAndNew": "حفظ و جديد",
+    "selectCategoryAndAmount": "يرجى اختيار فئة وإدخال المبلغ",
+    "validAmount": "يرجى إدخال مبلغ صالح",
+    "transactionSaved": "تم حفظ المعاملة بنجاح",
+    "savedOffline": "تم حفظ المعاملة في وضع عدم الاتصال. ستتم مزامنتها عند الاتصال بالإنترنت.",
+    "saveFailed": "فشل في حفظ المعاملة. هل تريد حفظها في وضع عدم الاتصال؟",
+    "saveOffline": "حفظ في وضع عدم الاتصال",
+    "offlineSaveFailed": "فشل في الحفظ في وضع عدم الاتصال",
+    "loadCategoriesFailed": "فشل في تحميل الفئات. يرجى المحاولة مرة أخرى.",
+    "noCategories": "لا توجد فئات متاحة",
+    "connectToLoadCategories": "اتصل بالإنترنت لتحميل الفئات",
     "error": "يرجى اختيار فئة وإدخال المبلغ",
     "invalidAmount": "يرجى إدخال مبلغ صالح",
     "saved": "تم حفظ المعاملة بنجاح",
@@ -142,6 +158,19 @@
     "biometricDisabled": "تم تعطيل المصادقة البيومترية",
     "biometricFailed": "فشلت المصادقة البيومترية"
   },
+  "lock": {
+    "title": "أجري بوكس",
+    "enterPin": "أدخل الرقم السري للمتابعة",
+    "incorrectPin": "الرقم السري غير صحيح",
+    "attemptsRemaining": "{{count}} محاولات متبقية.",
+    "attemptsCount": "المحاولة {{current}} من {{max}}",
+    "tooManyAttempts": "محاولات كثيرة جداً",
+    "tryAgainLater": "يرجى المحاولة مرة أخرى بعد 30 ثانية.",
+    "lockedOut": "مقفل. حاول مرة أخرى بعد {{time}}",
+    "biometricPrompt": "قم بالمصادقة لفتح أجري بوكس",
+    "usePin": "استخدام الرقم السري",
+    "useBiometric": "استخدام {{type}}"
+  },
   "onboarding": {
     "welcome": "مرحباً بك في أجري بوكس",
     "welcomeDesc": "حلك الشامل لإدارة الشؤون المالية الزراعية",
@@ -184,4 +213,3 @@
     "tomorrow": "غداً"
   }
 }
-

@@ -11,11 +11,12 @@ import {
   RefreshControl,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import { BarChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
+import { BarChart } from 'react-native-charts-wrapper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { reportApi, transactionApi, categoryApi } from '../src/services/api.service';
 import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from '../src/types';
 
@@ -25,6 +26,7 @@ export default function HomeScreen(): JSX.Element {
   const navigation = useNavigation<any>();
   const { user, isAuthenticated } = useUser();
   const { t, isRTL } = useI18n();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
@@ -161,39 +163,73 @@ export default function HomeScreen(): JSX.Element {
 
   if (loading && !summary) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>{t('app.loading')}</Text>
+      <View style={[styles.container(colors), styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText(colors)}>{t('app.loading')}</Text>
       </View>
     );
   }
 
-  const chartData = monthlyReport?.monthlyTrend
-    ? {
-        labels: monthlyReport.monthlyTrend.map((m) => m.month),
-        datasets: [
-          {
-            data: monthlyReport.monthlyTrend.map((m) => m.balance),
-            color: (opacity = 1) => `rgba(255, 152, 0, ${opacity})`,
-            strokeWidth: 2,
+  // Transform chartData for react-native-charts-wrapper BarChart (grouped bars)
+  const transformBarChartData = () => {
+    if (!monthlyReport?.monthlyTrend || monthlyReport.monthlyTrend.length === 0) {
+      return null;
+    }
+    
+    const incomeValues = monthlyReport.monthlyTrend.map((m, index) => ({
+      x: index,
+      y: m.income,
+    }));
+    
+    const expenseValues = monthlyReport.monthlyTrend.map((m, index) => ({
+      x: index,
+      y: m.expense,
+    }));
+    
+    return {
+      dataSets: [
+        {
+          label: 'Income',
+          values: incomeValues,
+          config: {
+            color: '#4CAF50',
+            barShadowColor: '#66BB6A',
+            highlightAlpha: 90,
+            highlightColor: '#66BB6A',
           },
-        ],
-      }
-    : {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0], color: () => 'rgba(255, 152, 0, 1)', strokeWidth: 2 }],
-      };
+        },
+        {
+          label: 'Expense',
+          values: expenseValues,
+          config: {
+            color: '#F44336',
+            barShadowColor: '#EF5350',
+            highlightAlpha: 90,
+            highlightColor: '#EF5350',
+          },
+        },
+      ],
+      config: {
+        barWidth: 0.4,
+        group: {
+          fromX: 0,
+          groupSpace: 0.1,
+          barSpace: 0.1,
+        },
+      },
+    };
+  };
 
   const totalIncome = summary?.totalIncome || 0;
   const totalExpense = summary?.totalExpense || 0;
   const balance = summary?.balance || 0;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.appBar}>
-        <Text style={styles.appBarTitle}>{t('app.name')}</Text>
+    <View style={styles.container(colors)}>
+      <View style={styles.appBar(colors)}>
+        <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Alerts')}>
-          <Icon name="notifications" size={24} color="#fff" />
+          <Icon name="notifications" size={24} color={colors.textInverse} />
         </TouchableOpacity>
       </View>
 
@@ -204,23 +240,23 @@ export default function HomeScreen(): JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Financial Summary */}
-        <View style={styles.section}>
+        <View style={styles.section(colors)}>
           <View style={[styles.financialCards, isRTL && styles.financialCardsRTL]}>
-            <View style={[styles.financialCard, styles.incomeCard]}>
-              <Text style={styles.financialLabel}>{t('home.totalIncome')}</Text>
-              <Text style={[styles.financialAmount, styles.incomeAmount]}>
+            <View style={[styles.financialCard(colors), styles.incomeCard(colors)]}>
+              <Text style={styles.financialLabel(colors)}>{t('home.totalIncome')}</Text>
+              <Text style={[styles.financialAmount, styles.incomeAmount(colors)]}>
                 ${totalIncome.toLocaleString()}
               </Text>
             </View>
-            <View style={[styles.financialCard, styles.expenseCard]}>
-              <Text style={styles.financialLabel}>{t('home.totalExpense')}</Text>
-              <Text style={[styles.financialAmount, styles.expenseAmount]}>
+            <View style={[styles.financialCard(colors), styles.expenseCard(colors)]}>
+              <Text style={styles.financialLabel(colors)}>{t('home.totalExpense')}</Text>
+              <Text style={[styles.financialAmount, styles.expenseAmount(colors)]}>
                 ${totalExpense.toLocaleString()}
               </Text>
             </View>
-            <View style={[styles.financialCard, styles.balanceCard]}>
-              <Text style={styles.financialLabel}>{t('home.balance')}</Text>
-              <Text style={[styles.financialAmount, styles.balanceAmount]}>
+            <View style={[styles.financialCard(colors), styles.balanceCard(colors)]}>
+              <Text style={styles.financialLabel(colors)}>{t('home.balance')}</Text>
+              <Text style={[styles.financialAmount, styles.balanceAmount(colors)]}>
                 ${balance.toLocaleString()}
               </Text>
             </View>
@@ -228,101 +264,122 @@ export default function HomeScreen(): JSX.Element {
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.section}>
+        <View style={styles.section(colors)}>
           <View style={[styles.actionButtons, isRTL && styles.actionButtonsRTL]}>
             <TouchableOpacity 
-              style={[styles.actionButton, styles.addIncomeButton]}
+              style={[styles.actionButton, styles.addIncomeButton(colors)]}
               onPress={scrollToIncome}
             >
-              <Icon name="add" size={24} color="#fff" />
+              <Icon name="add" size={24} color={colors.textInverse} />
               <Text style={styles.actionButtonText}>{t('home.addIncome')}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.actionButton, styles.addExpenseButton]}
+              style={[styles.actionButton, styles.addExpenseButton(colors)]}
               onPress={scrollToExpense}
             >
-              <Icon name="remove" size={24} color="#fff" />
+              <Icon name="remove" size={24} color={colors.textInverse} />
               <Text style={styles.actionButtonText}>{t('home.addExpense')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Monthly Trend */}
-        {monthlyReport && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('home.monthlyTrend')}</Text>
-            <View style={styles.chartContainer}>
-              <BarChart
-                data={chartData}
-                width={screenWidth - 40}
-                height={280}
-                chartConfig={{
-                  backgroundColor: '#ffffff',
-                  backgroundGradientFrom: '#f8fff9',
-                  backgroundGradientTo: '#ffffff',
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`, // Green theme matching app
-                  labelColor: (opacity = 1) => `rgba(66, 66, 66, ${opacity})`, // Darker labels for better readability
-                  fillShadowGradient: '#4CAF50',
-                  fillShadowGradientOpacity: 0.4,
-                  barPercentage: 0.7,
-                  style: {
-                    borderRadius: 16,
-                  },
-                  propsForBackgroundLines: {
-                    strokeDasharray: '5,5',
-                    strokeWidth: 1,
-                    stroke: '#E8E8E8',
-                  },
-                  propsForLabels: {
-                    fontSize: 11,
-                    fontWeight: '600',
-                  },
-                }}
-                showValuesOnTopOfBars
-                withInnerLines={true}
-                withOuterLines={true}
-                fromZero
-                yAxisLabel="$"
-                yAxisSuffix=""
-                verticalLabelRotation={0}
-                segments={4}
-                style={styles.chart}
-              />
+        {/* Monthly Trend - Grouped Column Chart */}
+        {monthlyReport && (() => {
+          const barChartData = transformBarChartData();
+          if (!barChartData) return null;
+          
+          const maxValue = Math.max(
+            ...monthlyReport.monthlyTrend.map(m => Math.max(m.income, m.expense)),
+            100
+          ) * 1.2;
+          const labels = monthlyReport.monthlyTrend.map(m => m.month);
+          
+          return (
+            <View style={styles.section(colors)}>
+              <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('home.monthlyTrend')}</Text>
+              <View style={styles.chartContainer(colors)}>
+                <BarChart
+                  style={styles.barChart}
+                  data={barChartData}
+                  xAxis={{
+                    valueFormatter: labels,
+                    granularity: 1,
+                    granularityEnabled: true,
+                    position: 'BOTTOM',
+                    textSize: 10,
+                    textColor: colors.textSecondary,
+                    axisLineColor: colors.border,
+                    gridColor: colors.border,
+                    avoidFirstLastClipping: true,
+                  }}
+                  yAxis={{
+                    left: {
+                      axisMinimum: 0,
+                      axisMaximum: maxValue,
+                      textSize: 10,
+                      textColor: colors.textSecondary,
+                      axisLineColor: colors.border,
+                      gridColor: colors.border + '40',
+                      valueFormatter: '$#',
+                    },
+                    right: {
+                      enabled: false,
+                    },
+                  }}
+                  chartDescription={{ text: '' }}
+                  legend={{
+                    enabled: true,
+                    textSize: 12,
+                    form: 'SQUARE',
+                    formSize: 12,
+                    xEntrySpace: 10,
+                    yEntrySpace: 5,
+                    wordWrapEnabled: true,
+                  }}
+                  animation={{ durationX: 800, durationY: 800 }}
+                  drawValueAboveBar={true}
+                  highlightEnabled={true}
+                  dragEnabled={false}
+                  scaleEnabled={false}
+                  scaleXEnabled={false}
+                  scaleYEnabled={false}
+                  pinchZoom={false}
+                />
+              </View>
+              <View style={[styles.chartInfo, isRTL && styles.chartInfoRTL]}>
+                <Text style={styles.chartLabel(colors)}>
+                  {t('home.profit')} ${monthlyReport.balance >= 0 ? '+' : ''}
+                  {monthlyReport.balance.toLocaleString()}
+                </Text>
+                <Text style={styles.chartLabel(colors)}>
+                  {t('home.month')}: {new Date(monthlyReport.year, monthlyReport.month - 1).toLocaleString('default', { month: 'short' })}
+                </Text>
+              </View>
             </View>
-            <View style={[styles.chartInfo, isRTL && styles.chartInfoRTL]}>
-              <Text style={styles.chartLabel}>
-                {t('home.profit')} ${monthlyReport.balance >= 0 ? '+' : ''}
-                {monthlyReport.balance.toLocaleString()}
-              </Text>
-              <Text style={styles.chartLabel}>
-                {t('home.month')}: {new Date(monthlyReport.year, monthlyReport.month - 1).toLocaleString('default', { month: 'short' })}
-              </Text>
-            </View>
-          </View>
-        )}
+          );
+        })()}
 
         {/* Income Entry */}
         <View 
-          style={styles.section}
+          style={styles.section(colors)}
           onLayout={(event) => {
             incomeYPosition.current = event.nativeEvent.layout.y;
           }}
         >
-          <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('home.incomeEntry')}</Text>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('home.incomeEntry')}</Text>
           <View style={styles.categoryButtons}>
             {incomeCategories.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
                 style={[
-                  styles.categoryButton,
-                  incomeCategory === cat.id && styles.categoryButtonActive,
+                  styles.categoryButton(colors),
+                  incomeCategory === cat.id && styles.categoryButtonActive(colors),
                 ]}
                 onPress={() => setIncomeCategory(cat.id)}
               >
                 <Text
                   style={[
-                    styles.categoryButtonText,
+                    styles.categoryButtonText(colors),
                     incomeCategory === cat.id && styles.categoryButtonTextActive,
                   ]}
                 >
@@ -332,16 +389,18 @@ export default function HomeScreen(): JSX.Element {
             ))}
           </View>
           <TextInput
-            style={[styles.fullInput, isRTL && styles.fullInputRTL]}
+            style={[styles.fullInput(colors), isRTL && styles.fullInputRTL]}
             placeholder="e.g., 1200"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
             value={incomeAmount}
             onChangeText={setIncomeAmount}
             textAlign={isRTL ? 'right' : 'left'}
           />
           <TextInput
-            style={[styles.fullInput, isRTL && styles.fullInputRTL]}
+            style={[styles.fullInput(colors), isRTL && styles.fullInputRTL]}
             placeholder={t('home.addDescription')}
+            placeholderTextColor={colors.textSecondary}
             multiline
             value={incomeDescription}
             onChangeText={setIncomeDescription}
@@ -349,13 +408,13 @@ export default function HomeScreen(): JSX.Element {
           />
           <View style={[styles.saveButtons, isRTL && styles.saveButtonsRTL]}>
             <TouchableOpacity
-              style={[styles.saveButton, styles.saveIncomeButton]}
+              style={[styles.saveButton, styles.saveIncomeButton(colors)]}
               onPress={handleSaveIncome}
             >
               <Text style={styles.saveButtonText}>{t('home.saveIncome')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveButton, styles.saveNewButton]}
+              style={[styles.saveButton, styles.saveNewButton(colors)]}
               onPress={() => handleSaveAndNew('income')}
             >
               <Text style={styles.saveButtonText}>{t('home.saveNew')}</Text>
@@ -365,25 +424,25 @@ export default function HomeScreen(): JSX.Element {
 
         {/* Expense Entry */}
         <View 
-          style={styles.section}
+          style={styles.section(colors)}
           onLayout={(event) => {
             expenseYPosition.current = event.nativeEvent.layout.y;
           }}
         >
-          <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>{t('home.expenseEntry')}</Text>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('home.expenseEntry')}</Text>
           <View style={styles.categoryButtons}>
             {expenseCategories.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
                 style={[
-                  styles.categoryButton,
-                  expenseCategory === cat.id && styles.categoryButtonActive,
+                  styles.categoryButton(colors),
+                  expenseCategory === cat.id && styles.categoryButtonActive(colors),
                 ]}
                 onPress={() => setExpenseCategory(cat.id)}
               >
                 <Text
                   style={[
-                    styles.categoryButtonText,
+                    styles.categoryButtonText(colors),
                     expenseCategory === cat.id && styles.categoryButtonTextActive,
                   ]}
                 >
@@ -393,16 +452,18 @@ export default function HomeScreen(): JSX.Element {
             ))}
           </View>
           <TextInput
-            style={[styles.fullInput, isRTL && styles.fullInputRTL]}
+            style={[styles.fullInput(colors), isRTL && styles.fullInputRTL]}
             placeholder="e.g., 450"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
             value={expenseAmount}
             onChangeText={setExpenseAmount}
             textAlign={isRTL ? 'right' : 'left'}
           />
           <TextInput
-            style={[styles.fullInput, isRTL && styles.fullInputRTL]}
+            style={[styles.fullInput(colors), isRTL && styles.fullInputRTL]}
             placeholder={t('home.addDescription')}
+            placeholderTextColor={colors.textSecondary}
             multiline
             value={expenseDescription}
             onChangeText={setExpenseDescription}
@@ -410,13 +471,13 @@ export default function HomeScreen(): JSX.Element {
           />
           <View style={[styles.saveButtons, isRTL && styles.saveButtonsRTL]}>
             <TouchableOpacity
-              style={[styles.saveButton, styles.saveExpenseButton]}
+              style={[styles.saveButton, styles.saveExpenseButton(colors)]}
               onPress={handleSaveExpense}
             >
               <Text style={styles.saveButtonText}>{t('home.saveExpense')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveButton, styles.saveNewButton]}
+              style={[styles.saveButton, styles.saveNewButton(colors)]}
               onPress={() => handleSaveAndNew('expense')}
             >
               <Text style={styles.saveButtonText}>{t('home.saveNew')}</Text>
@@ -648,6 +709,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  barChart: {
+    height: 280,
+    marginVertical: 12,
   },
 });
 

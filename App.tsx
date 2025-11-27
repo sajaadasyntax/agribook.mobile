@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import { I18nManager, Platform, View, ActivityIndicator } from 'react-native';
+import { I18nManager, Platform, View, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { UserProvider, useUser } from './src/context/UserContext';
 import { I18nProvider, useI18n } from './src/context/I18nContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import * as SecureStore from 'expo-secure-store';
-import { userApi } from './src/services/api.service';
+import syncService from './src/services/sync.service';
 
 import HomeScreen from './screens/HomeScreen';
 import AddScreen from './screens/AddScreen';
@@ -17,12 +18,14 @@ import AlertsScreen from './screens/AlertsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
+import LockScreen from './screens/LockScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function MainTabs(): JSX.Element {
   const { isRTL } = useI18n();
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
@@ -47,8 +50,12 @@ function MainTabs(): JSX.Element {
 
           return <Icon name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#4CAF50',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+        },
         headerShown: false,
       })}
     >
@@ -62,10 +69,12 @@ function MainTabs(): JSX.Element {
 }
 
 function AppNavigator(): JSX.Element {
-  const { isAuthenticated, isLoading } = useUser();
+  const { isAuthenticated, isLoading, settings, user, refreshUser } = useUser();
   const { isRTL, locale } = useI18n();
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
+  const [checkingLock, setCheckingLock] = useState(true);
   const navigationRef = React.useRef<NavigationContainerRef<any>>(null);
 
   // Handle RTL layout changes
@@ -96,6 +105,59 @@ function AppNavigator(): JSX.Element {
     checkOnboarding();
   }, []);
 
+  // Check if PIN lock is enabled and should lock the app
+  useEffect(() => {
+    const checkLockStatus = async (): Promise<void> => {
+      try {
+        // Only check lock if user is authenticated
+        if (!isAuthenticated || isLoading) {
+          setCheckingLock(false);
+          return;
+        }
+
+        // Check if PIN is enabled in settings
+        if (settings?.pinEnabled) {
+          setIsLocked(true);
+        } else {
+          setIsLocked(false);
+        }
+      } catch (error) {
+        console.error('Error checking lock status:', error);
+        setIsLocked(false);
+      } finally {
+        setCheckingLock(false);
+      }
+    };
+
+    checkLockStatus();
+  }, [isAuthenticated, isLoading, settings?.pinEnabled]);
+
+  // Handle app state changes (background/foreground)
+  useEffect(() => {
+    let lastBackground = Date.now();
+    const LOCK_TIMEOUT = 60000; // 1 minute - lock after this much time in background
+
+    const handleAppStateChange = (nextAppState: AppStateStatus): void => {
+      if (nextAppState === 'background') {
+        lastBackground = Date.now();
+      } else if (nextAppState === 'active') {
+        // Only lock if user has PIN enabled and was in background for a while
+        const timeInBackground = Date.now() - lastBackground;
+        if (settings?.pinEnabled && timeInBackground > LOCK_TIMEOUT) {
+          setIsLocked(true);
+        }
+        
+        // Refresh user data when coming back to foreground
+        if (isAuthenticated && user) {
+          refreshUser();
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [settings?.pinEnabled, isAuthenticated, user, refreshUser]);
+
   // Navigate based on authentication and onboarding status
   useEffect(() => {
     if (checkingOnboarding || onboardingCompleted === null) return;
@@ -118,12 +180,27 @@ function AppNavigator(): JSX.Element {
     // Navigation will happen automatically when isAuthenticated becomes true
   };
 
-  // Show loading while checking onboarding status
-  if (checkingOnboarding) {
+  const handleUnlock = useCallback((): void => {
+    setIsLocked(false);
+  }, []);
+
+  // Show loading while checking onboarding/lock status
+  if (checkingOnboarding || (isAuthenticated && checkingLock)) {
+    const { colors } = useTheme();
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#E8F5E9' }}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
+    );
+  }
+
+  // Show lock screen if locked
+  if (isAuthenticated && isLocked && settings?.pinEnabled) {
+    return (
+      <LockScreen 
+        onUnlock={handleUnlock}
+        fingerprintEnabled={settings?.fingerprintEnabled || false}
+      />
     );
   }
 
@@ -156,11 +233,12 @@ export default function App(): JSX.Element {
   return (
     <SafeAreaProvider>
       <UserProvider>
-        <I18nProvider>
-          <AppNavigator />
-        </I18nProvider>
+        <ThemeProvider>
+          <I18nProvider>
+            <AppNavigator />
+          </I18nProvider>
+        </ThemeProvider>
       </UserProvider>
     </SafeAreaProvider>
   );
 }
-

@@ -39,11 +39,27 @@
     "title": "Add Transaction",
     "income": "Income",
     "expense": "Expense",
+    "incomeEntry": "Income Entry",
+    "expenseEntry": "Expense Entry",
     "category": "Category",
     "amount": "Amount",
+    "amountPlaceholderIncome": "e.g., 1200",
+    "amountPlaceholderExpense": "e.g., 450",
     "notes": "Notes",
+    "notesPlaceholder": "Add description",
     "save": "Save",
     "saveNew": "Save & New",
+    "saveAndNew": "Save & New",
+    "selectCategoryAndAmount": "Please select a category and enter an amount",
+    "validAmount": "Please enter a valid amount",
+    "transactionSaved": "Transaction saved successfully",
+    "savedOffline": "Transaction saved offline. It will sync when you are online.",
+    "saveFailed": "Failed to save transaction. Would you like to save it offline?",
+    "saveOffline": "Save Offline",
+    "offlineSaveFailed": "Failed to save offline",
+    "loadCategoriesFailed": "Failed to load categories. Please try again.",
+    "noCategories": "No categories available",
+    "connectToLoadCategories": "Connect to internet to load categories",
     "error": "Please select a category and enter an amount",
     "invalidAmount": "Please enter a valid amount",
     "saved": "Transaction saved successfully",
@@ -142,6 +158,19 @@
     "biometricDisabled": "Biometric authentication disabled",
     "biometricFailed": "Biometric authentication failed"
   },
+  "lock": {
+    "title": "AgriBooks",
+    "enterPin": "Enter your PIN to continue",
+    "incorrectPin": "Incorrect PIN",
+    "attemptsRemaining": "{{count}} attempts remaining.",
+    "attemptsCount": "Attempt {{current}} of {{max}}",
+    "tooManyAttempts": "Too Many Attempts",
+    "tryAgainLater": "Please try again in 30 seconds.",
+    "lockedOut": "Locked. Try again in {{time}}",
+    "biometricPrompt": "Authenticate to unlock AgriBooks",
+    "usePin": "Use PIN",
+    "useBiometric": "Use {{type}}"
+  },
   "onboarding": {
     "welcome": "Welcome to AgriBooks",
     "welcomeDesc": "Your complete solution for managing agricultural finances",
@@ -184,4 +213,3 @@
     "tomorrow": "Tomorrow"
   }
 }
-

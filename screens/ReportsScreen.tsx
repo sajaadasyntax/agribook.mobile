@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,178 +7,210 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
+  Dimensions,
 } from 'react-native';
-import { BarChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
+import { PieChart } from 'react-native-gifted-charts';
+import { BarChart } from 'react-native-charts-wrapper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
-import { reportApi } from '../src/services/api.service';
-import { DailyReport, WeeklyReport, MonthlyReport, Statistics } from '../src/types';
+import { useReportData, ReportPeriod } from '../src/hooks/useReportData';
+import { formatDisplayDate, addDays, addWeeks, addMonths } from '../src/utils/date';
+import { Transaction } from '../src/types';
 
 const screenWidth = Dimensions.get('window').width;
 
-export default function ReportsScreen(): JSX.Element {
+export default function ReportsScreen(): React.JSX.Element {
   const { isAuthenticated } = useUser();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [dailyReport, setDailyReport] = useState<DailyReport | null>(null);
-  const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
-  const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
-  const [statistics, setStatistics] = useState<Statistics | null>(null);
+  const [period, setPeriod] = useState<ReportPeriod>('week');
+  const [date, setDate] = useState(new Date());
+  
+  const { 
+    loading, 
+    refreshing,
+    error, 
+    summary, 
+    chartData, 
+    categoryData, 
+    transactions, 
+    refresh 
+  } = useReportData(period, date);
 
-  const loadData = useCallback(async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      setLoading(true);
-      const [daily, weekly, monthly, stats] = await Promise.all([
-        reportApi.getDaily(),
-        reportApi.getWeekly(),
-        reportApi.getMonthly(),
-        reportApi.getStatistics(),
-      ]);
-
-      setDailyReport(daily);
-      setWeeklyReport(weekly);
-      setMonthlyReport(monthly);
-      setStatistics(stats);
-    } catch (error) {
-      console.error('Error loading reports:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
+  // Use a ref to store the refresh function to avoid stale closure
+  // while preventing double fetches when period/date changes
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      // Refresh when screen comes into focus
+      // Use ref to get latest refresh function without including it in dependencies
+      // to prevent re-running when period/date changes
+      if (isAuthenticated) {
+        refreshRef.current();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated])
   );
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
-
-  const handleExportPDF = () => {
-    Alert.alert(
-      'Export PDF',
-      'PDF export functionality will be available in a future update.',
-      [{ text: 'OK' }]
-    );
+  const handlePrevious = () => {
+    if (period === 'day') setDate(addDays(date, -1));
+    else if (period === 'week') setDate(addWeeks(date, -1));
+    else if (period === 'month') setDate(addMonths(date, -1));
   };
 
-  const handleExportExcel = () => {
-    Alert.alert(
-      'Export Excel',
-      'Excel export functionality will be available in a future update.',
-      [{ text: 'OK' }]
-    );
+  const handleNext = () => {
+    if (period === 'day') setDate(addDays(date, 1));
+    else if (period === 'week') setDate(addWeeks(date, 1));
+    else if (period === 'month') setDate(addMonths(date, 1));
   };
 
-  // Enhanced chart configuration for mini charts
-  const miniChartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`, // Green theme matching app
-    labelColor: (opacity = 1) => `rgba(97, 97, 97, ${opacity})`, // Dark gray labels for readability
-    fillShadowGradient: '#4CAF50',
-    fillShadowGradientOpacity: 0.3,
-    barPercentage: 0.65,
-    style: {
-      borderRadius: 12,
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: '',
-      strokeWidth: 0.5,
-      stroke: '#E0E0E0',
-    },
-    propsForLabels: {
-      fontSize: 10,
-      fontWeight: '500',
-    },
-  };
-
-  // Enhanced chart configuration for detailed chart
-  const detailedChartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#f8fff9',
-    backgroundGradientTo: '#ffffff',
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`, // Green theme matching app
-    labelColor: (opacity = 1) => `rgba(66, 66, 66, ${opacity})`, // Darker labels for better readability
-    fillShadowGradient: '#4CAF50',
-    fillShadowGradientOpacity: 0.4,
-    barPercentage: 0.7,
-    style: {
-      borderRadius: 16,
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: '5,5',
-      strokeWidth: 1,
-      stroke: '#E8E8E8',
-    },
-    propsForLabels: {
-      fontSize: 11,
-      fontWeight: '600',
-    },
-  };
-
-  const getDailyChartData = () => {
-    if (!dailyReport) {
-      return {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }],
-      };
+  // Transform chartData for react-native-charts-wrapper BarChart (grouped bars)
+  const transformBarChartData = () => {
+    if (!chartData.datasets[0]?.data.length || !chartData.incomeData || !chartData.expenseData) {
+      return null;
     }
-    // For daily, we'll show the balance
+    
+    const incomeValues = chartData.incomeData.map((value, index) => ({
+      x: index,
+      y: value || 0,
+    }));
+    
+    const expenseValues = chartData.expenseData.map((value, index) => ({
+      x: index,
+      y: value || 0,
+    }));
+    
     return {
-      labels: ['Today'],
-      datasets: [{ data: [dailyReport.balance] }],
+      dataSets: [
+        {
+          label: 'Income',
+          values: incomeValues,
+          config: {
+            color: '#4CAF50',
+            barShadowColor: '#66BB6A',
+            highlightAlpha: 90,
+            highlightColor: '#66BB6A',
+          },
+        },
+        {
+          label: 'Expense',
+          values: expenseValues,
+          config: {
+            color: '#F44336',
+            barShadowColor: '#EF5350',
+            highlightAlpha: 90,
+            highlightColor: '#EF5350',
+          },
+        },
+      ],
+      config: {
+        barWidth: 0.4,
+        group: {
+          fromX: 0,
+          groupSpace: 0.1,
+          barSpace: 0.1,
+        },
+      },
     };
   };
 
-  const getWeeklyChartData = () => {
-    if (!weeklyReport) {
-      return {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }],
-      };
-    }
-    const days = Object.keys(weeklyReport.dailyData).slice(0, 7);
-    return {
-      labels: days.map((d) => new Date(d).toLocaleDateString('en-US', { weekday: 'short' })),
-      // Calculate balance from income - expense since dailyData doesn't include balance
-      datasets: [{ data: days.map((d) => {
-        const dayData = weeklyReport.dailyData[d];
-        return dayData.income - dayData.expense;
-      }) }],
-    };
+  // Transform categoryData for react-native-gifted-charts PieChart
+  const transformPieChartData = () => {
+    return categoryData.map(item => ({
+      value: item.population,
+      color: item.color,
+      label: item.name,
+    }));
   };
 
-  const getMonthlyChartData = () => {
-    if (!monthlyReport) {
-      return {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
-      };
-    }
-    return {
-      labels: monthlyReport.monthlyTrend.map((m) => m.month),
-      datasets: [{ data: monthlyReport.monthlyTrend.map((m) => m.balance) }],
-    };
-  };
+  const renderPeriodSelector = () => (
+    <View style={styles.periodSelector}>
+      {(['day', 'week', 'month'] as ReportPeriod[]).map((p) => (
+        <TouchableOpacity
+          key={p}
+          style={[styles.periodButton, period === p && styles.periodButtonActive]}
+          onPress={() => setPeriod(p)}
+        >
+          <Text style={[styles.periodButtonText, period === p && styles.periodButtonTextActive]}>
+            {p.charAt(0).toUpperCase() + p.slice(1)}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
 
-  if (loading && !statistics) {
+  const renderDateNavigator = () => (
+    <View style={styles.dateNavigator}>
+      <TouchableOpacity onPress={handlePrevious} style={styles.navButton}>
+        <Icon name="chevron-left" size={28} color="#333" />
+      </TouchableOpacity>
+      <Text style={styles.dateText}>{formatDisplayDate(date)}</Text>
+      <TouchableOpacity onPress={handleNext} style={styles.navButton}>
+        <Icon name="chevron-right" size={28} color="#333" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderSummaryCards = () => (
+    <View style={styles.summaryContainer}>
+      <View style={[styles.summaryCard, { backgroundColor: '#E8F5E9' }]}>
+        <Text style={styles.summaryLabel}>Income</Text>
+        <Text style={[styles.summaryValue, { color: '#2E7D32' }]}>
+          ${summary.income.toLocaleString()}
+        </Text>
+      </View>
+      <View style={[styles.summaryCard, { backgroundColor: '#FFEBEE' }]}>
+        <Text style={styles.summaryLabel}>Expense</Text>
+        <Text style={[styles.summaryValue, { color: '#C62828' }]}>
+          ${summary.expense.toLocaleString()}
+        </Text>
+      </View>
+      <View style={[styles.summaryCard, { backgroundColor: '#E3F2FD' }]}>
+        <Text style={styles.summaryLabel}>Balance</Text>
+        <Text style={[styles.summaryValue, { color: '#1565C0' }]}>
+          ${summary.balance.toLocaleString()}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderTransactionItem = ({ item }: { item: Transaction }) => (
+    <View style={styles.transactionItem}>
+      <View style={styles.transactionLeft}>
+        <View style={[
+          styles.transactionIcon, 
+          { backgroundColor: item.type === 'INCOME' ? '#E8F5E9' : '#FFEBEE' }
+        ]}>
+          <Icon 
+            name={item.type === 'INCOME' ? 'arrow-downward' : 'arrow-upward'} 
+            size={20} 
+            color={item.type === 'INCOME' ? '#2E7D32' : '#C62828'} 
+          />
+        </View>
+        <View>
+          <Text style={styles.transactionCategory}>{item.category?.name || 'Uncategorized'}</Text>
+          <Text style={styles.transactionDate}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <Text style={[
+        styles.transactionAmount,
+        { color: item.type === 'INCOME' ? '#2E7D32' : '#C62828' }
+      ]}>
+        {item.type === 'INCOME' ? '+' : '-'}${parseFloat(item.amount.toString()).toLocaleString()}
+      </Text>
+    </View>
+  );
+
+  // Show loading indicator when loading and no data has been loaded yet
+  // Since we clear data on period/date change, this will work correctly for period switches
+  const hasNoData = chartData.datasets[0].data.length === 0 && transactions.length === 0;
+  if (loading && hasNoData) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Loading reports...</Text>
       </View>
     );
   }
@@ -186,149 +218,122 @@ export default function ReportsScreen(): JSX.Element {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reports & Analytics</Text>
+        <Text style={styles.headerTitle}>Analytics</Text>
       </View>
 
-      {/* Report Cards */}
-      <View style={styles.section}>
-        <View style={styles.reportCards}>
-          {/* Daily Report */}
-          <View style={styles.reportCard}>
-            <Text style={styles.reportCardTitle}>Daily</Text>
-            <View style={styles.miniChart}>
-              <BarChart
-                data={getDailyChartData()}
-                width={screenWidth / 2 - 40}
-                height={140}
-                chartConfig={miniChartConfig}
-                showValuesOnTopOfBars
-                withInnerLines={false}
-                withOuterLines={false}
-                fromZero
-                yAxisLabel="$"
-                yAxisSuffix=""
-                verticalLabelRotation={0}
-                segments={3}
-              />
-            </View>
-          </View>
+      {renderPeriodSelector()}
+      {renderDateNavigator()}
+      {renderSummaryCards()}
 
-          {/* Weekly Report */}
-          <View style={styles.reportCard}>
-            <Text style={styles.reportCardTitle}>Weekly</Text>
-            <View style={styles.miniChart}>
-              <BarChart
-                data={getWeeklyChartData()}
-                width={screenWidth / 2 - 40}
-                height={140}
-                chartConfig={miniChartConfig}
-                showValuesOnTopOfBars
-                withInnerLines={false}
-                withOuterLines={false}
-                fromZero
-                yAxisLabel="$"
-                yAxisSuffix=""
-                verticalLabelRotation={0}
-                segments={3}
-              />
-            </View>
-          </View>
-
-          {/* Monthly Report */}
-          <View style={styles.reportCard}>
-            <Text style={styles.reportCardTitle}>Monthly</Text>
-            <View style={styles.miniChart}>
-              <BarChart
-                data={getMonthlyChartData()}
-                width={screenWidth / 2 - 40}
-                height={140}
-                chartConfig={miniChartConfig}
-                showValuesOnTopOfBars
-                withInnerLines={false}
-                withOuterLines={false}
-                fromZero
-                yAxisLabel="$"
-                yAxisSuffix=""
-                verticalLabelRotation={0}
-                segments={3}
-              />
-            </View>
-          </View>
-
-          {/* Export Card */}
-          <View style={styles.reportCard}>
-            <Text style={styles.reportCardTitle}>Export</Text>
-            <View style={styles.exportButtons}>
-              <TouchableOpacity style={styles.exportButton} onPress={handleExportPDF}>
-                <Icon name="picture-as-pdf" size={24} color="#fff" />
-                <Text style={styles.exportButtonText}>PDF</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.exportButton, styles.excelButton]} onPress={handleExportExcel}>
-                <Icon name="table-chart" size={24} color="#fff" />
-                <Text style={styles.exportButtonText}>Excel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Detailed Reports Section */}
-      {monthlyReport && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Detailed Reports</Text>
-          <View style={styles.detailedChart}>
+      {/* Main Chart - Grouped Column Chart */}
+      {period !== 'day' && chartData.datasets[0].data.length > 0 && chartData.incomeData && chartData.expenseData && (() => {
+        const barChartData = transformBarChartData();
+        if (!barChartData) return null;
+        
+        const maxValue = Math.max(
+          ...(chartData.incomeData || []).concat(chartData.expenseData || []),
+          100
+        ) * 1.2;
+        
+        return (
+          <View style={styles.chartContainer}>
+            <Text style={styles.sectionTitle}>Overview</Text>
             <BarChart
-              data={getMonthlyChartData()}
-              width={screenWidth - 40}
-              height={280}
-              chartConfig={detailedChartConfig}
-              showValuesOnTopOfBars
-              withInnerLines={true}
-              withOuterLines={true}
-              fromZero
-              yAxisLabel="$"
-              yAxisSuffix=""
-              verticalLabelRotation={0}
-              segments={4}
-              style={styles.chart}
+              style={styles.barChart}
+              data={barChartData}
+              xAxis={{
+                valueFormatter: chartData.labels,
+                granularity: 1,
+                granularityEnabled: true,
+                position: 'BOTTOM',
+                textSize: 10,
+                textColor: '#666',
+                axisLineColor: '#E0E0E0',
+                gridColor: '#E0E0E0',
+                avoidFirstLastClipping: true,
+              }}
+              yAxis={{
+                left: {
+                  axisMinimum: 0,
+                  axisMaximum: maxValue,
+                  textSize: 10,
+                  textColor: '#666',
+                  axisLineColor: '#E0E0E0',
+                  gridColor: 'rgba(0, 0, 0, 0.1)',
+                  valueFormatter: '$#',
+                },
+                right: {
+                  enabled: false,
+                },
+              }}
+              chartDescription={{ text: '' }}
+              legend={{
+                enabled: true,
+                textSize: 12,
+                form: 'SQUARE',
+                formSize: 12,
+                xEntrySpace: 10,
+                yEntrySpace: 5,
+                wordWrapEnabled: true,
+              }}
+              animation={{ durationX: 800, durationY: 800 }}
+              drawValueAboveBar={true}
+              highlightEnabled={true}
+              dragEnabled={false}
+              scaleEnabled={false}
+              scaleXEnabled={false}
+              scaleYEnabled={false}
+              pinchZoom={false}
+            />
+          </View>
+        );
+      })()}
+
+      {/* Category Breakdown */}
+      {categoryData.length > 0 && (
+        <View style={styles.chartContainer}>
+          <Text style={styles.sectionTitle}>Top Expenses</Text>
+          <View style={styles.pieChartContainer}>
+            <PieChart
+              data={transformPieChartData()}
+              radius={90}
+              showText
+              textColor="#333"
+              textSize={12}
+              focusOnPress
+              showGradient
+              donut
+              innerRadius={60}
+              innerCircleColor="#fff"
+              centerLabelComponent={() => (
+                <View style={styles.pieChartCenter}>
+                  <Text style={styles.pieChartCenterText}>Total</Text>
+                  <Text style={styles.pieChartCenterValue}>
+                    ${categoryData.reduce((sum, item) => sum + item.population, 0).toLocaleString()}
+                  </Text>
+                </View>
+              )}
             />
           </View>
         </View>
       )}
 
-      {/* Summary Statistics */}
-      {statistics && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Summary Statistics</Text>
-          <View style={styles.statistics}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Total Transactions</Text>
-              <Text style={styles.statValue}>{statistics.totalTransactions}</Text>
+      {/* Recent Transactions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Recent Transactions</Text>
+        {transactions.length > 0 ? (
+          transactions.slice(0, 5).map(t => (
+            <View key={t.id} style={{ marginBottom: 10 }}>
+              {renderTransactionItem({ item: t })}
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Average Income</Text>
-              <Text style={[styles.statValue, styles.positiveValue]}>
-                ${statistics.averageIncome.toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Average Expense</Text>
-              <Text style={[styles.statValue, styles.negativeValue]}>
-                ${statistics.averageExpense.toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Net Profit</Text>
-              <Text style={[styles.statValue, styles.positiveValue]}>
-                ${statistics.netProfit.toLocaleString()}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
+          ))
+        ) : (
+          <Text style={styles.emptyText}>No transactions found for this period.</Text>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -336,16 +341,11 @@ export default function ReportsScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#F5F5F5',
   },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
   },
   header: {
     backgroundColor: '#fff',
@@ -358,125 +358,172 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  section: {
+  periodSelector: {
+    flexDirection: 'row',
     backgroundColor: '#fff',
-    margin: 10,
+    margin: 16,
+    borderRadius: 8,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  periodButtonActive: {
+    backgroundColor: '#4CAF50',
+  },
+  periodButtonText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  periodButtonTextActive: {
+    color: '#fff',
+  },
+  dateNavigator: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  navButton: {
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    elevation: 2,
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 20,
+  },
+  summaryCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 2,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  chartContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+  },
+  section: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 12,
     color: '#333',
-    marginBottom: 16,
   },
-  reportCards: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  reportCard: {
-    width: (screenWidth - 52) / 2,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  reportCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2E7D32',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  miniChart: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  exportButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  exportButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#4CAF50',
-    gap: 8,
-  },
-  excelButton: {
-    backgroundColor: '#81C784',
-  },
-  exportButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  detailedChart: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  chart: {
-    marginVertical: 4,
-    borderRadius: 16,
-  },
-  statistics: {
-    gap: 12,
-  },
-  statItem: {
+  transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#fff',
     padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    borderRadius: 12,
+    marginBottom: 8,
   },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
+  transactionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  transactionCategory: {
+    fontSize: 16,
+    fontWeight: '500',
     color: '#333',
   },
-  positiveValue: {
-    color: '#4CAF50',
+  transactionDate: {
+    fontSize: 12,
+    color: '#666',
   },
-  negativeValue: {
-    color: '#F44336',
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    marginTop: 20,
+  },
+  pieChartContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  pieChartCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pieChartCenterText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  pieChartCenterValue: {
+    fontSize: 18,
+    color: '#333',
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 24,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  barChart: {
+    height: 240,
+    marginVertical: 12,
   },
 });
-
