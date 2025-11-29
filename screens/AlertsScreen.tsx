@@ -435,14 +435,49 @@ export default function AlertsScreen(): React.JSX.Element {
                       {t('alerts.due')}: {formatDueDate(reminder.dueDate)}
                     </Text>
                   </View>
-                  {reminder.reminderType === 'THRESHOLD' && reminder.thresholdAmount && (
-                    <Text style={styles.reminderThreshold(colors)}>
-                      {t('alerts.thresholdAmount')}: ${reminder.thresholdAmount}
-                    </Text>
+                  {reminder.reminderType === 'THRESHOLD' && (
+                    <View style={styles.reminderDetailsContainer}>
+                      <Text style={styles.reminderTriggerDesc(colors)}>
+                        {t('alerts.thresholdReminderDesc')}
+                      </Text>
+                      {reminder.thresholdAmount && (
+                        <Text style={styles.reminderThreshold(colors)}>
+                          {t('alerts.thresholdAmount')}: ${reminder.thresholdAmount}
+                        </Text>
+                      )}
+                      {reminder.categoryId && (() => {
+                        const category = categories.find(c => c.id === reminder.categoryId);
+                        return category ? (
+                          <Text style={styles.reminderCategory(colors)}>
+                            {t('alerts.category')}: {category.name}
+                          </Text>
+                        ) : null;
+                      })()}
+                    </View>
                   )}
-                  {reminder.reminderType === 'TRANSACTION' && reminder.transactionAmount && (
-                    <Text style={styles.reminderThreshold(colors)}>
-                      {reminder.transactionType}: ${reminder.transactionAmount}
+                  {reminder.reminderType === 'TRANSACTION' && (
+                    <View style={styles.reminderDetailsContainer}>
+                      <Text style={styles.reminderTriggerDesc(colors)}>
+                        {t('alerts.transactionReminderDesc')}
+                      </Text>
+                      {reminder.transactionAmount && (
+                        <Text style={styles.reminderThreshold(colors)}>
+                          {reminder.transactionType === 'INCOME' ? t('alerts.incomeTransaction') : t('alerts.expenseTransaction')}: ${reminder.transactionAmount}
+                        </Text>
+                      )}
+                      {reminder.categoryId && (() => {
+                        const category = categories.find(c => c.id === reminder.categoryId);
+                        return category ? (
+                          <Text style={styles.reminderCategory(colors)}>
+                            {t('alerts.category')}: {category.name}
+                          </Text>
+                        ) : null;
+                      })()}
+                    </View>
+                  )}
+                  {(!reminder.reminderType || reminder.reminderType === 'GENERAL') && (
+                    <Text style={styles.reminderTriggerDesc(colors)}>
+                      {t('alerts.generalReminderDesc')}
                     </Text>
                   )}
                 </View>
@@ -491,27 +526,6 @@ export default function AlertsScreen(): React.JSX.Element {
                   style={[
                     styles.toggleCircle(colors),
                     settings.pushNotifications && styles.toggleCircleActive(colors),
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.settingItem(colors), isRTL && styles.settingItemRTL]}>
-              <View style={styles.settingContent}>
-                <Text style={[styles.settingLabel(colors), isRTL && styles.textRTL]}>
-                  {t('alerts.emailNotifications')}
-                </Text>
-                <Text style={[styles.settingDescription(colors), isRTL && styles.textRTL]}>
-                  {t('alerts.emailNotificationsDesc')}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.toggle(colors), settings.emailNotifications && styles.toggleActive(colors)]}
-                onPress={() => handleToggleSetting('emailNotifications', !settings.emailNotifications)}
-              >
-                <View
-                  style={[
-                    styles.toggleCircle(colors),
-                    settings.emailNotifications && styles.toggleCircleActive(colors),
                   ]}
                 />
               </TouchableOpacity>
@@ -1127,6 +1141,23 @@ const styles = {
     color: colors.income,
     marginTop: 4,
     fontWeight: '600' as const,
+  }),
+  reminderDetailsContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  reminderTriggerDesc: (colors: any) => ({
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic' as const,
+    marginBottom: 4,
+  }),
+  reminderCategory: (colors: any) => ({
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   }),
   reminderActions: {
     alignItems: 'center' as const,

@@ -18,7 +18,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { reportApi, transactionApi, categoryApi, alertApi } from '../src/services/api.service';
+import { reportApi, transactionApi, categoryApi, alertApi, reminderApi } from '../src/services/api.service';
 import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from '../src/types';
 
 const screenWidth = Dimensions.get('window').width;
@@ -35,6 +35,7 @@ export default function HomeScreen(): React.JSX.Element {
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
   const [unreadAlertCount, setUnreadAlertCount] = useState<number>(0);
+  const [upcomingReminderCount, setUpcomingReminderCount] = useState<number>(0);
   
   // Form states for income
   const [incomeCategory, setIncomeCategory] = useState<string>('');
@@ -64,12 +65,13 @@ export default function HomeScreen(): React.JSX.Element {
 
     try {
       setLoading(true);
-      const [summaryData, monthlyData, incomeCats, expenseCats, alertCountData] = await Promise.all([
+      const [summaryData, monthlyData, incomeCats, expenseCats, alertCountData, remindersData] = await Promise.all([
         reportApi.getSummary(),
         reportApi.getMonthly(),
         categoryApi.getAll('INCOME'),
         categoryApi.getAll('EXPENSE'),
         alertApi.getUnreadCount(),
+        reminderApi.getAll(false), // Get incomplete reminders
       ]);
 
       setSummary(summaryData);
@@ -77,9 +79,44 @@ export default function HomeScreen(): React.JSX.Element {
       setIncomeCategories(incomeCats);
       setExpenseCategories(expenseCats);
       setUnreadAlertCount(alertCountData.count);
+      
+      // Count upcoming reminders (not completed and due date is today or in the future)
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const upcomingReminders = remindersData.filter((reminder) => {
+        const dueDate = new Date(reminder.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        return !reminder.completed && dueDate >= now;
+      });
+      setUpcomingReminderCount(upcomingReminders.length);
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert(t('app.error'), t('home.errorLoading'));
+      
+      // Provide more specific error message based on error type
+      let errorMessage = t('home.errorLoading');
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase();
+        
+        // Network/Connection errors (Frontend/Connectivity issue)
+        if (errorMsg.includes('timeout') || errorMsg.includes('connection refused') || 
+            errorMsg.includes('cannot resolve') || errorMsg.includes('network error') ||
+            errorMsg.includes('econnrefused') || errorMsg.includes('enotfound')) {
+          errorMessage = __DEV__
+            ? `Network Error: ${error.message}\n\nPlease check:\n- Backend server is running\n- API URL is correct\n- Network connection is active`
+            : 'Cannot connect to server. Please check your connection and ensure the backend is running.';
+        } 
+        // Server errors (Backend issue)
+        else if (errorMsg.includes('internal server') || errorMsg.includes('database error') ||
+                 errorMsg.includes('500') || errorMsg.includes('server error')) {
+          errorMessage = 'Server Error: Backend encountered an issue. Please check backend logs.';
+        }
+        // Other errors - show the actual message
+        else {
+          errorMessage = `${t('home.errorLoading')}\n\n${error.message}`;
+        }
+      }
+      
+      Alert.alert(t('app.error'), errorMessage);
     } finally {
       setLoading(false);
     }
@@ -241,10 +278,10 @@ export default function HomeScreen(): React.JSX.Element {
           onPress={() => navigation.navigate('Alerts')}
         >
           <Icon name="notifications" size={24} color={colors.textInverse} />
-          {unreadAlertCount > 0 && (
+          {(unreadAlertCount > 0 || upcomingReminderCount > 0) && (
             <View style={[styles.notificationBadge, isRTL && styles.notificationBadgeRTL]}>
               <Text style={styles.notificationBadgeText}>
-                {unreadAlertCount > 99 ? '99+' : unreadAlertCount}
+                {(unreadAlertCount + upcomingReminderCount) > 99 ? '99+' : (unreadAlertCount + upcomingReminderCount)}
               </Text>
             </View>
           )}

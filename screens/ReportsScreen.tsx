@@ -65,8 +65,16 @@ export default function ReportsScreen(): React.JSX.Element {
 
   // Transform chartData for react-native-charts-wrapper BarChart
   const transformBarChartData = () => {
-    if (!chartData || !chartData.incomeData || !chartData.expenseData || 
-        chartData.incomeData.length === 0) {
+    if (!chartData || !chartData.incomeData || !chartData.expenseData) {
+      return null;
+    }
+    
+    // Check that both arrays exist and have data, and they match in length
+    if (chartData.incomeData.length === 0 && chartData.expenseData.length === 0) {
+      return null;
+    }
+    
+    if (chartData.incomeData.length !== chartData.expenseData.length) {
       return null;
     }
     
@@ -79,6 +87,29 @@ export default function ReportsScreen(): React.JSX.Element {
       x: index,
       y: value || 0,
     }));
+    
+    // Calculate responsive bar width and spacing based on number of data points
+    const dataPointCount = incomeValues.length;
+    let barWidth: number;
+    let groupSpace: number;
+    let barSpace: number;
+    
+    if (dataPointCount <= 4) {
+      // Few data points: larger bars with more spacing
+      barWidth = 0.5;
+      groupSpace = 0.15;
+      barSpace = 0.1;
+    } else if (dataPointCount <= 7) {
+      // Medium data points (e.g., week view): balanced spacing
+      barWidth = 0.4;
+      groupSpace = 0.1;
+      barSpace = 0.08;
+    } else {
+      // Many data points: tighter spacing
+      barWidth = 0.35;
+      groupSpace = 0.08;
+      barSpace = 0.06;
+    }
     
     return {
       dataSets: [
@@ -104,11 +135,11 @@ export default function ReportsScreen(): React.JSX.Element {
         },
       ],
       config: {
-        barWidth: 0.4,
+        barWidth,
         group: {
           fromX: 0,
-          groupSpace: 0.1,
-          barSpace: 0.1,
+          groupSpace,
+          barSpace,
         },
       },
     };
@@ -236,58 +267,67 @@ export default function ReportsScreen(): React.JSX.Element {
       {renderSummaryCards()}
 
       {/* Main Chart - Grouped Bar Chart */}
-      {period !== 'day' && barChartData && (
+      {period !== 'day' && (
         <View style={styles.chartContainer(colors)}>
           <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
             {t('reports.overview') || 'Overview'}
           </Text>
-          <BarChart
-            style={styles.barChart}
-            data={barChartData}
-            xAxis={{
-              valueFormatter: chartData.labels,
-              granularity: 1,
-              granularityEnabled: true,
-              position: 'BOTTOM',
-              textSize: 10,
-              textColor: colors.textSecondary,
-              axisLineColor: colors.border,
-              gridColor: colors.border,
-              avoidFirstLastClipping: true,
-            }}
-            yAxis={{
-              left: {
-                axisMinimum: 0,
-                axisMaximum: yAxisMax,
+          {barChartData ? (
+            <BarChart
+              style={styles.barChart}
+              data={barChartData}
+              xAxis={{
+                valueFormatter: chartData.labels,
+                granularity: 1,
+                granularityEnabled: true,
+                position: 'BOTTOM',
                 textSize: 10,
                 textColor: colors.textSecondary,
                 axisLineColor: colors.border,
-                gridColor: colors.border + '40',
-                valueFormatter: '$#',
-              },
-              right: {
-                enabled: false,
-              },
-            }}
-            chartDescription={{ text: '' }}
-            legend={{
-              enabled: true,
-              textSize: 12,
-              form: 'SQUARE',
-              formSize: 12,
-              xEntrySpace: 10,
-              yEntrySpace: 5,
-              wordWrapEnabled: true,
-            }}
-            animation={{ durationX: 800, durationY: 800 }}
-            drawValueAboveBar={true}
-            highlightEnabled={true}
-            dragEnabled={false}
-            scaleEnabled={false}
-            scaleXEnabled={false}
-            scaleYEnabled={false}
-            pinchZoom={false}
-          />
+                gridColor: colors.border,
+                avoidFirstLastClipping: true,
+              }}
+              yAxis={{
+                left: {
+                  axisMinimum: 0,
+                  axisMaximum: yAxisMax,
+                  textSize: 10,
+                  textColor: colors.textSecondary,
+                  axisLineColor: colors.border,
+                  gridColor: colors.border + '40',
+                  valueFormatter: '$%.0f', // Currency format without decimals
+                },
+                right: {
+                  enabled: false,
+                },
+              }}
+              chartDescription={{ text: '' }}
+              legend={{
+                enabled: true,
+                textSize: 12,
+                form: 'SQUARE',
+                formSize: 12,
+                xEntrySpace: 10,
+                yEntrySpace: 5,
+                wordWrapEnabled: true, // Ensures legend text wraps properly to prevent overflow
+              }}
+              animation={{ durationX: 800, durationY: 800 }}
+              drawValueAboveBar={true}
+              highlightEnabled={true}
+              dragEnabled={false}
+              scaleEnabled={false}
+              scaleXEnabled={false}
+              scaleYEnabled={false}
+              pinchZoom={false}
+            />
+          ) : (
+            <View style={styles.chartEmptyContainer}>
+              <Icon name="bar-chart" size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyText(colors)}>
+                {t('reports.noChartData') || 'No chart data available for this period.'}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -503,10 +543,18 @@ const styles = {
     color: colors.textSecondary,
     marginTop: 20,
   }),
+  chartEmptyContainer: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 40,
+    minHeight: 240,
+  },
   pieChartContainer: {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingVertical: 20,
+    width: '100%',
+    maxWidth: screenWidth - 64, // Match chart container width calculation
   },
   pieChartCenter: {
     alignItems: 'center' as const,
@@ -525,6 +573,7 @@ const styles = {
   }),
   barChart: {
     height: 240,
+    width: screenWidth - 64, // Account for container margins (32px) and padding (32px)
     marginVertical: 12,
   },
 };
