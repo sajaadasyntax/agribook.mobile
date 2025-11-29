@@ -9,11 +9,9 @@ import {
   Alert,
   TextInput,
   Modal,
-  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
@@ -33,7 +31,8 @@ export default function AlertsScreen(): React.JSX.Element {
   
   // Modal states
   const [showAddReminderModal, setShowAddReminderModal] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
   
   // Form states
   const [reminderTitle, setReminderTitle] = useState('');
@@ -199,9 +198,9 @@ export default function AlertsScreen(): React.JSX.Element {
     );
   };
 
-  const handleToggleSetting = async (key: keyof typeof settings, value: boolean) => {
+  const handleToggleSetting = async (key: string, value: boolean) => {
     try {
-      await updateSettings({ [key]: value });
+      await updateSettings({ [key]: value } as any);
     } catch (error) {
       console.error('Error updating setting:', error);
       Alert.alert(t('app.error'), t('alerts.errorUpdating'));
@@ -609,28 +608,16 @@ export default function AlertsScreen(): React.JSX.Element {
               </Text>
               <TouchableOpacity
                 style={[styles.dateButton(colors), isRTL && styles.dateButtonRTL]}
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => {
+                  setTempDate(reminderDueDate);
+                  setShowDatePickerModal(true);
+                }}
               >
                 <Icon name="event" size={20} color={colors.primary} />
                 <Text style={styles.dateButtonText(colors)}>
                   {reminderDueDate.toLocaleDateString()}
                 </Text>
               </TouchableOpacity>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  value={reminderDueDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === 'ios');
-                    if (selectedDate) {
-                      setReminderDueDate(selectedDate);
-                    }
-                  }}
-                  minimumDate={new Date()}
-                />
-              )}
 
               {/* Transaction Type Fields */}
               {reminderType === 'TRANSACTION' && (
@@ -778,6 +765,145 @@ export default function AlertsScreen(): React.JSX.Element {
                     {editingReminder ? t('alerts.updateReminder') : t('alerts.createReminder')}
                   </Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Date Picker Modal */}
+      <Modal
+        visible={showDatePickerModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDatePickerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerModalContent(colors)}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
+              <Text style={styles.modalTitle(colors)}>{t('alerts.selectDate')}</Text>
+              <TouchableOpacity onPress={() => setShowDatePickerModal(false)}>
+                <Icon name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.datePickerContainer}>
+              {/* Year Selector */}
+              <View style={styles.datePickerSection}>
+                <Text style={styles.datePickerLabel(colors)}>Year</Text>
+                <View style={styles.datePickerControls}>
+                  <TouchableOpacity
+                    style={styles.datePickerButton(colors)}
+                    onPress={() => {
+                      const newDate = new Date(tempDate);
+                      newDate.setFullYear(newDate.getFullYear() - 1);
+                      setTempDate(newDate);
+                    }}
+                  >
+                    <Icon name="remove" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.datePickerValue(colors)}>
+                    {tempDate.getFullYear()}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.datePickerButton(colors)}
+                    onPress={() => {
+                      const newDate = new Date(tempDate);
+                      newDate.setFullYear(newDate.getFullYear() + 1);
+                      setTempDate(newDate);
+                    }}
+                  >
+                    <Icon name="add" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Month Selector */}
+              <View style={styles.datePickerSection}>
+                <Text style={styles.datePickerLabel(colors)}>Month</Text>
+                <View style={styles.datePickerControls}>
+                  <TouchableOpacity
+                    style={styles.datePickerButton(colors)}
+                    onPress={() => {
+                      const newDate = new Date(tempDate);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      setTempDate(newDate);
+                    }}
+                  >
+                    <Icon name="remove" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.datePickerValue(colors)}>
+                    {tempDate.toLocaleDateString('en-US', { month: 'long' })}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.datePickerButton(colors)}
+                    onPress={() => {
+                      const newDate = new Date(tempDate);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      setTempDate(newDate);
+                    }}
+                  >
+                    <Icon name="add" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Day Selector */}
+              <View style={styles.datePickerSection}>
+                <Text style={styles.datePickerLabel(colors)}>Day</Text>
+                <View style={styles.datePickerControls}>
+                  <TouchableOpacity
+                    style={styles.datePickerButton(colors)}
+                    onPress={() => {
+                      const newDate = new Date(tempDate);
+                      newDate.setDate(newDate.getDate() - 1);
+                      setTempDate(newDate);
+                    }}
+                  >
+                    <Icon name="remove" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.datePickerValue(colors)}>
+                    {tempDate.getDate()}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.datePickerButton(colors)}
+                    onPress={() => {
+                      const newDate = new Date(tempDate);
+                      newDate.setDate(newDate.getDate() + 1);
+                      setTempDate(newDate);
+                    }}
+                  >
+                    <Icon name="add" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalCancelButton(colors)}
+                onPress={() => setShowDatePickerModal(false)}
+              >
+                <Text style={styles.modalCancelButtonText(colors)}>{t('app.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveButton(colors)}
+                onPress={() => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const selected = new Date(tempDate);
+                  selected.setHours(0, 0, 0, 0);
+                  
+                  if (selected < today) {
+                    Alert.alert(t('app.error'), 'Please select a future date');
+                    return;
+                  }
+                  
+                  setReminderDueDate(tempDate);
+                  setShowDatePickerModal(false);
+                }}
+              >
+                <Text style={styles.modalSaveButtonText}>{t('app.ok')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1051,7 +1177,7 @@ const styles = {
     backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '90%',
+    maxHeight: 600,
   }),
   modalHeader: {
     flexDirection: 'row' as const,
@@ -1230,6 +1356,73 @@ const styles = {
     opacity: 0.6,
   },
   saveButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600' as const,
+  },
+  // Date Picker Modal styles
+  datePickerModalContent: (colors: any) => ({
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: 400,
+  }),
+  datePickerContainer: {
+    padding: 20,
+  },
+  datePickerSection: {
+    marginBottom: 24,
+  },
+  datePickerLabel: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  }),
+  datePickerControls: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    gap: 16,
+  },
+  datePickerButton: (colors: any) => ({
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.inputBackground,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  }),
+  datePickerValue: (colors: any) => ({
+    fontSize: 20,
+    fontWeight: 'bold' as const,
+    color: colors.text,
+    minWidth: 120,
+    textAlign: 'center' as const,
+  }),
+  modalCancelButton: (colors: any) => ({
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center' as const,
+  }),
+  modalCancelButtonText: (colors: any) => ({
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '600' as const,
+  }),
+  modalSaveButton: (colors: any) => ({
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center' as const,
+  }),
+  modalSaveButtonText: {
     fontSize: 16,
     color: '#fff',
     fontWeight: '600' as const,
