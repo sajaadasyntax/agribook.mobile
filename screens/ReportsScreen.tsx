@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
-import { PieChart } from 'react-native-gifted-charts';
 import { BarChart } from 'react-native-charts-wrapper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -150,15 +149,6 @@ export default function ReportsScreen(): React.JSX.Element {
         },
       },
     };
-  };
-
-  // Transform categoryData for PieChart
-  const transformPieChartData = () => {
-    return categoryData.map(item => ({
-      value: item.population,
-      color: item.color,
-      label: item.name,
-    }));
   };
 
   // Calculate Y-axis maximum
@@ -335,37 +325,6 @@ export default function ReportsScreen(): React.JSX.Element {
               </Text>
             </View>
           )}
-        </View>
-      )}
-
-      {/* Category Breakdown */}
-      {categoryData.length > 0 && (
-        <View style={styles.chartContainer(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
-            {t('reports.topExpenses') || 'Top Expenses'}
-          </Text>
-          <View style={styles.pieChartContainer}>
-            <PieChart
-              data={transformPieChartData()}
-              radius={90}
-              showText
-              textColor={colors.text}
-              textSize={12}
-              focusOnPress
-              showGradient
-              donut
-              innerRadius={60}
-              innerCircleColor={colors.surface}
-              centerLabelComponent={() => (
-                <View style={styles.pieChartCenter}>
-                  <Text style={styles.pieChartCenterText(colors)}>{t('reports.total') || 'Total'}</Text>
-                  <Text style={styles.pieChartCenterValue(colors)}>
-                    {formatCurrency(categoryData.reduce((sum, item) => sum + item.population, 0), { locale })}
-                  </Text>
-                </View>
-              )}
-            />
-          </View>
         </View>
       )}
 
@@ -557,28 +516,6 @@ const styles = {
     paddingVertical: 40,
     minHeight: 240,
   },
-  pieChartContainer: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    paddingVertical: 20,
-    width: '100%',
-    maxWidth: screenWidth - 64, // Match chart container width calculation
-  },
-  pieChartCenter: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  pieChartCenterText: (colors: any) => ({
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500' as const,
-  }),
-  pieChartCenterValue: (colors: any) => ({
-    fontSize: 18,
-    color: colors.text,
-    fontWeight: 'bold' as const,
-    marginTop: 4,
-  }),
   barChart: {
     height: 240,
     width: screenWidth - 64, // Account for container margins (32px) and padding (32px)
