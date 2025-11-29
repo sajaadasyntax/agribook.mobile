@@ -26,7 +26,7 @@ export default function ProfileScreen(): React.JSX.Element {
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [logoUri, setLogoUri] = useState<string | null>(null);
-  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -34,7 +34,6 @@ export default function ProfileScreen(): React.JSX.Element {
       setPhone(user.phone || '');
       setCompanyName(user.companyName || '');
       setLogoUri(user.logoUrl || null);
-      setLogoBase64(user.logoUrl || null);
     }
   }, [user]);
 
@@ -51,15 +50,13 @@ export default function ProfileScreen(): React.JSX.Element {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true,
+        base64: false, // Don't need base64, we'll upload the file directly
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         setLogoUri(asset.uri);
-        if (asset.base64) {
-          setLogoBase64(`data:image/${asset.type || 'jpeg'};base64,${asset.base64}`);
-        }
+        setLogoFileUri(asset.uri); // Store the file URI for upload
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -70,20 +67,28 @@ export default function ProfileScreen(): React.JSX.Element {
   const handleSave = async (): Promise<void> => {
     try {
       setLoading(true);
-      const updatedUser = await userApi.update({
-        name: name || undefined,
-        phone: phone || undefined,
-        companyName: companyName || undefined,
-        logoUrl: logoBase64 || undefined,
-      });
+      
+      // If logoFileUri exists, upload the file; otherwise use logoUrl (could be empty to delete)
+      const updatedUser = await userApi.update(
+        {
+          name: name || undefined,
+          phone: phone || undefined,
+          companyName: companyName || undefined,
+          logoUrl: logoFileUri ? undefined : (logoUri ? undefined : ''), // Empty string to delete, undefined to keep
+        },
+        logoFileUri || undefined // Pass file URI if a new file was selected
+      );
       
       updateUserContext(updatedUser);
       // Refresh user data to ensure logo is loaded
       await refreshUser();
-      // Update local logo display
+      // Update local logo display with the URL from server
       if (updatedUser.logoUrl) {
         setLogoUri(updatedUser.logoUrl);
+      } else {
+        setLogoUri(null);
       }
+      setLogoFileUri(null); // Clear the file URI after upload
       Alert.alert(t('app.success'), t('profile.updated'));
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -133,7 +138,7 @@ export default function ProfileScreen(): React.JSX.Element {
               style={styles.removeLogoButton}
               onPress={() => {
                 setLogoUri(null);
-                setLogoBase64(null);
+                setLogoFileUri(null);
               }}
             >
               <Icon name="delete" size={20} color={colors.error} />

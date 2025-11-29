@@ -31,8 +31,37 @@ export const userApi = {
     return apiClient.get(`/users/${id}`);
   },
 
-  update: async (data: { name?: string; phone?: string; companyName?: string; logoUrl?: string }): Promise<User> => {
-    return apiClient.put('/users', data);
+  update: async (data: { name?: string; phone?: string; companyName?: string; logoUrl?: string }, logoFileUri?: string | null): Promise<User> => {
+    // If logoFileUri is provided, upload as file using FormData
+    if (logoFileUri) {
+      const formData = new FormData();
+      
+      // Add text fields
+      if (data.name) formData.append('name', data.name);
+      if (data.phone) formData.append('phone', data.phone);
+      if (data.companyName) formData.append('companyName', data.companyName);
+      
+      // Add logo file
+      const filename = logoFileUri.split('/').pop() || 'logo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      
+      formData.append('logo', {
+        uri: logoFileUri,
+        name: filename,
+        type: type,
+      } as any);
+      
+      return apiClient.putMultipart('/users', formData);
+    }
+    
+    // Otherwise, send as JSON (backward compatible with base64 or for deletion)
+    // If logoUrl is empty string, send null to delete
+    const updateData = {
+      ...data,
+      logoUrl: data.logoUrl === '' ? null : data.logoUrl,
+    };
+    return apiClient.put('/users', updateData);
   },
 };
 
