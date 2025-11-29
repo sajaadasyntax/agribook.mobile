@@ -275,7 +275,23 @@
     "optional": "اختياري",
     "continue": "متابعة",
     "loginRequired": "يرجى إدخال بريدك الإلكتروني أو رقم هاتفك لتسجيل الدخول",
-    "error": "حدث خطأ. يرجى المحاولة مرة أخرى."
+    "error": "حدث خطأ. يرجى المحاولة مرة أخرى.",
+    "companyName": "اسم الشركة",
+    "profile": {
+      "title": "الملف الشخصي",
+      "viewProfile": "عرض الملف الشخصي",
+      "personalInfo": "المعلومات الشخصية",
+      "companyInfo": "معلومات الشركة",
+      "companyLogo": "شعار الشركة",
+      "updated": "تم تحديث الملف الشخصي بنجاح",
+      "errorUpdating": "فشل في تحديث الملف الشخصي"
+    },
+    "companyNamePlaceholder": "أدخل اسم شركتك",
+    "companyLogo": "شعار الشركة",
+    "uploadLogo": "رفع الشعار",
+    "removeLogo": "إزالة",
+    "permissionDenied": "تم رفض إذن الوصول إلى الصور",
+    "errorUploadingLogo": "خطأ في رفع الشعار. يرجى المحاولة مرة أخرى."
   },
   "common": {
     "today": "اليوم",

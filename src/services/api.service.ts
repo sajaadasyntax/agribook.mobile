@@ -23,12 +23,16 @@ import {
 
 // User API
 export const userApi = {
-  createOrGet: async (email?: string, name?: string, phone?: string): Promise<{ user: User; settings: UserSettings }> => {
-    return apiClient.post('/users', { email, name, phone });
+  createOrGet: async (email?: string, name?: string, phone?: string, companyName?: string, logoUrl?: string): Promise<{ user: User; settings: UserSettings }> => {
+    return apiClient.post('/users', { email, name, phone, companyName, logoUrl });
   },
 
   getById: async (id: string): Promise<User> => {
     return apiClient.get(`/users/${id}`);
+  },
+
+  update: async (data: { name?: string; phone?: string; companyName?: string; logoUrl?: string }): Promise<User> => {
+    return apiClient.put('/users', data);
   },
 };
 

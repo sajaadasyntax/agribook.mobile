@@ -10,8 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useI18n } from '../src/context/I18nContext';
 import { useUser } from '../src/context/UserContext';
 import { useTheme } from '../src/context/ThemeContext';
@@ -28,6 +30,9 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [logoUri, setLogoUri] = useState<string | null>(null);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Reset loading when authentication succeeds
@@ -56,7 +61,13 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       }
 
       // Login or create account
-      await login(email || undefined, isSignIn ? undefined : name || undefined, phone || undefined);
+      await login(
+        email || undefined, 
+        isSignIn ? undefined : name || undefined, 
+        phone || undefined,
+        isSignIn ? undefined : companyName || undefined,
+        isSignIn ? undefined : logoBase64 || undefined
+      );
       
       // Navigation will happen automatically when isAuthenticated becomes true
       // Keep loading state true until navigation happens
@@ -169,6 +180,86 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
               />
             </View>
           </View>
+
+          {/* Company Name - Only for Sign Up */}
+          {!isSignIn && (
+            <View style={styles.inputContainer}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.companyName')}</Text>
+                <Text style={styles.optional}>{t('auth.optional')}</Text>
+              </View>
+              <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
+                <Icon name="business" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, isRTL && styles.inputRTL]}
+                  placeholder={t('auth.companyNamePlaceholder')}
+                  value={companyName}
+                  onChangeText={setCompanyName}
+                  textAlign={isRTL ? 'right' : 'left'}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Logo Upload - Only for Sign Up */}
+          {!isSignIn && (
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.companyLogo')}</Text>
+              <TouchableOpacity
+                style={[styles.logoUploadButton, isRTL && styles.logoUploadButtonRTL]}
+                onPress={async () => {
+                  try {
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') {
+                      Alert.alert(t('app.error'), t('auth.permissionDenied'));
+                      return;
+                    }
+
+                    const result = await ImagePicker.launchImageLibraryAsync({
+                      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                      allowsEditing: true,
+                      aspect: [1, 1],
+                      quality: 0.8,
+                      base64: true,
+                    });
+
+                    if (!result.canceled && result.assets[0]) {
+                      const asset = result.assets[0];
+                      setLogoUri(asset.uri);
+                      if (asset.base64) {
+                        setLogoBase64(`data:image/${asset.type || 'jpeg'};base64,${asset.base64}`);
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error picking image:', error);
+                    Alert.alert(t('app.error'), t('auth.errorUploadingLogo'));
+                  }
+                }}
+              >
+                {logoUri ? (
+                  <Image source={{ uri: logoUri }} style={styles.logoPreview} />
+                ) : (
+                  <View style={styles.logoPlaceholder}>
+                    <Icon name="add-photo-alternate" size={40} color="#999" />
+                    <Text style={styles.logoPlaceholderText}>{t('auth.uploadLogo')}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {logoUri && (
+                <TouchableOpacity
+                  style={styles.removeLogoButton}
+                  onPress={() => {
+                    setLogoUri(null);
+                    setLogoBase64(null);
+                  }}
+                >
+                  <Icon name="delete" size={20} color="#F44336" />
+                  <Text style={styles.removeLogoText}>{t('auth.removeLogo')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Submit Button */}
           <TouchableOpacity
@@ -379,6 +470,48 @@ const styles = StyleSheet.create({
   switchModeLink: {
     color: '#4CAF50',
     fontWeight: '600',
+  },
+  logoUploadButton: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
+  logoUploadButtonRTL: {
+    alignSelf: 'center',
+  },
+  logoPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoPlaceholderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+  },
+  logoPreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  removeLogoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    padding: 8,
+  },
+  removeLogoText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#F44336',
   },
 });
 

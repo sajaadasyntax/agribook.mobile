@@ -4,6 +4,8 @@ export interface User {
   email?: string | null;
   name?: string | null;
   phone?: string | null;
+  companyName?: string | null;
+  logoUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   settings?: UserSettings | null;

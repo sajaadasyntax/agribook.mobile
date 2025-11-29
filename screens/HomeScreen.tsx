@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { Dimensions } from 'react-native';
@@ -230,7 +231,11 @@ export default function HomeScreen(): React.JSX.Element {
   return (
     <View style={styles.container(colors)}>
       <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-        <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
+        {user?.logoUrl ? (
+          <Image source={{ uri: user.logoUrl }} style={styles.logoImage} resizeMode="contain" />
+        ) : (
+          <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
+        )}
         <TouchableOpacity 
           style={styles.notificationButton}
           onPress={() => navigation.navigate('Alerts')}
@@ -537,6 +542,11 @@ const styles = {
   },
   appBarTitleRTL: {
     textAlign: 'right' as const,
+  },
+  logoImage: {
+    width: 120,
+    height: 40,
+    maxWidth: 150,
   },
   appBarRTL: {
     flexDirection: 'row-reverse' as const,

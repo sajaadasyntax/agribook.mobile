@@ -275,7 +275,23 @@
     "optional": "Optional",
     "continue": "Continue",
     "loginRequired": "Please enter your email or phone number to sign in",
-    "error": "An error occurred. Please try again."
+    "error": "An error occurred. Please try again.",
+    "companyName": "Company Name",
+    "profile": {
+      "title": "Profile",
+      "viewProfile": "View Profile",
+      "personalInfo": "Personal Information",
+      "companyInfo": "Company Information",
+      "companyLogo": "Company Logo",
+      "updated": "Profile updated successfully",
+      "errorUpdating": "Failed to update profile"
+    },
+    "companyNamePlaceholder": "Enter your company name",
+    "companyLogo": "Company Logo",
+    "uploadLogo": "Upload Logo",
+    "removeLogo": "Remove",
+    "permissionDenied": "Permission to access photos was denied",
+    "errorUploadingLogo": "Error uploading logo. Please try again."
   },
   "common": {
     "today": "Today",

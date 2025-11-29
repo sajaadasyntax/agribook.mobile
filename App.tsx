@@ -16,6 +16,7 @@ import AddScreen from './screens/AddScreen';
 import ReportsScreen from './screens/ReportsScreen';
 import AlertsScreen from './screens/AlertsScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import ProfileScreen from './screens/ProfileScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
 import LockScreen from './screens/LockScreen';
@@ -224,6 +225,11 @@ function AppNavigator(): JSX.Element {
           {() => <WelcomeScreen onComplete={handleWelcomeComplete} />}
         </Stack.Screen>
         <Stack.Screen name="Main" component={MainTabs} />
+        <Stack.Screen 
+          name="Profile" 
+          component={ProfileScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

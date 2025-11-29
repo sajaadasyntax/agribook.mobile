@@ -11,9 +11,10 @@ interface UserContextType {
   isAuthenticated: boolean;
   isOffline: boolean;
   pendingCount: number;
-  login: (email?: string, name?: string, phone?: string) => Promise<void>;
+  login: (email?: string, name?: string, phone?: string, companyName?: string, logoUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateSettings: (data: Partial<UserSettings>) => Promise<void>;
+  updateUser: (user: User) => void;
   refreshUser: () => Promise<void>;
   syncData: () => Promise<boolean>;
 }
@@ -150,9 +151,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     };
   }, [settings?.autoSync, user, syncData]);
 
-  const login = async (email?: string, name?: string, phone?: string): Promise<void> => {
+  const login = async (email?: string, name?: string, phone?: string, companyName?: string, logoUrl?: string): Promise<void> => {
     try {
-      const result = await userApi.createOrGet(email, name, phone);
+      const result = await userApi.createOrGet(email, name, phone, companyName, logoUrl);
       await SecureStore.setItemAsync('userId', result.user.id);
       setUser(result.user);
       setSettings(result.settings);
@@ -175,6 +176,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Error logging out:', error);
     }
+  };
+
+  const updateUser = (updatedUser: User): void => {
+    setUser(updatedUser);
   };
 
   const updateSettings = async (data: Partial<UserSettings>): Promise<void> => {
@@ -324,6 +329,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         login,
         logout,
         updateSettings,
+        updateUser,
         refreshUser,
         syncData,
       }}

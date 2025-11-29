@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { useUser } from '../src/context/UserContext';
@@ -22,6 +23,7 @@ import { transactionApi, categoryApi, alertApi, reminderApi } from '../src/servi
 const HAS_PIN_FLAG = 'agribooks_has_pin';
 
 export default function SettingsScreen(): React.JSX.Element {
+  const navigation = useNavigation<any>();
   const { user, settings, updateSettings, isLoading, isOffline, pendingCount: contextPendingCount, syncData } = useUser();
   const { t, setLocale, isRTL, locale } = useI18n();
   const { colors } = useTheme();
@@ -514,6 +516,23 @@ export default function SettingsScreen(): React.JSX.Element {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        {/* Profile Section */}
+        <View style={styles.section(colors)}>
+          <TouchableOpacity
+            style={[styles.profileButton(colors), isRTL && styles.profileButtonRTL]}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Icon name="person" size={24} color={colors.primary} />
+            <View style={styles.profileButtonContent}>
+              <Text style={styles.profileButtonTitle(colors)}>{t('profile.title')}</Text>
+              <Text style={styles.profileButtonSubtitle(colors)}>
+                {user?.companyName || user?.name || t('profile.viewProfile')}
+              </Text>
+            </View>
+            <Icon name={isRTL ? 'chevron-left' : 'chevron-right'} size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
         {/* Offline & Sync Section */}
         <View style={styles.section(colors)}>
           <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
@@ -1127,6 +1146,30 @@ const styles = {
     fontSize: 14,
     color: colors.text,
     fontWeight: '500' as const,
+  }),
+  profileButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: 16,
+    backgroundColor: colors.inputBackground,
+    borderRadius: 12,
+    gap: 12,
+  }),
+  profileButtonRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  profileButtonContent: {
+    flex: 1,
+  },
+  profileButtonTitle: (colors: any) => ({
+    fontSize: 16,
+    fontWeight: 'bold' as const,
+    color: colors.text,
+    marginBottom: 4,
+  }),
+  profileButtonSubtitle: (colors: any) => ({
+    fontSize: 14,
+    color: colors.textSecondary,
   }),
   // PIN Modal Styles
   setPinButton: (colors: any) => ({
