@@ -30,14 +30,61 @@ export default function AddScreen(): React.JSX.Element {
   const [categories, setCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [isNetworkOnline, setIsNetworkOnline] = useState(true);
   
   // Category management states
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryDescription, setNewCategoryDescription] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState<string>('');
   const [newCategoryType, setNewCategoryType] = useState<CategoryType>('INCOME');
   const [savingCategory, setSavingCategory] = useState(false);
   const [managementMode, setManagementMode] = useState<'add' | 'delete'>('add');
+
+  // Real-time network status monitoring
+  useEffect(() => {
+    // Check initial network status
+    syncService.checkNetworkStatus().then(setIsNetworkOnline);
+
+    // Listen to network changes
+    const unsubscribe = syncService.addConnectivityListener((isOnline) => {
+      setIsNetworkOnline(isOnline);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Helper function to detect error type
+  const detectErrorType = (error: any): {
+    isNetworkError: boolean;
+    isServerError: boolean;
+    isAuthError: boolean;
+    isValidationError: boolean;
+    isDuplicateError: boolean;
+    isNotFoundError: boolean;
+    errorMessage: string;
+  } => {
+    const errorMsg = (error?.message || String(error) || '').toLowerCase();
+    const statusCode = (error as any)?.response?.status;
+
+    return {
+      isNetworkError: 
+        errorMsg.includes('network') || 
+        errorMsg.includes('timeout') ||
+        errorMsg.includes('econnrefused') ||
+        errorMsg.includes('enotfound') ||
+        errorMsg.includes('getaddrinfo') ||
+        errorMsg.includes('connection') ||
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ENOTFOUND' ||
+        error.code === 'ECONNREFUSED',
+      isServerError: statusCode === 500 || statusCode === 503 || statusCode === 502,
+      isAuthError: statusCode === 401 || statusCode === 403 || errorMsg.includes('authentication'),
+      isValidationError: statusCode === 400 || errorMsg.includes('validation'),
+      isDuplicateError: statusCode === 409 || errorMsg.includes('already exists') || errorMsg.includes('duplicate'),
+      isNotFoundError: statusCode === 404,
+      errorMessage: error?.message || 'An error occurred',
+    };
+  };
 
   const loadCategories = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -46,7 +93,11 @@ export default function AddScreen(): React.JSX.Element {
       setLoadingCategories(true);
       const type = entryType === 'income' ? 'INCOME' : 'EXPENSE';
       
-      if (isOffline || settings?.offlineMode) {
+      // Check actual network status first
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+      
+      if (shouldUseOffline) {
         // Load from cache when offline
         const cachedCategories = await syncService.getCachedCategories();
         const filteredCategories = cachedCategories.filter(cat => cat.type === type);
@@ -54,39 +105,69 @@ export default function AddScreen(): React.JSX.Element {
         setAllCategories(cachedCategories);
       } else {
         // Load from API when online
-        const cats = await categoryApi.getAll(type);
-        setCategories(cats);
-        
-        // Cache categories for offline use
-        const allCats = await categoryApi.getAll();
-        setAllCategories(allCats);
-        await syncService.cacheCategories(allCats);
+        try {
+          const cats = await categoryApi.getAll(type);
+          setCategories(cats);
+          
+          // Cache categories for offline use
+          const allCats = await categoryApi.getAll();
+          setAllCategories(allCats);
+          await syncService.cacheCategories(allCats);
+        } catch (apiError) {
+          // API failed, try cache as fallback
+          console.warn('API call failed, falling back to cache:', apiError);
+          const cachedCategories = await syncService.getCachedCategories();
+          const filteredCategories = cachedCategories.filter(cat => cat.type === type);
+          
+          if (filteredCategories.length > 0) {
+            setCategories(filteredCategories);
+            setAllCategories(cachedCategories);
+            // Don't show error if we successfully loaded from cache
+            return;
+          } else {
+            throw apiError; // No cache available, throw original error
+          }
+        }
       }
       
       setSelectedCategory('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading categories:', error);
+      
+      // Detect error type
+      const errorInfo = detectErrorType(error);
+      const type = entryType === 'income' ? 'INCOME' : 'EXPENSE';
       
       // Try to load from cache on error
       try {
-        const type = entryType === 'income' ? 'INCOME' : 'EXPENSE';
         const cachedCategories = await syncService.getCachedCategories();
         const filteredCategories = cachedCategories.filter(cat => cat.type === type);
         if (filteredCategories.length > 0) {
           setCategories(filteredCategories);
           setAllCategories(cachedCategories);
-        } else {
-          Alert.alert(
-            t('app.error') || 'Error', 
-            t('add.loadCategoriesFailed') || 'Failed to load categories. Please try again.'
-          );
+          
+          // Show info message about using cached data
+          if (errorInfo.isNetworkError) {
+            // Silent success - cache loaded successfully
+            return;
+          }
         }
       } catch (cacheError) {
-        Alert.alert(
-          t('app.error') || 'Error', 
-          t('add.loadCategoriesFailed') || 'Failed to load categories'
-        );
+        // Cache also failed
       }
+      
+      // Provide specific error messages
+      let errorText = t('add.loadCategoriesFailed') || 'Failed to load categories';
+      
+      if (errorInfo.isNetworkError) {
+        errorText = t('add.networkErrorCategories') || 'Network error. Please check your connection.';
+      } else if (errorInfo.isAuthError) {
+        errorText = t('add.authErrorCategories') || 'Authentication required. Please log in again.';
+      } else if (errorInfo.isServerError) {
+        errorText = t('add.serverErrorCategories') || 'Server error. Please try again later.';
+      }
+      
+      Alert.alert(t('app.error') || 'Error', errorText);
     } finally {
       setLoadingCategories(false);
     }
@@ -185,38 +266,10 @@ export default function AddScreen(): React.JSX.Element {
     try {
       setLoading(true);
       
-      if (isOffline || settings?.offlineMode) {
-        await persistOfflineTransaction(
-          {
-            type: transactionType,
-            amount: amountNum,
-            categoryId: selectedCategory,
-            description: notes || undefined,
-            categorySnapshot: categories.find((c) => c.id === selectedCategory),
-          },
-          t('add.savedOffline') || 'Transaction saved offline. It will sync when you are online.'
-        );
-      } else {
-        // Online - save directly to API
-        const data: CreateTransactionDto = {
-          type: transactionType,
-          amount: amountNum,
-          categoryId: selectedCategory,
-          description: notes || undefined,
-        };
-
-        await transactionApi.create(data);
-        Alert.alert(
-          t('app.success') || 'Success', 
-          t('add.transactionSaved') || 'Transaction saved successfully'
-        );
-      }
-
-      resetForm();
-    } catch (error) {
-      console.error('Error saving transaction:', error);
+      // Check actual network status
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldSaveOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
       
-      // If online save fails, offer to save offline
       const offlineSnapshot: OfflineTransactionPayload = {
         type: transactionType,
         amount: amountNum,
@@ -224,40 +277,92 @@ export default function AddScreen(): React.JSX.Element {
         description: notes || undefined,
         categorySnapshot: categories.find((c) => c.id === selectedCategory),
       };
+      
+      if (shouldSaveOffline) {
+        // Save offline immediately
+        await persistOfflineTransaction(
+          offlineSnapshot,
+          t('add.savedOffline') || 'Transaction saved offline. It will sync when you are online.'
+        );
+        resetForm();
+      } else {
+        // Online - save directly to API
+        try {
+          const data: CreateTransactionDto = {
+            type: transactionType,
+            amount: amountNum,
+            categoryId: selectedCategory,
+            description: notes || undefined,
+          };
 
+          await transactionApi.create(data);
+          Alert.alert(
+            t('app.success') || 'Success', 
+            t('add.transactionSaved') || 'Transaction saved successfully'
+          );
+          resetForm();
+        } catch (apiError: any) {
+          // API failed, detect error type
+          const errorInfo = detectErrorType(apiError);
+          
+          if (errorInfo.isNetworkError) {
+            // Network error - auto-save offline
+            await persistOfflineTransaction(
+              offlineSnapshot,
+              t('add.savedOfflineNetworkError') || 'Transaction saved offline due to network error.'
+            );
+            resetForm();
+          } else if (errorInfo.isValidationError) {
+            // Validation error - show specific message
+            Alert.alert(
+              t('app.error') || 'Error',
+              errorInfo.errorMessage || t('add.validationError') || 'Invalid transaction data. Please check your inputs.'
+            );
+          } else {
+            // Other error - offer to save offline
+            Alert.alert(
+              t('app.error') || 'Error',
+              errorInfo.isServerError 
+                ? (t('add.serverErrorSave') || 'Server error. Would you like to save this transaction offline?')
+                : (t('add.saveFailed') || 'Failed to save transaction. Would you like to save it offline?'),
+              [
+                {
+                  text: t('app.cancel') || 'Cancel',
+                  style: 'cancel',
+                },
+                {
+                  text: t('add.saveOffline') || 'Save Offline',
+                  onPress: async () => {
+                    try {
+                      if (!offlineSnapshot.categoryId) {
+                        Alert.alert(t('app.error') || 'Error', t('add.category') || 'Category required');
+                        return;
+                      }
+
+                      await persistOfflineTransaction(
+                        offlineSnapshot,
+                        t('add.savedOffline') || 'Transaction saved offline.'
+                      );
+                      resetForm();
+                    } catch (offlineError) {
+                      console.error('Error saving offline:', offlineError);
+                      Alert.alert(
+                        t('app.error') || 'Error', 
+                        t('add.offlineSaveFailed') || 'Failed to save offline'
+                      );
+                    }
+                  },
+                },
+              ]
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error saving transaction:', error);
       Alert.alert(
         t('app.error') || 'Error',
-        t('add.saveFailed') || 'Failed to save transaction. Would you like to save it offline?',
-        [
-          {
-            text: t('app.cancel') || 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: t('add.saveOffline') || 'Save Offline',
-            onPress: async () => {
-              try {
-                if (!offlineSnapshot.categoryId) {
-                  Alert.alert(t('app.error') || 'Error', t('add.category') || 'Category required');
-                  return;
-                }
-
-                await persistOfflineTransaction(
-                  offlineSnapshot,
-                  t('add.savedOffline') || 'Transaction saved offline.'
-                );
-
-                resetForm();
-              } catch (offlineError) {
-                console.error('Error saving offline:', offlineError);
-                Alert.alert(
-                  t('app.error') || 'Error', 
-                  t('add.offlineSaveFailed') || 'Failed to save offline'
-                );
-              }
-            },
-          },
-        ]
+        t('add.offlineSaveFailed') || 'Failed to save transaction'
       );
     } finally {
       setLoading(false);
@@ -310,14 +415,28 @@ export default function AddScreen(): React.JSX.Element {
       await loadCategories();
     } catch (error: any) {
       console.error('Error creating category:', error);
-      // Check if it's a network error
-      if (!await syncService.checkNetworkStatus()) {
-        Alert.alert(t('app.error'), t('add.connectToLoadCategories') || 'No internet connection');
-      } else if (error?.message?.includes('already exists')) {
-        Alert.alert(t('app.error'), t('add.categoryExists'));
-      } else {
-        Alert.alert(t('app.error'), t('add.errorCreatingCategory'));
+      
+      // Detect error type
+      const errorInfo = detectErrorType(error);
+      
+      // Check network status in error handler
+      const networkStillOnline = await syncService.checkNetworkStatus();
+      
+      let errorMessage = t('add.errorCreatingCategory') || 'Failed to create category';
+      
+      if (!networkStillOnline || errorInfo.isNetworkError) {
+        errorMessage = t('add.connectToLoadCategories') || 'No internet connection. Please check your network and try again.';
+      } else if (errorInfo.isDuplicateError) {
+        errorMessage = t('add.categoryExists') || 'A category with this name already exists.';
+      } else if (errorInfo.isValidationError) {
+        errorMessage = errorInfo.errorMessage || t('add.validationErrorCategory') || 'Invalid category data. Please check your inputs.';
+      } else if (errorInfo.isServerError) {
+        errorMessage = t('add.serverErrorCategory') || 'Server error. Please try again later.';
+      } else if (errorInfo.isAuthError) {
+        errorMessage = t('add.authErrorCategory') || 'Authentication required. Please log in again.';
       }
+      
+      Alert.alert(t('app.error') || 'Error', errorMessage);
     } finally {
       setSavingCategory(false);
     }
@@ -349,11 +468,28 @@ export default function AddScreen(): React.JSX.Element {
               await loadCategories();
             } catch (error: any) {
               console.error('Error deleting category:', error);
-              if (error?.message?.includes('transactions')) {
-                Alert.alert(t('app.error'), t('add.categoryHasTransactions'));
-              } else {
-                Alert.alert(t('app.error'), t('add.errorDeletingCategory'));
+              
+              // Detect error type
+              const errorInfo = detectErrorType(error);
+              
+              // Check network status in error handler
+              const networkStillOnline = await syncService.checkNetworkStatus();
+              
+              let errorMessage = t('add.errorDeletingCategory') || 'Failed to delete category';
+              
+              if (!networkStillOnline || errorInfo.isNetworkError) {
+                errorMessage = t('add.networkErrorDeleteCategory') || 'Network error. Please check your connection and try again.';
+              } else if (error?.message?.includes('transactions') || errorInfo.errorMessage.toLowerCase().includes('transaction')) {
+                errorMessage = t('add.categoryHasTransactions') || 'Cannot delete category because it has associated transactions.';
+              } else if (errorInfo.isNotFoundError) {
+                errorMessage = t('add.categoryNotFound') || 'Category not found. It may have already been deleted.';
+              } else if (errorInfo.isServerError) {
+                errorMessage = t('add.serverErrorDeleteCategory') || 'Server error. Please try again later.';
+              } else if (errorInfo.isAuthError) {
+                errorMessage = t('add.authErrorDeleteCategory') || 'Authentication required. Please log in again.';
               }
+              
+              Alert.alert(t('app.error') || 'Error', errorMessage);
             }
           },
         },
