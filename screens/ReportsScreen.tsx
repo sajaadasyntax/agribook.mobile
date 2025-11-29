@@ -224,8 +224,8 @@ export default function ReportsScreen(): React.JSX.Element {
       style={styles.container(colors)}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
-      <View style={styles.header(colors)}>
-        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>Analytics</Text>
+      <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
+        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>{t('reports.title')}</Text>
       </View>
 
       {renderPeriodSelector()}
@@ -364,6 +364,9 @@ const styles = {
   }),
   headerTitleRTL: {
     textAlign: 'right' as const,
+  },
+  headerRTL: {
+    alignItems: 'flex-end' as const,
   },
   periodSelector: (colors: any) => ({
     flexDirection: 'row' as const,

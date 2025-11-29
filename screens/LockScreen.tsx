@@ -4,12 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Alert,
   ActivityIndicator,
   Animated,
   Vibration,
-  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -39,7 +37,6 @@ export default function LockScreen({
   const [biometricType, setBiometricType] = useState<string>('');
   const [showBiometricOption, setShowBiometricOption] = useState(false);
   
-  const pinInputRefs = useRef<Array<TextInput | null>>([]);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
   const handleBiometricAuth = useCallback(async (): Promise<void> => {
@@ -56,7 +53,7 @@ export default function LockScreen({
       if (result.success) {
         onUnlock();
       } else if (result.error === 'user_cancel') {
-        pinInputRefs.current[0]?.focus();
+        // User cancelled, do nothing - in-app keypad is always available
       }
     } catch (error) {
       console.error('Biometric auth error:', error);
@@ -147,31 +144,16 @@ export default function LockScreen({
   const handlePinChange = (index: number, value: string): void => {
     if (lockedOut || loading) return;
     
-    if (value.length <= 1) {
-      const newPin = [...pin];
-      newPin[index] = value;
-      setPin(newPin);
-      
-      // Auto-focus to next input
-      if (value.length === 1 && index < 3) {
-        pinInputRefs.current[index + 1]?.focus();
+    const newPin = [...pin];
+    newPin[index] = value;
+    setPin(newPin);
+    
+    // Auto-verify when all 4 digits are entered
+    if (index === 3 && value !== '') {
+      const pinString = newPin.join('');
+      if (pinString.length === 4) {
+        verifyPin(pinString);
       }
-      
-      // Auto-verify when all 4 digits are entered
-      if (value.length === 1 && index === 3) {
-        const fullPin = [...newPin];
-        fullPin[index] = value;
-        const pinString = fullPin.join('');
-        if (pinString.length === 4) {
-          verifyPin(pinString);
-        }
-      }
-    }
-  };
-
-  const handlePinKeyPress = (index: number, key: string): void => {
-    if (key === 'Backspace' && pin[index] === '' && index > 0) {
-      pinInputRefs.current[index - 1]?.focus();
     }
   };
 
@@ -201,7 +183,6 @@ export default function LockScreen({
     setAttempts(newAttempts);
     setPin(['', '', '', '']);
     shakeError();
-    pinInputRefs.current[0]?.focus();
     
     if (newAttempts >= MAX_ATTEMPTS) {
       setLockedOut(true);
@@ -281,24 +262,6 @@ export default function LockScreen({
           </View>
         ))}
       </Animated.View>
-
-      {/* Hidden text inputs for keyboard support */}
-      <View style={styles.hiddenInputs}>
-        {pin.map((digit, index) => (
-          <TextInput
-            key={index}
-            ref={(ref) => { pinInputRefs.current[index] = ref; }}
-            style={styles.hiddenInput}
-            value={digit}
-            onChangeText={(value) => handlePinChange(index, value)}
-            onKeyPress={({ nativeEvent }) => handlePinKeyPress(index, nativeEvent.key)}
-            keyboardType="numeric"
-            maxLength={1}
-            secureTextEntry
-            editable={!lockedOut && !loading}
-          />
-        ))}
-      </View>
 
       {loading && (
         <ActivityIndicator size="large" color="#4CAF50" style={styles.loader} />
@@ -421,16 +384,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: '#fff',
-  },
-  hiddenInputs: {
-    position: 'absolute',
-    opacity: 0,
-    width: 1,
-    height: 1,
-  },
-  hiddenInput: {
-    width: 1,
-    height: 1,
   },
   loader: {
     marginBottom: 20,

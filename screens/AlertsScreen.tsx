@@ -51,18 +51,35 @@ export default function AlertsScreen(): React.JSX.Element {
 
     try {
       setLoading(true);
-      const [alertsData, remindersData, allCategories] = await Promise.all([
-        alertApi.getAll(false),
-        reminderApi.getAll(false),
-        categoryApi.getAll(),
-      ]);
+      
+      // Load each data type separately to handle partial failures
+      try {
+        const alertsData = await alertApi.getAll(false);
+        setAlerts(alertsData);
+      } catch (alertError) {
+        console.error('Error loading alerts:', alertError);
+        setAlerts([]);
+      }
 
-      setAlerts(alertsData);
-      setReminders(remindersData);
-      setCategories(allCategories);
-      setExpenseCategories(allCategories.filter(c => c.type === 'EXPENSE'));
+      try {
+        const remindersData = await reminderApi.getAll(false);
+        setReminders(remindersData);
+      } catch (reminderError) {
+        console.error('Error loading reminders:', reminderError);
+        setReminders([]);
+      }
+
+      try {
+        const allCategories = await categoryApi.getAll();
+        setCategories(allCategories);
+        setExpenseCategories(allCategories.filter(c => c.type === 'EXPENSE'));
+      } catch (categoryError) {
+        console.error('Error loading categories:', categoryError);
+        setCategories([]);
+        setExpenseCategories([]);
+      }
     } catch (error) {
-      console.error('Error loading alerts:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -318,7 +335,7 @@ export default function AlertsScreen(): React.JSX.Element {
 
   return (
     <View style={styles.container(colors)}>
-      <View style={styles.header(colors)}>
+      <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
         <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>
           {t('alerts.title')}
         </Text>
@@ -542,7 +559,12 @@ export default function AlertsScreen(): React.JSX.Element {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              style={styles.modalBody} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+            >
               {/* Reminder Type Selection */}
               <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
                 {t('alerts.reminderType')}
@@ -790,7 +812,7 @@ export default function AlertsScreen(): React.JSX.Element {
             <View style={styles.datePickerContainer}>
               {/* Year Selector */}
               <View style={styles.datePickerSection}>
-                <Text style={styles.datePickerLabel(colors)}>Year</Text>
+                <Text style={styles.datePickerLabel(colors)}>{t('alerts.year')}</Text>
                 <View style={styles.datePickerControls}>
                   <TouchableOpacity
                     style={styles.datePickerButton(colors)}
@@ -820,7 +842,7 @@ export default function AlertsScreen(): React.JSX.Element {
 
               {/* Month Selector */}
               <View style={styles.datePickerSection}>
-                <Text style={styles.datePickerLabel(colors)}>Month</Text>
+                <Text style={styles.datePickerLabel(colors)}>{t('alerts.month')}</Text>
                 <View style={styles.datePickerControls}>
                   <TouchableOpacity
                     style={styles.datePickerButton(colors)}
@@ -850,7 +872,7 @@ export default function AlertsScreen(): React.JSX.Element {
 
               {/* Day Selector */}
               <View style={styles.datePickerSection}>
-                <Text style={styles.datePickerLabel(colors)}>Day</Text>
+                <Text style={styles.datePickerLabel(colors)}>{t('alerts.day')}</Text>
                 <View style={styles.datePickerControls}>
                   <TouchableOpacity
                     style={styles.datePickerButton(colors)}
@@ -895,7 +917,7 @@ export default function AlertsScreen(): React.JSX.Element {
                   selected.setHours(0, 0, 0, 0);
                   
                   if (selected < today) {
-                    Alert.alert(t('app.error'), 'Please select a future date');
+                    Alert.alert(t('app.error'), t('alerts.selectFutureDate'));
                     return;
                   }
                   
@@ -942,6 +964,9 @@ const styles = {
   }),
   headerTitleRTL: {
     textAlign: 'right' as const,
+  },
+  headerRTL: {
+    flexDirection: 'row-reverse' as const,
   },
   addButton: (colors: any) => ({
     backgroundColor: 'rgba(255,255,255,0.2)',

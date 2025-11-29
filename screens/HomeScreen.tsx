@@ -229,7 +229,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   return (
     <View style={styles.container(colors)}>
-      <View style={styles.appBar(colors)}>
+      <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
         <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
         <TouchableOpacity 
           style={styles.notificationButton}
@@ -237,7 +237,7 @@ export default function HomeScreen(): React.JSX.Element {
         >
           <Icon name="notifications" size={24} color={colors.textInverse} />
           {unreadAlertCount > 0 && (
-            <View style={styles.notificationBadge}>
+            <View style={[styles.notificationBadge, isRTL && styles.notificationBadgeRTL]}>
               <Text style={styles.notificationBadgeText}>
                 {unreadAlertCount > 99 ? '99+' : unreadAlertCount}
               </Text>
@@ -538,6 +538,9 @@ const styles = {
   appBarTitleRTL: {
     textAlign: 'right' as const,
   },
+  appBarRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
   notificationButton: {
     position: 'relative' as const,
     padding: 4,
@@ -546,6 +549,10 @@ const styles = {
     position: 'absolute' as const,
     top: 0,
     right: 0,
+  },
+  notificationBadgeRTL: {
+    right: undefined,
+    left: 0,
     backgroundColor: '#F44336',
     borderRadius: 10,
     minWidth: 18,

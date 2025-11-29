@@ -5,10 +5,10 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Switch,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -27,6 +27,7 @@ export default function SettingsScreen(): React.JSX.Element {
   const { colors } = useTheme();
   const [saving, setSaving] = useState(false);
   const [pin, setPin] = useState<string[]>(['', '', '', '']);
+  const [showPinModal, setShowPinModal] = useState(false);
   const [language, setLanguage] = useState<'en' | 'ar'>(locale as 'en' | 'ar');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('');
@@ -273,26 +274,29 @@ export default function SettingsScreen(): React.JSX.Element {
     }
   };
 
-  const pinInputRefs = React.useRef<Array<TextInput | null>>([]);
-
-  const handlePinChange = (index: number, value: string): void => {
-    if (value.length <= 1) {
+  // In-app PIN keyboard handlers
+  const handleNumberPress = (num: string): void => {
+    const emptyIndex = pin.findIndex(digit => digit === '');
+    if (emptyIndex !== -1) {
       const newPin = [...pin];
-      newPin[index] = value;
+      newPin[emptyIndex] = num;
       setPin(newPin);
-      
-      // Auto-focus to next input
-      if (value.length === 1 && index < 3) {
-        pinInputRefs.current[index + 1]?.focus();
-      }
     }
   };
 
-  const handlePinKeyPress = (index: number, key: string): void => {
-    // Handle backspace to go to previous input
-    if (key === 'Backspace' && pin[index] === '' && index > 0) {
-      pinInputRefs.current[index - 1]?.focus();
+  const handleBackspace = (): void => {
+    const lastFilledIndex = pin.reduce((acc, digit, index) => 
+      digit !== '' ? index : acc, -1);
+    
+    if (lastFilledIndex !== -1) {
+      const newPin = [...pin];
+      newPin[lastFilledIndex] = '';
+      setPin(newPin);
     }
+  };
+
+  const handleClearPin = (): void => {
+    setPin(['', '', '', '']);
   };
 
   const handleSavePin = async (): Promise<void> => {
@@ -304,11 +308,13 @@ export default function SettingsScreen(): React.JSX.Element {
 
     try {
       setSaving(true);
-      // Store PIN hash in SecureStore (in production, hash it first)
+      // Store PIN locally in SecureStore
       await SecureStore.setItemAsync('user_pin', pinString);
-      await updateSettings({ pinEnabled: true });
+      // Save PIN and pinEnabled to database for cross-device sync
+      await updateSettings({ pinEnabled: true, pin: pinString });
       await SecureStore.setItemAsync(HAS_PIN_FLAG, 'true');
       setHasSavedPin(true);
+      setShowPinModal(false);
       Alert.alert(t('app.success'), t('settings.pinSaved'));
       setPin(['', '', '', '']);
     } catch (error) {
@@ -317,6 +323,11 @@ export default function SettingsScreen(): React.JSX.Element {
     } finally {
       setSaving(false);
     }
+  };
+
+  const openPinModal = (): void => {
+    setPin(['', '', '', '']);
+    setShowPinModal(true);
   };
 
   const handleTogglePinLock = async (): Promise<void> => {
@@ -498,7 +509,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   return (
     <View style={styles.container(colors)}>
-      <View style={styles.appBar(colors)}>
+      <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
         <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('settings.title')}</Text>
       </View>
 
@@ -575,33 +586,19 @@ export default function SettingsScreen(): React.JSX.Element {
         {/* PIN / Biometric Section */}
         <View style={styles.section(colors)}>
           <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.pinBiometric')}</Text>
-          <View style={styles.pinContainer}>
-            {pin.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => { pinInputRefs.current[index] = ref; }}
-                style={styles.pinInput(colors)}
-                value={digit}
-                onChangeText={(value) => handlePinChange(index, value)}
-                onKeyPress={({ nativeEvent }) => handlePinKeyPress(index, nativeEvent.key)}
-                keyboardType="numeric"
-                maxLength={1}
-                secureTextEntry
-                selectTextOnFocus
-              />
-            ))}
-          </View>
+          
+          {/* Set/Change PIN Button */}
           <TouchableOpacity
-            style={[styles.savePinButton(colors), saving && styles.savePinButtonDisabled]}
-            onPress={handleSavePin}
-            disabled={saving}
+            style={styles.setPinButton(colors)}
+            onPress={openPinModal}
           >
-            {saving ? (
-              <ActivityIndicator color={colors.textInverse} />
-            ) : (
-              <Text style={styles.savePinButtonText}>{t('settings.savePin')}</Text>
-            )}
+            <Icon name="dialpad" size={24} color={colors.primary} />
+            <Text style={styles.setPinButtonText(colors)}>
+              {hasSavedPin ? t('settings.changePin') : t('settings.savePin')}
+            </Text>
+            <Icon name={isRTL ? 'chevron-left' : 'chevron-right'} size={24} color={colors.textSecondary} />
           </TouchableOpacity>
+
           <View style={[styles.securityButtons, isRTL && styles.securityButtonsRTL]}>
             <TouchableOpacity
               style={[
@@ -736,6 +733,94 @@ export default function SettingsScreen(): React.JSX.Element {
           </View>
         </View>
       </ScrollView>
+
+      {/* PIN Entry Modal with In-App Keyboard */}
+      <Modal
+        visible={showPinModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPinModal(false)}
+      >
+        <View style={styles.pinModalOverlay}>
+          <View style={styles.pinModalContent(colors)}>
+            <View style={[styles.pinModalHeader, isRTL && styles.pinModalHeaderRTL]}>
+              <Text style={styles.pinModalTitle(colors)}>
+                {t('settings.enterPin')}
+              </Text>
+              <TouchableOpacity onPress={() => setShowPinModal(false)}>
+                <Icon name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* PIN Display */}
+            <View style={styles.pinDisplayContainer}>
+              {pin.map((digit, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.pinDot(colors),
+                    digit !== '' && styles.pinDotFilled(colors),
+                  ]}
+                >
+                  {digit !== '' && (
+                    <View style={styles.pinDotInner(colors)} />
+                  )}
+                </View>
+              ))}
+            </View>
+
+            {/* Number Pad */}
+            <View style={styles.numberPad}>
+              {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['clear', '0', 'back']].map((row, rowIndex) => (
+                <View key={rowIndex} style={styles.numberPadRow}>
+                  {row.map((item) => (
+                    <TouchableOpacity
+                      key={item}
+                      style={[
+                        styles.numberPadButton(colors),
+                        (item === 'clear' || item === 'back') && styles.numberPadActionButton,
+                      ]}
+                      onPress={() => {
+                        if (item === 'clear') {
+                          handleClearPin();
+                        } else if (item === 'back') {
+                          handleBackspace();
+                        } else {
+                          handleNumberPress(item);
+                        }
+                      }}
+                    >
+                      {item === 'clear' ? (
+                        <Text style={styles.numberPadActionText(colors)}>{t('settings.clear')}</Text>
+                      ) : item === 'back' ? (
+                        <Icon name="backspace" size={24} color={colors.text} />
+                      ) : (
+                        <Text style={styles.numberPadText(colors)}>{item}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+
+            {/* Save Button */}
+            <TouchableOpacity
+              style={[
+                styles.savePinModalButton(colors),
+                (pin.join('').length < 4 || saving) && styles.savePinModalButtonDisabled(colors),
+              ]}
+              onPress={handleSavePin}
+              disabled={pin.join('').length < 4 || saving}
+            >
+              {saving ? (
+                <ActivityIndicator color={colors.textInverse} />
+              ) : (
+                <Text style={styles.savePinModalButtonText}>{t('settings.savePin')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -775,6 +860,9 @@ const styles = {
   },
   appBarTitleRTL: {
     textAlign: 'right' as const,
+  },
+  appBarRTL: {
+    flexDirection: 'row-reverse' as const,
   },
   scrollView: {
     flex: 1,
@@ -1040,5 +1128,117 @@ const styles = {
     color: colors.text,
     fontWeight: '500' as const,
   }),
+  // PIN Modal Styles
+  setPinButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    padding: 16,
+    backgroundColor: colors.inputBackground,
+    borderRadius: 8,
+    marginBottom: 16,
+  }),
+  setPinButtonText: (colors: any) => ({
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+    marginLeft: 12,
+  }),
+  pinModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end' as const,
+  },
+  pinModalContent: (colors: any) => ({
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+  }),
+  pinModalHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: 24,
+  },
+  pinModalHeaderRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  pinModalTitle: (colors: any) => ({
+    fontSize: 20,
+    fontWeight: 'bold' as const,
+    color: colors.text,
+  }),
+  pinDisplayContainer: {
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginBottom: 32,
+    gap: 20,
+  },
+  pinDot: (colors: any) => ({
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  }),
+  pinDotFilled: (colors: any) => ({
+    backgroundColor: colors.primary,
+  }),
+  pinDotInner: (colors: any) => ({
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.textInverse,
+  }),
+  numberPad: {
+    marginBottom: 24,
+  },
+  numberPadRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    marginBottom: 12,
+  },
+  numberPadButton: (colors: any) => ({
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: colors.inputBackground,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginHorizontal: 12,
+  }),
+  numberPadActionButton: {
+    backgroundColor: 'transparent',
+  },
+  numberPadText: (colors: any) => ({
+    fontSize: 28,
+    fontWeight: 'bold' as const,
+    color: colors.text,
+  }),
+  numberPadActionText: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: 'bold' as const,
+    color: colors.primary,
+  }),
+  savePinModalButton: (colors: any) => ({
+    backgroundColor: colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center' as const,
+  }),
+  savePinModalButtonDisabled: (colors: any) => ({
+    backgroundColor: colors.inputBackground,
+  }),
+  savePinModalButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold' as const,
+  },
 };
 

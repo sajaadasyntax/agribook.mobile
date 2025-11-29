@@ -23,6 +23,7 @@ export interface UserSettings {
   expenseThreshold?: number | null;
   pinEnabled: boolean;
   fingerprintEnabled: boolean;
+  pin?: string | null;
   createdAt: string;
   updatedAt: string;
 }

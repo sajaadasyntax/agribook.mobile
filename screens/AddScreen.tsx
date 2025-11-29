@@ -353,12 +353,12 @@ export default function AddScreen(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.container(colors)}>
-      <View style={styles.header(colors)}>
+      <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
         <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
           {t('add.title') || 'Add Transaction'}
         </Text>
         {(isOffline || settings?.offlineMode) && (
-          <View style={styles.offlineBadge}>
+          <View style={[styles.offlineBadge, isRTL && styles.offlineBadgeRTL]}>
             <Icon name="cloud-off" size={16} color={colors.textInverse} />
             <Text style={styles.offlineBadgeText}>
               {t('settings.offline') || 'Offline'}
@@ -598,7 +598,12 @@ export default function AddScreen(): React.JSX.Element {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              style={styles.modalBody} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+            >
               {managementMode === 'add' ? (
                 <>
                   {/* Category Type Selection */}
@@ -792,6 +797,9 @@ const styles = {
   headerTitleRTL: {
     textAlign: 'right' as const,
   },
+  headerRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
   offlineBadge: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -800,6 +808,9 @@ const styles = {
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
+  },
+  offlineBadgeRTL: {
+    flexDirection: 'row-reverse' as const,
   },
   offlineBadgeText: {
     color: '#fff',
