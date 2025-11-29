@@ -24,7 +24,7 @@ const HAS_PIN_FLAG = 'agribooks_has_pin';
 
 export default function SettingsScreen(): React.JSX.Element {
   const navigation = useNavigation<any>();
-  const { user, settings, updateSettings, isLoading, isOffline, pendingCount: contextPendingCount, syncData } = useUser();
+  const { user, settings, updateSettings, isLoading, isOffline, pendingCount: contextPendingCount, syncData, logout } = useUser();
   const { t, setLocale, isRTL, locale } = useI18n();
   const { colors } = useTheme();
   const [saving, setSaving] = useState(false);
@@ -498,6 +498,33 @@ export default function SettingsScreen(): React.JSX.Element {
       console.error('Error updating language:', error);
       Alert.alert(t('app.error'), t('settings.errorUpdatingLanguage'));
     }
+  };
+
+  const handleLogout = (): void => {
+    Alert.alert(
+      t('settings.logout'),
+      t('settings.logoutDesc'),
+      [
+        {
+          text: t('app.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('settings.logout'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              Alert.alert(t('app.success'), t('settings.loggedOut'));
+              // Navigation will automatically redirect to Welcome screen when isAuthenticated becomes false
+            } catch (error) {
+              console.error('Error logging out:', error);
+              Alert.alert(t('app.error'), t('settings.errorUpdating'));
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading || !settings) {

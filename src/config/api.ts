@@ -33,10 +33,25 @@ const getApiUrl = (): string => {
   
   // If production API URL is explicitly set, use it (works in both dev and production)
   if (envApiUrl && envApiUrl.trim() !== '') {
-    // Ensure it ends with /api
-    return envApiUrl.endsWith('/api') 
-      ? envApiUrl 
-      : `${envApiUrl}/api`;
+    let url = envApiUrl.trim();
+    
+    // Remove trailing slashes to avoid double slashes
+    url = url.replace(/\/+$/, '');
+    
+    // Validate protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      console.warn('⚠️ EXPO_PUBLIC_API_URL missing protocol, defaulting to https://');
+      url = `https://${url}`;
+    }
+    
+    // Ensure it ends with /api (but not /api/)
+    if (url.endsWith('/api/')) {
+      url = url.slice(0, -1); // Remove trailing slash after /api
+    } else if (!url.endsWith('/api')) {
+      url = `${url}/api`;
+    }
+    
+    return url;
   }
   
   // Production mode - strict validation (only if EXPO_PUBLIC_API_URL not set)
@@ -108,18 +123,42 @@ class ApiClient {
           const message = (error.response.data as { error?: string })?.error || 'An error occurred';
           return Promise.reject(new Error(message));
         } else if (error.request) {
-          // Request made but no response
-          const errorMessage = __DEV__
-            ? `Network error. Check if backend is running on ${API_BASE_URL.replace('/api', '')}`
-            : 'Network error. Please check your connection.';
+          // Request made but no response (network error, timeout, etc.)
+          let errorMessage: string;
+          
+          // Check for timeout
+          if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+            errorMessage = __DEV__
+              ? `Request timeout. The server at ${API_BASE_URL.replace('/api', '')} is not responding.`
+              : 'Request timeout. Please check your connection and try again.';
+          } else if (error.code === 'ENOTFOUND' || error.message.includes('getaddrinfo')) {
+            // DNS resolution failed
+            errorMessage = __DEV__
+              ? `Cannot resolve host. Check if ${API_BASE_URL.replace('/api', '')} is correct.`
+              : 'Cannot connect to server. Please check your connection.';
+          } else if (error.code === 'ECONNREFUSED') {
+            // Connection refused
+            errorMessage = __DEV__
+              ? `Connection refused. Check if backend is running on ${API_BASE_URL.replace('/api', '')}`
+              : 'Cannot connect to server. Please check your connection.';
+          } else {
+            // Generic network error
+            errorMessage = __DEV__
+              ? `Network error. Check if backend is running on ${API_BASE_URL.replace('/api', '')}`
+              : 'Network error. Please check your connection.';
+          }
+          
           console.error('❌ API Error:', {
             message: errorMessage,
             url: API_BASE_URL,
             error: error.message,
+            code: error.code,
+            request: error.request?.url || 'unknown',
           });
           return Promise.reject(new Error(errorMessage));
         } else {
-          // Something else happened
+          // Something else happened (configuration error, etc.)
+          console.error('❌ API Configuration Error:', error.message);
           return Promise.reject(error);
         }
       }

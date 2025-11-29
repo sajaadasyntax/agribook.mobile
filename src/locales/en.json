@@ -234,7 +234,11 @@
     "usePasscode": "Use Passcode",
     "biometricEnabled": "Biometric authentication enabled",
     "biometricDisabled": "Biometric authentication disabled",
-    "biometricFailed": "Biometric authentication failed"
+    "biometricFailed": "Biometric authentication failed",
+    "logout": "Logout",
+    "logoutConfirm": "Are you sure you want to logout?",
+    "logoutDesc": "You will need to sign in again to access your data",
+    "loggedOut": "Logged out successfully"
   },
   "lock": {
     "title": "AgriBooks",
