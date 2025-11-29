@@ -90,26 +90,27 @@ export default function ReportsScreen(): React.JSX.Element {
     }));
     
     // Calculate responsive bar width and spacing based on number of data points
+    // Each column (day/week) should fit both income and expense bars clearly
     const dataPointCount = incomeValues.length;
     let barWidth: number;
     let groupSpace: number;
     let barSpace: number;
     
-    if (dataPointCount === 2) {
-      // Day view: two columns (Income, Expense) - larger bars with more spacing
-      barWidth = 0.6;
-      groupSpace = 0.2;
-      barSpace = 0.15;
+    if (dataPointCount === 4) {
+      // Month view: 4 weeks - larger bars to fit both income/expense clearly
+      barWidth = 0.5;
+      groupSpace = 0.15;
+      barSpace = 0.12;
+    } else if (dataPointCount === 7) {
+      // Week view: 7 days - balanced bars to fit both income/expense in each day column
+      barWidth = 0.45;
+      groupSpace = 0.12;
+      barSpace = 0.1;
     } else if (dataPointCount <= 4) {
       // Few data points: larger bars with more spacing
       barWidth = 0.5;
       groupSpace = 0.15;
       barSpace = 0.1;
-    } else if (dataPointCount <= 7) {
-      // Medium data points (e.g., week view): balanced spacing
-      barWidth = 0.4;
-      groupSpace = 0.1;
-      barSpace = 0.08;
     } else {
       // Many data points: tighter spacing
       barWidth = 0.35;
@@ -273,67 +274,69 @@ export default function ReportsScreen(): React.JSX.Element {
       {renderSummaryCards()}
 
       {/* Main Chart - Grouped Bar Chart */}
-      <View style={styles.chartContainer(colors)}>
-        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
-          {t('reports.overview') || 'Overview'}
-        </Text>
-        {barChartData ? (
-          <BarChart
-            style={styles.barChart}
-            data={barChartData}
-            xAxis={{
-              valueFormatter: chartData.labels,
-              granularity: 1,
-              granularityEnabled: true,
-              position: 'BOTTOM',
-              textSize: 10,
-              textColor: colors.textSecondary,
-              axisLineColor: colors.border,
-              gridColor: colors.border,
-              avoidFirstLastClipping: true,
-            }}
-            yAxis={{
-              left: {
-                axisMinimum: 0,
-                axisMaximum: yAxisMax,
+      {period !== 'day' && (
+        <View style={styles.chartContainer(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+            {t('reports.overview') || 'Overview'}
+          </Text>
+          {barChartData ? (
+            <BarChart
+              style={styles.barChart}
+              data={barChartData}
+              xAxis={{
+                valueFormatter: chartData.labels,
+                granularity: 1,
+                granularityEnabled: true,
+                position: 'BOTTOM',
                 textSize: 10,
                 textColor: colors.textSecondary,
                 axisLineColor: colors.border,
-                gridColor: colors.border + '40',
-                valueFormatter: 'SDG #',
-              },
-              right: {
-                enabled: false,
-              },
-            }}
-            chartDescription={{ text: '' }}
-            legend={{
-              enabled: true,
-              textSize: 12,
-              form: 'SQUARE',
-              formSize: 12,
-              xEntrySpace: 10,
-              yEntrySpace: 5,
-              wordWrapEnabled: true, // Ensures legend text wraps properly to prevent overflow
-            }}
-            animation={{ durationX: 800, durationY: 800 }}
-            drawValueAboveBar={true}
-            highlightEnabled={true}
-            dragEnabled={false}
-            scaleEnabled={false}
-            scaleXEnabled={false}
-            scaleYEnabled={false}
-            pinchZoom={false}
-          />
-        ) : (
-          <View style={styles.chartEmptyContainer}>
-            <Icon name="bar-chart" size={48} color={colors.textSecondary} />
-            <Text style={styles.emptyText(colors)}>
-              {t('reports.noChartData') || 'No chart data available for this period.'}
-            </Text>
-          </View>
-        )}
-      </View>
+                gridColor: colors.border,
+                avoidFirstLastClipping: true,
+              }}
+              yAxis={{
+                left: {
+                  axisMinimum: 0,
+                  axisMaximum: yAxisMax,
+                  textSize: 10,
+                  textColor: colors.textSecondary,
+                  axisLineColor: colors.border,
+                  gridColor: colors.border + '40',
+                  valueFormatter: 'SDG #',
+                },
+                right: {
+                  enabled: false,
+                },
+              }}
+              chartDescription={{ text: '' }}
+              legend={{
+                enabled: true,
+                textSize: 12,
+                form: 'SQUARE',
+                formSize: 12,
+                xEntrySpace: 10,
+                yEntrySpace: 5,
+                wordWrapEnabled: true, // Ensures legend text wraps properly to prevent overflow
+              }}
+              animation={{ durationX: 800, durationY: 800 }}
+              drawValueAboveBar={true}
+              highlightEnabled={true}
+              dragEnabled={false}
+              scaleEnabled={false}
+              scaleXEnabled={false}
+              scaleYEnabled={false}
+              pinchZoom={false}
+            />
+          ) : (
+            <View style={styles.chartEmptyContainer}>
+              <Icon name="bar-chart" size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyText(colors)}>
+                {t('reports.noChartData') || 'No chart data available for this period.'}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Category Breakdown */}
       {categoryData.length > 0 && (
