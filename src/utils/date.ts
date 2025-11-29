@@ -6,7 +6,18 @@ export const formatDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-export const formatDisplayDate = (date: Date): string => {
+export const formatDisplayDate = (date: Date, period?: 'day' | 'week' | 'month'): string => {
+  if (period === 'month') {
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+  } else if (period === 'week') {
+    const weekStart = getStartOfWeek(date);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
   return date.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -16,9 +27,13 @@ export const formatDisplayDate = (date: Date): string => {
 
 export const getStartOfWeek = (date: Date): Date => {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  d.setDate(diff);
+  const day = d.getDay(); // 0 = Sunday, 6 = Saturday
+  // Calculate days to subtract to get to Saturday (day 6)
+  // If today is Saturday (6), subtract 0 days
+  // If today is Sunday (0), subtract 1 day to get Saturday
+  // If today is Monday (1), subtract 2 days to get Saturday, etc.
+  const daysToSubtract = day === 6 ? 0 : (day + 1) % 7;
+  d.setDate(d.getDate() - daysToSubtract);
   d.setHours(0, 0, 0, 0);
   return d;
 };

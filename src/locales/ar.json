@@ -97,7 +97,15 @@
     "totalTransactions": "إجمالي المعاملات",
     "averageIncome": "متوسط الدخل",
     "averageExpense": "متوسط المصروفات",
-    "netProfit": "صافي الربح"
+    "netProfit": "صافي الربح",
+    "income": "الدخل",
+    "expense": "المصروف",
+    "balance": "الرصيد",
+    "overview": "نظرة عامة",
+    "topExpenses": "أعلى المصروفات",
+    "total": "الإجمالي",
+    "recentTransactions": "المعاملات الأخيرة",
+    "noTransactions": "لم يتم العثور على معاملات لهذه الفترة."
   },
   "alerts": {
     "title": "التذكيرات والتنبيهات",

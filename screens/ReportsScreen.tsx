@@ -16,7 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { useReportData, ReportPeriod } from '../src/hooks/useReportData';
+import { useReportData, ReportPeriod, calculateYAxisMax } from '../src/hooks/useReportData';
 import { formatDisplayDate, addDays, addWeeks, addMonths } from '../src/utils/date';
 import { Transaction } from '../src/types';
 
@@ -40,20 +40,14 @@ export default function ReportsScreen(): React.JSX.Element {
     refresh 
   } = useReportData(period, date);
 
-  // Use a ref to store the refresh function to avoid stale closure
-  // while preventing double fetches when period/date changes
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
   useFocusEffect(
     useCallback(() => {
-      // Refresh when screen comes into focus
-      // Use ref to get latest refresh function without including it in dependencies
-      // to prevent re-running when period/date changes
       if (isAuthenticated) {
         refreshRef.current();
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated])
   );
 
@@ -69,10 +63,10 @@ export default function ReportsScreen(): React.JSX.Element {
     else if (period === 'month') setDate(addMonths(date, 1));
   };
 
-  // Transform chartData for react-native-charts-wrapper BarChart (grouped bars)
+  // Transform chartData for react-native-charts-wrapper BarChart
   const transformBarChartData = () => {
-    if (!chartData?.datasets || !chartData.datasets[0] || !chartData.datasets[0].data || 
-        chartData.datasets[0].data.length === 0 || !chartData.incomeData || !chartData.expenseData) {
+    if (!chartData || !chartData.incomeData || !chartData.expenseData || 
+        chartData.incomeData.length === 0) {
       return null;
     }
     
@@ -89,7 +83,7 @@ export default function ReportsScreen(): React.JSX.Element {
     return {
       dataSets: [
         {
-          label: 'Income',
+          label: t('reports.income') || 'Income',
           values: incomeValues,
           config: {
             color: '#4CAF50',
@@ -99,7 +93,7 @@ export default function ReportsScreen(): React.JSX.Element {
           },
         },
         {
-          label: 'Expense',
+          label: t('reports.expense') || 'Expense',
           values: expenseValues,
           config: {
             color: '#F44336',
@@ -120,7 +114,7 @@ export default function ReportsScreen(): React.JSX.Element {
     };
   };
 
-  // Transform categoryData for react-native-gifted-charts PieChart
+  // Transform categoryData for PieChart
   const transformPieChartData = () => {
     return categoryData.map(item => ({
       value: item.population,
@@ -128,6 +122,9 @@ export default function ReportsScreen(): React.JSX.Element {
       label: item.name,
     }));
   };
+
+  // Calculate Y-axis maximum
+  const yAxisMax = calculateYAxisMax(summary.income, summary.expense);
 
   const renderPeriodSelector = () => (
     <View style={styles.periodSelector(colors)}>
@@ -138,7 +135,9 @@ export default function ReportsScreen(): React.JSX.Element {
           onPress={() => setPeriod(p)}
         >
           <Text style={[styles.periodButtonText(colors), period === p && styles.periodButtonTextActive]}>
-            {p.charAt(0).toUpperCase() + p.slice(1)}
+            {p === 'day' ? (t('reports.daily') || 'Day') : 
+             p === 'week' ? (t('reports.weekly') || 'Week') : 
+             (t('reports.monthly') || 'Month')}
           </Text>
         </TouchableOpacity>
       ))}
@@ -150,7 +149,7 @@ export default function ReportsScreen(): React.JSX.Element {
       <TouchableOpacity onPress={handlePrevious} style={styles.navButton(colors)}>
         <Icon name={isRTL ? "chevron-right" : "chevron-left"} size={28} color={colors.text} />
       </TouchableOpacity>
-      <Text style={styles.dateText(colors)}>{formatDisplayDate(date)}</Text>
+      <Text style={styles.dateText(colors)}>{formatDisplayDate(date, period)}</Text>
       <TouchableOpacity onPress={handleNext} style={styles.navButton(colors)}>
         <Icon name={isRTL ? "chevron-left" : "chevron-right"} size={28} color={colors.text} />
       </TouchableOpacity>
@@ -160,19 +159,19 @@ export default function ReportsScreen(): React.JSX.Element {
   const renderSummaryCards = () => (
     <View style={[styles.summaryContainer, isRTL && styles.summaryContainerRTL]}>
       <View style={[styles.summaryCard(colors), { backgroundColor: colors.income + '20' }]}>
-        <Text style={styles.summaryLabel(colors)}>Income</Text>
+        <Text style={styles.summaryLabel(colors)}>{t('reports.income') || 'Income'}</Text>
         <Text style={[styles.summaryValue, { color: colors.income }]}>
           ${summary.income.toLocaleString()}
         </Text>
       </View>
       <View style={[styles.summaryCard(colors), { backgroundColor: colors.expense + '20' }]}>
-        <Text style={styles.summaryLabel(colors)}>Expense</Text>
+        <Text style={styles.summaryLabel(colors)}>{t('reports.expense') || 'Expense'}</Text>
         <Text style={[styles.summaryValue, { color: colors.expense }]}>
           ${summary.expense.toLocaleString()}
         </Text>
       </View>
       <View style={[styles.summaryCard(colors), { backgroundColor: colors.primary + '20' }]}>
-        <Text style={styles.summaryLabel(colors)}>Balance</Text>
+        <Text style={styles.summaryLabel(colors)}>{t('reports.balance') || 'Balance'}</Text>
         <Text style={[styles.summaryValue, { color: colors.primary }]}>
           ${summary.balance.toLocaleString()}
         </Text>
@@ -209,10 +208,8 @@ export default function ReportsScreen(): React.JSX.Element {
     </View>
   );
 
-  // Show loading indicator when loading and no data has been loaded yet
-  // Since we clear data on period/date change, this will work correctly for period switches
-  const hasNoData = !chartData?.datasets || !chartData.datasets[0] || 
-                    chartData.datasets[0].data.length === 0 && transactions.length === 0;
+  // Show loading indicator
+  const hasNoData = !chartData || chartData.incomeData.length === 0 && transactions.length === 0;
   if (loading && hasNoData) {
     return (
       <View style={[styles.container(colors), styles.centerContent]}>
@@ -221,88 +218,85 @@ export default function ReportsScreen(): React.JSX.Element {
     );
   }
 
+  const barChartData = transformBarChartData();
+
   return (
     <ScrollView
       style={styles.container(colors)}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
       <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
-        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>{t('reports.title')}</Text>
+        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>
+          {t('reports.title')}
+        </Text>
       </View>
 
       {renderPeriodSelector()}
       {renderDateNavigator()}
       {renderSummaryCards()}
 
-      {/* Main Chart - Grouped Column Chart */}
-      {period !== 'day' && chartData?.datasets && chartData.datasets[0] && 
-       chartData.datasets[0].data.length > 0 && chartData.incomeData && chartData.expenseData && (() => {
-        const barChartData = transformBarChartData();
-        if (!barChartData) return null;
-        
-        const maxValue = Math.max(
-          ...(chartData.incomeData || []).concat(chartData.expenseData || []),
-          100
-        ) * 1.2;
-        
-        return (
-          <View style={styles.chartContainer(colors)}>
-            <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Overview</Text>
-            <BarChart
-              style={styles.barChart}
-              data={barChartData}
-              xAxis={{
-                valueFormatter: chartData.labels,
-                granularity: 1,
-                granularityEnabled: true,
-                position: 'BOTTOM',
+      {/* Main Chart - Grouped Bar Chart */}
+      {period !== 'day' && barChartData && (
+        <View style={styles.chartContainer(colors)}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+            {t('reports.overview') || 'Overview'}
+          </Text>
+          <BarChart
+            style={styles.barChart}
+            data={barChartData}
+            xAxis={{
+              valueFormatter: chartData.labels,
+              granularity: 1,
+              granularityEnabled: true,
+              position: 'BOTTOM',
+              textSize: 10,
+              textColor: colors.textSecondary,
+              axisLineColor: colors.border,
+              gridColor: colors.border,
+              avoidFirstLastClipping: true,
+            }}
+            yAxis={{
+              left: {
+                axisMinimum: 0,
+                axisMaximum: yAxisMax,
                 textSize: 10,
                 textColor: colors.textSecondary,
                 axisLineColor: colors.border,
-                gridColor: colors.border,
-                avoidFirstLastClipping: true,
-              }}
-              yAxis={{
-                left: {
-                  axisMinimum: 0,
-                  axisMaximum: maxValue,
-                  textSize: 10,
-                  textColor: colors.textSecondary,
-                  axisLineColor: colors.border,
-                  gridColor: colors.border + '40',
-                  valueFormatter: '$#',
-                },
-                right: {
-                  enabled: false,
-                },
-              }}
-              chartDescription={{ text: '' }}
-              legend={{
-                enabled: true,
-                textSize: 12,
-                form: 'SQUARE',
-                formSize: 12,
-                xEntrySpace: 10,
-                yEntrySpace: 5,
-                wordWrapEnabled: true,
-              }}
-              animation={{ durationX: 800, durationY: 800 }}
-              drawValueAboveBar={true}
-              highlightEnabled={true}
-              dragEnabled={false}
-              scaleEnabled={false}
-              scaleXEnabled={false}
-              scaleYEnabled={false}
-              pinchZoom={false}
-            />
-          </View>
-        );
-      })()}
+                gridColor: colors.border + '40',
+                valueFormatter: '$#',
+              },
+              right: {
+                enabled: false,
+              },
+            }}
+            chartDescription={{ text: '' }}
+            legend={{
+              enabled: true,
+              textSize: 12,
+              form: 'SQUARE',
+              formSize: 12,
+              xEntrySpace: 10,
+              yEntrySpace: 5,
+              wordWrapEnabled: true,
+            }}
+            animation={{ durationX: 800, durationY: 800 }}
+            drawValueAboveBar={true}
+            highlightEnabled={true}
+            dragEnabled={false}
+            scaleEnabled={false}
+            scaleXEnabled={false}
+            scaleYEnabled={false}
+            pinchZoom={false}
+          />
+        </View>
+      )}
 
       {/* Category Breakdown */}
       {categoryData.length > 0 && (
         <View style={styles.chartContainer(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Top Expenses</Text>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+            {t('reports.topExpenses') || 'Top Expenses'}
+          </Text>
           <View style={styles.pieChartContainer}>
             <PieChart
               data={transformPieChartData()}
@@ -317,7 +311,7 @@ export default function ReportsScreen(): React.JSX.Element {
               innerCircleColor={colors.surface}
               centerLabelComponent={() => (
                 <View style={styles.pieChartCenter}>
-                  <Text style={styles.pieChartCenterText(colors)}>Total</Text>
+                  <Text style={styles.pieChartCenterText(colors)}>{t('reports.total') || 'Total'}</Text>
                   <Text style={styles.pieChartCenterValue(colors)}>
                     ${categoryData.reduce((sum, item) => sum + item.population, 0).toLocaleString()}
                   </Text>
@@ -330,7 +324,9 @@ export default function ReportsScreen(): React.JSX.Element {
 
       {/* Recent Transactions */}
       <View style={styles.section(colors)}>
-        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>Recent Transactions</Text>
+        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+          {t('reports.recentTransactions') || 'Recent Transactions'}
+        </Text>
         {transactions.length > 0 ? (
           transactions.slice(0, 5).map(t => (
             <View key={t.id} style={{ marginBottom: 10 }}>
@@ -338,7 +334,9 @@ export default function ReportsScreen(): React.JSX.Element {
             </View>
           ))
         ) : (
-          <Text style={styles.emptyText(colors)}>No transactions found for this period.</Text>
+          <Text style={styles.emptyText(colors)}>
+            {t('reports.noTransactions') || 'No transactions found for this period.'}
+          </Text>
         )}
       </View>
     </ScrollView>
@@ -525,28 +523,6 @@ const styles = {
     fontWeight: 'bold' as const,
     marginTop: 4,
   }),
-  legend: {
-    flexDirection: 'row' as const,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    marginTop: 16,
-    gap: 24,
-  },
-  legendItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-  },
-  legendColor: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500' as const,
-  },
   barChart: {
     height: 240,
     marginVertical: 12,

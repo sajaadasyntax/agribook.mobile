@@ -97,7 +97,15 @@
     "totalTransactions": "Total Transactions",
     "averageIncome": "Average Income",
     "averageExpense": "Average Expense",
-    "netProfit": "Net Profit"
+    "netProfit": "Net Profit",
+    "income": "Income",
+    "expense": "Expense",
+    "balance": "Balance",
+    "overview": "Overview",
+    "topExpenses": "Top Expenses",
+    "total": "Total",
+    "recentTransactions": "Recent Transactions",
+    "noTransactions": "No transactions found for this period."
   },
   "alerts": {
     "title": "Reminders & Alerts",

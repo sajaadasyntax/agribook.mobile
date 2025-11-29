@@ -7,12 +7,8 @@ export type ReportPeriod = 'day' | 'week' | 'month';
 
 export interface ChartData {
   labels: string[];
-  datasets: {
-    data: number[];
-  }[];
-  // For stacked charts
-  incomeData?: number[];
-  expenseData?: number[];
+  incomeData: number[];
+  expenseData: number[];
 }
 
 export interface CategoryChartData {
@@ -42,6 +38,61 @@ export interface UseReportDataResult {
 
 const COLORS = ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0', '#00BCD4', '#FF9800', '#795548'];
 
+// Calculate nice Y-axis maximum (double of highest value, rounded to nice numbers)
+export const calculateYAxisMax = (income: number, expense: number): number => {
+  const maxValue = Math.max(income, expense);
+  const doubleMax = maxValue * 2;
+  
+  if (doubleMax === 0) return 100;
+  
+  // Find the appropriate scale (10, 50, 100, 500, 1000, 5000, etc.)
+  const magnitude = Math.pow(10, Math.floor(Math.log10(doubleMax)));
+  const normalized = doubleMax / magnitude;
+  
+  let niceValue: number;
+  if (normalized <= 1) niceValue = 1;
+  else if (normalized <= 2) niceValue = 2;
+  else if (normalized <= 5) niceValue = 5;
+  else niceValue = 10;
+  
+  return niceValue * magnitude;
+};
+
+// Get week days starting from Saturday
+const getWeekDays = (): string[] => {
+  return ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+};
+
+// Get date for a specific day of week (0 = Saturday, 1 = Sunday, etc.)
+// weekStart is already Saturday, so we just add dayIndex days
+const getDateForWeekDay = (weekStart: Date, dayIndex: number): Date => {
+  const date = new Date(weekStart);
+  date.setDate(weekStart.getDate() + dayIndex);
+  return date;
+};
+
+// Group transactions by week (1-4) for a month
+const groupByWeek = (transactions: Transaction[], year: number, month: number): number[][] => {
+  const weeks: number[][] = [[0, 0], [0, 0], [0, 0], [0, 0]]; // [income, expense] for each week
+  
+  transactions.forEach(t => {
+    const transactionDate = new Date(t.createdAt);
+    if (transactionDate.getMonth() === month && transactionDate.getFullYear() === year) {
+      const day = transactionDate.getDate();
+      const weekIndex = Math.min(Math.floor((day - 1) / 7), 3); // Week 0-3 (displayed as 1-4)
+      
+      const amount = parseFloat(t.amount.toString());
+      if (t.type === 'INCOME') {
+        weeks[weekIndex][0] += amount;
+      } else {
+        weeks[weekIndex][1] += amount;
+      }
+    }
+  });
+  
+  return weeks;
+};
+
 export const useReportData = (period: ReportPeriod, date: Date): UseReportDataResult => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,16 +104,16 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
     transactions: Transaction[];
   }>({
     summary: { income: 0, expense: 0, balance: 0 },
-    chartData: { labels: [], datasets: [{ data: [] }] },
+    chartData: { labels: [], incomeData: [], expenseData: [] },
     categoryData: [],
     transactions: [],
   });
 
-  // Clear data and set loading when period or date changes to prevent stale data during loading
+  // Clear data and set loading when period or date changes
   useEffect(() => {
     setData({
       summary: { income: 0, expense: 0, balance: 0 },
-      chartData: { labels: [], datasets: [{ data: [] }] },
+      chartData: { labels: [], incomeData: [], expenseData: [] },
       categoryData: [],
       transactions: [],
     });
@@ -81,7 +132,7 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
 
     return Object.entries(categories)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 5) // Top 5 categories
+      .slice(0, 5)
       .map(([name, amount], index) => ({
         name,
         population: amount,
@@ -101,7 +152,7 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
       setError(null);
 
       let summary = { income: 0, expense: 0, balance: 0 };
-      let chartData: ChartData = { labels: [], datasets: [{ data: [] }] };
+      let chartData: ChartData = { labels: [], incomeData: [], expenseData: [] };
       let transactions: Transaction[] = [];
       let categoryData: CategoryChartData[] = [];
 
@@ -117,18 +168,16 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
         transactions = report.transactions;
         categoryData = processTransactionsForCategories(transactions);
         
-        // For day view, chart could be hourly if available, or just summary bars
-        // Currently just showing Income vs Expense (for stacked chart compatibility)
+        // Day view: simple income vs expense
         chartData = {
           labels: ['Income', 'Expense'],
-          datasets: [{ data: [report.income, report.expense] }],
           incomeData: [report.income, 0],
           expenseData: [0, report.expense],
         };
 
       } else if (period === 'week') {
-        const weekStart = formatDate(getStartOfWeek(date));
-        const report = await reportApi.getWeekly(weekStart);
+        const weekStart = getStartOfWeek(date);
+        const report = await reportApi.getWeekly(formatDate(weekStart));
 
         summary = {
           income: report.totalIncome,
@@ -138,25 +187,24 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
         transactions = report.transactions;
         categoryData = processTransactionsForCategories(transactions);
 
-        // Weekly chart: Mon-Sun balance or Income/Expense
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const dailyData = days.map((_, index) => {
-          // This is an approximation as keys might be dates. 
-          // A better way is to map over sorted keys of dailyData
-          // But dailyData is Record<string, ...>
-          // Let's trust the sorted keys for now or map days
-          return 0; // Placeholder logic
+        // Week view: 7 days starting from Saturday
+        const weekDays = getWeekDays();
+        const incomeData: number[] = [];
+        const expenseData: number[] = [];
+        
+        weekDays.forEach((_, dayIndex) => {
+          const dayDate = getDateForWeekDay(weekStart, dayIndex);
+          const dayKey = formatDate(dayDate);
+          const dayInfo = report.dailyData[dayKey] || { income: 0, expense: 0 };
+          
+          incomeData.push(dayInfo.income);
+          expenseData.push(dayInfo.expense);
         });
         
-        // Correct way for weekly chart - prepare for stacked chart
-        const sortedDates = Object.keys(report.dailyData).sort();
         chartData = {
-          labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { weekday: 'short' })),
-          datasets: [{
-            data: sortedDates.map(d => report.dailyData[d].income - report.dailyData[d].expense)
-          }],
-          incomeData: sortedDates.map(d => report.dailyData[d].income),
-          expenseData: sortedDates.map(d => report.dailyData[d].expense),
+          labels: weekDays,
+          incomeData,
+          expenseData,
         };
 
       } else if (period === 'month') {
@@ -168,44 +216,15 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
           balance: report.balance,
         };
         transactions = report.transactions;
-        
-        // Category data is already provided in monthly report but in a different format
-        // We can re-process transactions to match the format or use the one provided
-        // Let's process transactions to be consistent
         categoryData = processTransactionsForCategories(transactions);
 
-        // Monthly chart: Daily breakdown with income and expense for stacked chart
-        const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-        const dailyIncome = new Array(daysInMonth).fill(0);
-        const dailyExpense = new Array(daysInMonth).fill(0);
+        // Month view: 4 weeks
+        const weeks = groupByWeek(transactions, date.getFullYear(), date.getMonth());
         
-        // Filter transactions to only include those in the current month/year
-        const currentMonth = date.getMonth();
-        const currentYear = date.getFullYear();
-        
-        transactions.forEach(t => {
-          const transactionDate = new Date(t.createdAt);
-          // Validate that transaction belongs to the current month and year
-          if (transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear) {
-            const day = transactionDate.getDate();
-            // Ensure day is within valid range (1 to daysInMonth)
-            if (day >= 1 && day <= daysInMonth) {
-              const amount = parseFloat(t.amount.toString());
-              if (t.type === 'INCOME') {
-                dailyIncome[day - 1] += amount;
-              } else {
-                dailyExpense[day - 1] += amount;
-              }
-            }
-          }
-        });
-
-        // Show every 5th day label for cleaner chart
         chartData = {
-          labels: Array.from({ length: daysInMonth }, (_, i) => (i + 1) % 5 === 0 ? (i + 1).toString() : ''),
-          datasets: [{ data: dailyIncome.map((inc, i) => inc - dailyExpense[i]) }],
-          incomeData: dailyIncome,
-          expenseData: dailyExpense,
+          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+          incomeData: weeks.map(w => w[0]),
+          expenseData: weeks.map(w => w[1]),
         };
       }
 
@@ -229,4 +248,3 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
 
   return { ...data, loading, refreshing, error, refresh: handleRefresh };
 };
-
