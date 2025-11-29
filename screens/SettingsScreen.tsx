@@ -778,6 +778,17 @@ export default function SettingsScreen(): React.JSX.Element {
             <Text style={styles.aboutValue(colors)}>{user?.id.substring(0, 8)}...</Text>
           </View>
         </View>
+
+        {/* Logout Section */}
+        <View style={styles.section(colors)}>
+          <TouchableOpacity
+            style={[styles.logoutButton(colors), isRTL && styles.logoutButtonRTL]}
+            onPress={handleLogout}
+          >
+            <Icon name="exit-to-app" size={24} color={colors.expense} />
+            <Text style={styles.logoutButtonText(colors)}>{t('settings.logout')}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* PIN Entry Modal with In-App Keyboard */}
@@ -1310,5 +1321,24 @@ const styles = {
     fontSize: 18,
     fontWeight: 'bold' as const,
   },
+  logoutButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: 16,
+    backgroundColor: colors.inputBackground,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.expense,
+    gap: 12,
+  }),
+  logoutButtonRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  logoutButtonText: (colors: any) => ({
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.expense,
+  }),
 };
 
