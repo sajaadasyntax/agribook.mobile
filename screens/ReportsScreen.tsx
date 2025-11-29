@@ -18,13 +18,14 @@ import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { useReportData, ReportPeriod, calculateYAxisMax } from '../src/hooks/useReportData';
 import { formatDisplayDate, addDays, addWeeks, addMonths } from '../src/utils/date';
+import { formatCurrency } from '../src/utils/currency';
 import { Transaction } from '../src/types';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function ReportsScreen(): React.JSX.Element {
   const { isAuthenticated } = useUser();
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, locale } = useI18n();
   const { colors } = useTheme();
   const [period, setPeriod] = useState<ReportPeriod>('week');
   const [date, setDate] = useState(new Date());
@@ -94,7 +95,12 @@ export default function ReportsScreen(): React.JSX.Element {
     let groupSpace: number;
     let barSpace: number;
     
-    if (dataPointCount <= 4) {
+    if (dataPointCount === 2) {
+      // Day view: two columns (Income, Expense) - larger bars with more spacing
+      barWidth = 0.6;
+      groupSpace = 0.2;
+      barSpace = 0.15;
+    } else if (dataPointCount <= 4) {
       // Few data points: larger bars with more spacing
       barWidth = 0.5;
       groupSpace = 0.15;
@@ -117,20 +123,20 @@ export default function ReportsScreen(): React.JSX.Element {
           label: t('reports.income') || 'Income',
           values: incomeValues,
           config: {
-            color: '#4CAF50',
-            barShadowColor: '#66BB6A',
+            color: colors.income,
+            barShadowColor: colors.income + '80',
             highlightAlpha: 90,
-            highlightColor: '#66BB6A',
+            highlightColor: colors.income + 'CC',
           },
         },
         {
           label: t('reports.expense') || 'Expense',
           values: expenseValues,
           config: {
-            color: '#F44336',
-            barShadowColor: '#EF5350',
+            color: colors.expense,
+            barShadowColor: colors.expense + '80',
             highlightAlpha: 90,
-            highlightColor: '#EF5350',
+            highlightColor: colors.expense + 'CC',
           },
         },
       ],
@@ -189,22 +195,22 @@ export default function ReportsScreen(): React.JSX.Element {
 
   const renderSummaryCards = () => (
     <View style={[styles.summaryContainer, isRTL && styles.summaryContainerRTL]}>
-      <View style={[styles.summaryCard(colors), { backgroundColor: colors.income + '20' }]}>
+      <View style={styles.summaryCard(colors)}>
         <Text style={styles.summaryLabel(colors)}>{t('reports.income') || 'Income'}</Text>
         <Text style={[styles.summaryValue, { color: colors.income }]}>
-          ${summary.income.toLocaleString()}
+          {formatCurrency(summary.income, { locale })}
         </Text>
       </View>
-      <View style={[styles.summaryCard(colors), { backgroundColor: colors.expense + '20' }]}>
+      <View style={styles.summaryCard(colors)}>
         <Text style={styles.summaryLabel(colors)}>{t('reports.expense') || 'Expense'}</Text>
         <Text style={[styles.summaryValue, { color: colors.expense }]}>
-          ${summary.expense.toLocaleString()}
+          {formatCurrency(summary.expense, { locale })}
         </Text>
       </View>
-      <View style={[styles.summaryCard(colors), { backgroundColor: colors.primary + '20' }]}>
+      <View style={styles.summaryCard(colors)}>
         <Text style={styles.summaryLabel(colors)}>{t('reports.balance') || 'Balance'}</Text>
-        <Text style={[styles.summaryValue, { color: colors.primary }]}>
-          ${summary.balance.toLocaleString()}
+        <Text style={[styles.summaryValue, { color: summary.balance < 0 ? colors.expense : colors.primary }]}>
+          {formatCurrency(summary.balance, { locale })}
         </Text>
       </View>
     </View>
@@ -234,7 +240,7 @@ export default function ReportsScreen(): React.JSX.Element {
         styles.transactionAmount,
         { color: item.type === 'INCOME' ? colors.income : colors.expense }
       ]}>
-        {item.type === 'INCOME' ? '+' : '-'}${parseFloat(item.amount.toString()).toLocaleString()}
+        {item.type === 'INCOME' ? '+' : '-'}{formatCurrency(parseFloat(item.amount.toString()), { locale })}
       </Text>
     </View>
   );
@@ -267,69 +273,67 @@ export default function ReportsScreen(): React.JSX.Element {
       {renderSummaryCards()}
 
       {/* Main Chart - Grouped Bar Chart */}
-      {period !== 'day' && (
-        <View style={styles.chartContainer(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
-            {t('reports.overview') || 'Overview'}
-          </Text>
-          {barChartData ? (
-            <BarChart
-              style={styles.barChart}
-              data={barChartData}
-              xAxis={{
-                valueFormatter: chartData.labels,
-                granularity: 1,
-                granularityEnabled: true,
-                position: 'BOTTOM',
+      <View style={styles.chartContainer(colors)}>
+        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+          {t('reports.overview') || 'Overview'}
+        </Text>
+        {barChartData ? (
+          <BarChart
+            style={styles.barChart}
+            data={barChartData}
+            xAxis={{
+              valueFormatter: chartData.labels,
+              granularity: 1,
+              granularityEnabled: true,
+              position: 'BOTTOM',
+              textSize: 10,
+              textColor: colors.textSecondary,
+              axisLineColor: colors.border,
+              gridColor: colors.border,
+              avoidFirstLastClipping: true,
+            }}
+            yAxis={{
+              left: {
+                axisMinimum: 0,
+                axisMaximum: yAxisMax,
                 textSize: 10,
                 textColor: colors.textSecondary,
                 axisLineColor: colors.border,
-                gridColor: colors.border,
-                avoidFirstLastClipping: true,
-              }}
-              yAxis={{
-                left: {
-                  axisMinimum: 0,
-                  axisMaximum: yAxisMax,
-                  textSize: 10,
-                  textColor: colors.textSecondary,
-                  axisLineColor: colors.border,
-                  gridColor: colors.border + '40',
-                  valueFormatter: '$%.0f', // Currency format without decimals
-                },
-                right: {
-                  enabled: false,
-                },
-              }}
-              chartDescription={{ text: '' }}
-              legend={{
-                enabled: true,
-                textSize: 12,
-                form: 'SQUARE',
-                formSize: 12,
-                xEntrySpace: 10,
-                yEntrySpace: 5,
-                wordWrapEnabled: true, // Ensures legend text wraps properly to prevent overflow
-              }}
-              animation={{ durationX: 800, durationY: 800 }}
-              drawValueAboveBar={true}
-              highlightEnabled={true}
-              dragEnabled={false}
-              scaleEnabled={false}
-              scaleXEnabled={false}
-              scaleYEnabled={false}
-              pinchZoom={false}
-            />
-          ) : (
-            <View style={styles.chartEmptyContainer}>
-              <Icon name="bar-chart" size={48} color={colors.textSecondary} />
-              <Text style={styles.emptyText(colors)}>
-                {t('reports.noChartData') || 'No chart data available for this period.'}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
+                gridColor: colors.border + '40',
+                valueFormatter: 'SDG #',
+              },
+              right: {
+                enabled: false,
+              },
+            }}
+            chartDescription={{ text: '' }}
+            legend={{
+              enabled: true,
+              textSize: 12,
+              form: 'SQUARE',
+              formSize: 12,
+              xEntrySpace: 10,
+              yEntrySpace: 5,
+              wordWrapEnabled: true, // Ensures legend text wraps properly to prevent overflow
+            }}
+            animation={{ durationX: 800, durationY: 800 }}
+            drawValueAboveBar={true}
+            highlightEnabled={true}
+            dragEnabled={false}
+            scaleEnabled={false}
+            scaleXEnabled={false}
+            scaleYEnabled={false}
+            pinchZoom={false}
+          />
+        ) : (
+          <View style={styles.chartEmptyContainer}>
+            <Icon name="bar-chart" size={48} color={colors.textSecondary} />
+            <Text style={styles.emptyText(colors)}>
+              {t('reports.noChartData') || 'No chart data available for this period.'}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {/* Category Breakdown */}
       {categoryData.length > 0 && (
@@ -353,7 +357,7 @@ export default function ReportsScreen(): React.JSX.Element {
                 <View style={styles.pieChartCenter}>
                   <Text style={styles.pieChartCenterText(colors)}>{t('reports.total') || 'Total'}</Text>
                   <Text style={styles.pieChartCenterValue(colors)}>
-                    ${categoryData.reduce((sum, item) => sum + item.population, 0).toLocaleString()}
+                    {formatCurrency(categoryData.reduce((sum, item) => sum + item.population, 0), { locale })}
                   </Text>
                 </View>
               )}
@@ -469,6 +473,7 @@ const styles = {
     padding: 12,
     borderRadius: 12,
     alignItems: 'center' as const,
+    backgroundColor: colors.surface,
     elevation: 2,
   }),
   summaryLabel: (colors: any) => ({

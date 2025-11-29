@@ -38,16 +38,18 @@ export interface UseReportDataResult {
 
 const COLORS = ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0', '#00BCD4', '#FF9800', '#795548'];
 
-// Calculate nice Y-axis maximum (double of highest value, rounded to nice numbers)
+// Calculate nice Y-axis maximum (1.2x of highest value with padding, rounded to nice numbers)
 export const calculateYAxisMax = (income: number, expense: number): number => {
   const maxValue = Math.max(income, expense);
-  const doubleMax = maxValue * 2;
   
-  if (doubleMax === 0) return 100;
+  if (maxValue === 0) return 100;
+  
+  // Use 1.2x multiplier for better chart visibility without excessive padding
+  const paddedMax = maxValue * 1.2;
   
   // Find the appropriate scale (10, 50, 100, 500, 1000, 5000, etc.)
-  const magnitude = Math.pow(10, Math.floor(Math.log10(doubleMax)));
-  const normalized = doubleMax / magnitude;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(paddedMax)));
+  const normalized = paddedMax / magnitude;
   
   let niceValue: number;
   if (normalized <= 1) niceValue = 1;
@@ -168,11 +170,11 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
         transactions = report.transactions;
         categoryData = processTransactionsForCategories(transactions);
         
-        // Day view: simple income vs expense
+        // Day view: both income and expense in the same column (day)
         chartData = {
-          labels: ['Income', 'Expense'],
-          incomeData: [report.income, 0],
-          expenseData: [0, report.expense],
+          labels: [formatDate(date)],
+          incomeData: [report.income],
+          expenseData: [report.expense],
         };
 
       } else if (period === 'week') {
