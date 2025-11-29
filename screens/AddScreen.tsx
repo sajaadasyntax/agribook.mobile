@@ -3,11 +3,11 @@ import {
   View,
   Text,
   ScrollView,
-  StyleSheet,
   TouchableOpacity,
   TextInput,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,7 +16,7 @@ import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { categoryApi, transactionApi } from '../src/services/api.service';
 import syncService from '../src/services/sync.service';
-import { Category, CreateTransactionDto } from '../src/types';
+import { Category, CreateTransactionDto, CreateCategoryDto, CategoryType } from '../src/types';
 
 export default function AddScreen(): React.JSX.Element {
   const { isAuthenticated, isOffline, settings, pendingCount } = useUser();
@@ -28,7 +28,16 @@ export default function AddScreen(): React.JSX.Element {
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  
+  // Category management states
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState('');
+  const [newCategoryType, setNewCategoryType] = useState<CategoryType>('INCOME');
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [managementMode, setManagementMode] = useState<'add' | 'delete'>('add');
 
   const loadCategories = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -42,6 +51,7 @@ export default function AddScreen(): React.JSX.Element {
         const cachedCategories = await syncService.getCachedCategories();
         const filteredCategories = cachedCategories.filter(cat => cat.type === type);
         setCategories(filteredCategories);
+        setAllCategories(cachedCategories);
       } else {
         // Load from API when online
         const cats = await categoryApi.getAll(type);
@@ -49,6 +59,7 @@ export default function AddScreen(): React.JSX.Element {
         
         // Cache categories for offline use
         const allCats = await categoryApi.getAll();
+        setAllCategories(allCats);
         await syncService.cacheCategories(allCats);
       }
       
@@ -63,6 +74,7 @@ export default function AddScreen(): React.JSX.Element {
         const filteredCategories = cachedCategories.filter(cat => cat.type === type);
         if (filteredCategories.length > 0) {
           setCategories(filteredCategories);
+          setAllCategories(cachedCategories);
         } else {
           Alert.alert(
             t('app.error') || 'Error', 
@@ -257,6 +269,88 @@ export default function AddScreen(): React.JSX.Element {
     // Form is already reset, just need to keep entry type
   };
 
+  const openCategoryModal = (mode: 'add' | 'delete') => {
+    setManagementMode(mode);
+    setNewCategoryName('');
+    setNewCategoryDescription('');
+    setNewCategoryType(entryType === 'income' ? 'INCOME' : 'EXPENSE');
+    setShowCategoryModal(true);
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      Alert.alert(t('app.error'), t('add.categoryNamePlaceholder'));
+      return;
+    }
+
+    if (isOffline || settings?.offlineMode) {
+      Alert.alert(t('app.error'), t('add.connectToLoadCategories'));
+      return;
+    }
+
+    try {
+      setSavingCategory(true);
+      
+      const data: CreateCategoryDto = {
+        name: newCategoryName.trim(),
+        type: newCategoryType,
+        description: newCategoryDescription.trim() || undefined,
+      };
+
+      await categoryApi.create(data);
+      Alert.alert(t('app.success'), t('add.categoryCreated'));
+      setShowCategoryModal(false);
+      setNewCategoryName('');
+      setNewCategoryDescription('');
+      await loadCategories();
+    } catch (error: any) {
+      console.error('Error creating category:', error);
+      if (error?.message?.includes('already exists')) {
+        Alert.alert(t('app.error'), t('add.categoryExists'));
+      } else {
+        Alert.alert(t('app.error'), t('add.errorCreatingCategory'));
+      }
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+    if (isOffline || settings?.offlineMode) {
+      Alert.alert(t('app.error'), t('add.connectToLoadCategories'));
+      return;
+    }
+
+    Alert.alert(
+      t('add.deleteCategory'),
+      t('add.confirmDeleteCategory'),
+      [
+        { text: t('app.cancel'), style: 'cancel' },
+        {
+          text: t('app.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await categoryApi.delete(categoryId);
+              Alert.alert(t('app.success'), t('add.categoryDeleted'));
+              await loadCategories();
+            } catch (error: any) {
+              console.error('Error deleting category:', error);
+              if (error?.message?.includes('transactions')) {
+                Alert.alert(t('app.error'), t('add.categoryHasTransactions'));
+              } else {
+                Alert.alert(t('app.error'), t('add.errorDeletingCategory'));
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const incomeCategories = allCategories.filter(c => c.type === 'INCOME');
+  const expenseCategories = allCategories.filter(c => c.type === 'EXPENSE');
+
   return (
     <ScrollView style={styles.container(colors)}>
       <View style={styles.header(colors)}>
@@ -325,6 +419,36 @@ export default function AddScreen(): React.JSX.Element {
         </View>
       </View>
 
+      {/* Category Management Card */}
+      <View style={styles.section(colors)}>
+        <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
+          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+            {t('add.manageCategories')}
+          </Text>
+        </View>
+        
+        <View style={[styles.categoryManagementButtons, isRTL && styles.categoryManagementButtonsRTL]}>
+          <TouchableOpacity
+            style={styles.manageCategoryButton(colors)}
+            onPress={() => openCategoryModal('add')}
+          >
+            <Icon name="add-circle-outline" size={20} color={colors.income} />
+            <Text style={styles.manageCategoryButtonText(colors)}>
+              {t('add.addCategory')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.manageCategoryButton(colors)}
+            onPress={() => openCategoryModal('delete')}
+          >
+            <Icon name="remove-circle-outline" size={20} color={colors.expense} />
+            <Text style={[styles.manageCategoryButtonText(colors), { color: colors.expense }]}>
+              {t('add.deleteCategory')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Entry Form */}
       <View style={styles.section(colors)}>
         <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
@@ -351,6 +475,15 @@ export default function AddScreen(): React.JSX.Element {
                 {t('add.connectToLoadCategories') || 'Connect to internet to load categories'}
               </Text>
             )}
+            <TouchableOpacity
+              style={styles.addCategoryInlineButton(colors)}
+              onPress={() => openCategoryModal('add')}
+            >
+              <Icon name="add" size={16} color={colors.primary} />
+              <Text style={styles.addCategoryInlineText(colors)}>
+                {t('add.addCategory')}
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.categoryButtons}>
@@ -446,6 +579,194 @@ export default function AddScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Category Management Modal */}
+      <Modal
+        visible={showCategoryModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent(colors)}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
+              <Text style={styles.modalTitle(colors)}>
+                {managementMode === 'add' ? t('add.addCategory') : t('add.deleteCategory')}
+              </Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <Icon name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {managementMode === 'add' ? (
+                <>
+                  {/* Category Type Selection */}
+                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                    {t('add.categoryType')}
+                  </Text>
+                  <View style={[styles.categoryTypeSelector, isRTL && styles.categoryTypeSelectorRTL]}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryTypeOption(colors),
+                        newCategoryType === 'INCOME' && styles.categoryTypeOptionActiveIncome(colors),
+                      ]}
+                      onPress={() => setNewCategoryType('INCOME')}
+                    >
+                      <Icon
+                        name="add"
+                        size={20}
+                        color={newCategoryType === 'INCOME' ? colors.textInverse : colors.income}
+                      />
+                      <Text
+                        style={[
+                          styles.categoryTypeText(colors),
+                          newCategoryType === 'INCOME' && styles.categoryTypeTextActive,
+                        ]}
+                      >
+                        {t('add.income')}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryTypeOption(colors),
+                        newCategoryType === 'EXPENSE' && styles.categoryTypeOptionActiveExpense(colors),
+                      ]}
+                      onPress={() => setNewCategoryType('EXPENSE')}
+                    >
+                      <Icon
+                        name="remove"
+                        size={20}
+                        color={newCategoryType === 'EXPENSE' ? colors.textInverse : colors.expense}
+                      />
+                      <Text
+                        style={[
+                          styles.categoryTypeText(colors),
+                          newCategoryType === 'EXPENSE' && styles.categoryTypeTextActive,
+                        ]}
+                      >
+                        {t('add.expense')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Category Name */}
+                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                    {t('add.categoryName')}
+                  </Text>
+                  <TextInput
+                    style={[styles.modalInput(colors), isRTL && styles.modalInputRTL]}
+                    placeholder={t('add.categoryNamePlaceholder')}
+                    placeholderTextColor={colors.textSecondary}
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+
+                  {/* Category Description */}
+                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                    {t('add.categoryDescription')}
+                  </Text>
+                  <TextInput
+                    style={[styles.modalInput(colors), styles.modalTextArea, isRTL && styles.modalInputRTL]}
+                    placeholder={t('add.categoryDescriptionPlaceholder')}
+                    placeholderTextColor={colors.textSecondary}
+                    value={newCategoryDescription}
+                    onChangeText={setNewCategoryDescription}
+                    multiline
+                    numberOfLines={3}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                </>
+              ) : (
+                <>
+                  {/* Income Categories */}
+                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                    {t('add.incomeCategories')}
+                  </Text>
+                  {incomeCategories.length === 0 ? (
+                    <Text style={styles.noCategoriesModalText(colors)}>
+                      {t('add.noCategories')}
+                    </Text>
+                  ) : (
+                    <View style={styles.deleteCategoryList}>
+                      {incomeCategories.map((cat) => (
+                        <View
+                          key={cat.id}
+                          style={[styles.deleteCategoryItem(colors), isRTL && styles.deleteCategoryItemRTL]}
+                        >
+                          <Text style={[styles.deleteCategoryName(colors), isRTL && styles.textRTL]}>
+                            {cat.name}
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.deleteCategoryButton}
+                            onPress={() => handleDeleteCategory(cat.id, cat.name)}
+                          >
+                            <Icon name="delete" size={20} color={colors.expense} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Expense Categories */}
+                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL, { marginTop: 16 }]}>
+                    {t('add.expenseCategories')}
+                  </Text>
+                  {expenseCategories.length === 0 ? (
+                    <Text style={styles.noCategoriesModalText(colors)}>
+                      {t('add.noCategories')}
+                    </Text>
+                  ) : (
+                    <View style={styles.deleteCategoryList}>
+                      {expenseCategories.map((cat) => (
+                        <View
+                          key={cat.id}
+                          style={[styles.deleteCategoryItem(colors), isRTL && styles.deleteCategoryItemRTL]}
+                        >
+                          <Text style={[styles.deleteCategoryName(colors), isRTL && styles.textRTL]}>
+                            {cat.name}
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.deleteCategoryButton}
+                            onPress={() => handleDeleteCategory(cat.id, cat.name)}
+                          >
+                            <Icon name="delete" size={20} color={colors.expense} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
+              )}
+            </ScrollView>
+
+            {managementMode === 'add' && (
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.modalCancelButton(colors)]}
+                  onPress={() => setShowCategoryModal(false)}
+                >
+                  <Text style={styles.modalCancelButtonText(colors)}>{t('app.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSaveButton(colors), savingCategory && styles.modalSaveButtonDisabled]}
+                  onPress={handleCreateCategory}
+                  disabled={savingCategory}
+                >
+                  {savingCategory ? (
+                    <ActivityIndicator size="small" color={colors.textInverse} />
+                  ) : (
+                    <Text style={styles.modalSaveButtonText}>
+                      {t('add.createCategory')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -510,6 +831,15 @@ const styles = {
     shadowRadius: 4,
     elevation: 3,
   }),
+  sectionHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: 12,
+  },
+  sectionHeaderRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
   sectionTitle: (colors: any) => ({
     fontSize: 18,
     fontWeight: 'bold' as const,
@@ -519,6 +849,30 @@ const styles = {
   sectionTitleRTL: {
     textAlign: 'right' as const,
   },
+  categoryManagementButtons: {
+    flexDirection: 'row' as const,
+    gap: 12,
+  },
+  categoryManagementButtonsRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  manageCategoryButton: (colors: any) => ({
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBackground,
+    gap: 8,
+  }),
+  manageCategoryButtonText: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.income,
+  }),
   typeSelector: {
     flexDirection: 'row' as const,
     gap: 12,
@@ -583,6 +937,22 @@ const styles = {
     marginTop: 4,
     color: colors.textSecondary,
     fontSize: 12,
+  }),
+  addCategoryInlineButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    gap: 4,
+  }),
+  addCategoryInlineText: (colors: any) => ({
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600' as const,
   }),
   categoryButtons: {
     flexDirection: 'row' as const,
@@ -661,5 +1031,162 @@ const styles = {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold' as const,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end' as const,
+  },
+  modalContent: (colors: any) => ({
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  }),
+  modalHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalHeaderRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  modalTitle: (colors: any) => ({
+    fontSize: 18,
+    fontWeight: 'bold' as const,
+    color: colors.text,
+  }),
+  modalBody: {
+    padding: 16,
+    maxHeight: 400,
+  },
+  modalFooter: {
+    flexDirection: 'row' as const,
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  inputLabel: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.text,
+    marginBottom: 8,
+  }),
+  textRTL: {
+    textAlign: 'right' as const,
+  },
+  categoryTypeSelector: {
+    flexDirection: 'row' as const,
+    gap: 12,
+    marginBottom: 16,
+  },
+  categoryTypeSelectorRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  categoryTypeOption: (colors: any) => ({
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: 8,
+  }),
+  categoryTypeOptionActiveIncome: (colors: any) => ({
+    backgroundColor: colors.income,
+    borderColor: colors.income,
+  }),
+  categoryTypeOptionActiveExpense: (colors: any) => ({
+    backgroundColor: colors.expense,
+    borderColor: colors.expense,
+  }),
+  categoryTypeText: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.text,
+  }),
+  categoryTypeTextActive: {
+    color: '#fff',
+  },
+  modalInput: (colors: any) => ({
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: colors.inputBackground,
+    color: colors.text,
+    marginBottom: 12,
+  }),
+  modalInputRTL: {
+    textAlign: 'right' as const,
+  },
+  modalTextArea: {
+    height: 80,
+    textAlignVertical: 'top' as const,
+  },
+  noCategoriesModalText: (colors: any) => ({
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center' as const,
+    paddingVertical: 12,
+  }),
+  deleteCategoryList: {
+    gap: 8,
+  },
+  deleteCategoryItem: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    padding: 12,
+    backgroundColor: colors.inputBackground,
+    borderRadius: 8,
+  }),
+  deleteCategoryItemRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  deleteCategoryName: (colors: any) => ({
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  }),
+  deleteCategoryButton: {
+    padding: 8,
+  },
+  modalCancelButton: (colors: any) => ({
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center' as const,
+  }),
+  modalCancelButtonText: (colors: any) => ({
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '600' as const,
+  }),
+  modalSaveButton: (colors: any) => ({
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center' as const,
+  }),
+  modalSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  modalSaveButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600' as const,
   },
 };

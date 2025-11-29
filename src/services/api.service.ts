@@ -18,6 +18,7 @@ import {
   UpdateSettingsDto,
   VerifyPinDto,
   PaginatedResponse,
+  CreateCategoryDto,
 } from '../types';
 
 // User API
@@ -39,6 +40,14 @@ export const categoryApi = {
 
   getById: async (id: string): Promise<Category> => {
     return apiClient.get(`/categories/${id}`);
+  },
+
+  create: async (data: CreateCategoryDto): Promise<Category> => {
+    return apiClient.post('/categories', data);
+  },
+
+  delete: async (id: string): Promise<{ message: string }> => {
+    return apiClient.delete(`/categories/${id}`);
   },
 };
 
@@ -113,8 +122,21 @@ export const alertApi = {
     return apiClient.patch(`/alerts/${id}/read`);
   },
 
+  markAllAsRead: async (): Promise<{ message: string }> => {
+    return apiClient.patch('/alerts/read-all');
+  },
+
   delete: async (id: string): Promise<{ message: string }> => {
     return apiClient.delete(`/alerts/${id}`);
+  },
+
+  getUnreadCount: async (): Promise<{ count: number }> => {
+    try {
+      const alerts = await apiClient.get('/alerts', { isRead: false });
+      return { count: Array.isArray(alerts) ? alerts.length : 0 };
+    } catch {
+      return { count: 0 };
+    }
   },
 };
 

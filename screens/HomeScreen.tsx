@@ -17,7 +17,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { reportApi, transactionApi, categoryApi } from '../src/services/api.service';
+import { reportApi, transactionApi, categoryApi, alertApi } from '../src/services/api.service';
 import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from '../src/types';
 
 const screenWidth = Dimensions.get('window').width;
@@ -33,6 +33,7 @@ export default function HomeScreen(): React.JSX.Element {
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
+  const [unreadAlertCount, setUnreadAlertCount] = useState<number>(0);
   
   // Form states for income
   const [incomeCategory, setIncomeCategory] = useState<string>('');
@@ -62,17 +63,19 @@ export default function HomeScreen(): React.JSX.Element {
 
     try {
       setLoading(true);
-      const [summaryData, monthlyData, incomeCats, expenseCats] = await Promise.all([
+      const [summaryData, monthlyData, incomeCats, expenseCats, alertCountData] = await Promise.all([
         reportApi.getSummary(),
         reportApi.getMonthly(),
         categoryApi.getAll('INCOME'),
         categoryApi.getAll('EXPENSE'),
+        alertApi.getUnreadCount(),
       ]);
 
       setSummary(summaryData);
       setMonthlyReport(monthlyData);
       setIncomeCategories(incomeCats);
       setExpenseCategories(expenseCats);
+      setUnreadAlertCount(alertCountData.count);
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert(t('app.error'), t('home.errorLoading'));
@@ -228,8 +231,18 @@ export default function HomeScreen(): React.JSX.Element {
     <View style={styles.container(colors)}>
       <View style={styles.appBar(colors)}>
         <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Alerts')}>
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate('Alerts')}
+        >
           <Icon name="notifications" size={24} color={colors.textInverse} />
+          {unreadAlertCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadAlertCount > 99 ? '99+' : unreadAlertCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -524,6 +537,27 @@ const styles = {
   },
   appBarTitleRTL: {
     textAlign: 'right' as const,
+  },
+  notificationButton: {
+    position: 'relative' as const,
+    padding: 4,
+  },
+  notificationBadge: {
+    position: 'absolute' as const,
+    top: 0,
+    right: 0,
+    backgroundColor: '#F44336',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold' as const,
   },
   scrollView: {
     flex: 1,

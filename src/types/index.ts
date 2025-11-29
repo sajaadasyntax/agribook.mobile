@@ -136,6 +136,8 @@ export interface CreateAlertDto {
 }
 
 // Reminder Types
+export type ReminderType = 'GENERAL' | 'TRANSACTION' | 'THRESHOLD';
+
 export interface Reminder {
   id: string;
   title: string;
@@ -143,6 +145,12 @@ export interface Reminder {
   dueDate: string;
   completed: boolean;
   userId: string;
+  reminderType?: ReminderType;
+  categoryId?: string | null;
+  thresholdAmount?: number | null;
+  transactionType?: TransactionType | null;
+  transactionAmount?: number | null;
+  category?: Category | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -151,6 +159,11 @@ export interface CreateReminderDto {
   title: string;
   description?: string;
   dueDate: string;
+  reminderType?: ReminderType;
+  categoryId?: string;
+  thresholdAmount?: number;
+  transactionType?: TransactionType;
+  transactionAmount?: number;
 }
 
 export interface UpdateReminderDto {
@@ -158,6 +171,18 @@ export interface UpdateReminderDto {
   description?: string;
   dueDate?: string;
   completed?: boolean;
+  reminderType?: ReminderType;
+  categoryId?: string;
+  thresholdAmount?: number;
+  transactionType?: TransactionType;
+  transactionAmount?: number;
+}
+
+// Category Management Types
+export interface CreateCategoryDto {
+  name: string;
+  type: CategoryType;
+  description?: string;
 }
 
 // Settings Types

@@ -78,3 +78,4 @@ declare module 'react-native-charts-wrapper' {
   export class BarChart extends Component<BarChartProps> {}
 }
 
+
