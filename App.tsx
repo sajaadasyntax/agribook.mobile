@@ -25,7 +25,7 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function MainTabs(): JSX.Element {
-  const { isRTL } = useI18n();
+  const { isRTL, t } = useI18n();
   const { colors } = useTheme();
 
   return (
@@ -43,13 +43,23 @@ function MainTabs(): JSX.Element {
             iconName = 'assessment';
           } else if (route.name === 'Alerts') {
             iconName = 'notifications';
-          } else if (route.name === 'Settings') {
-            iconName = 'settings';
+          } else if (route.name === 'Profile') {
+            iconName = 'person';
           } else {
             iconName = 'help';
           }
 
           return <Icon name={iconName} size={size} color={color} />;
+        },
+        tabBarLabel: ({ focused, color }) => {
+          const labels: Record<string, string> = {
+            'Home': t('navigation.home'),
+            'Add': t('navigation.add'),
+            'Reports': t('navigation.reports'),
+            'Alerts': t('navigation.alerts'),
+            'Profile': t('navigation.profile'),
+          };
+          return labels[route.name] || route.name;
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
@@ -64,7 +74,7 @@ function MainTabs(): JSX.Element {
       <Tab.Screen name="Add" component={AddScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
       <Tab.Screen name="Alerts" component={AlertsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -226,8 +236,8 @@ function AppNavigator(): JSX.Element {
         </Stack.Screen>
         <Stack.Screen name="Main" component={MainTabs} />
         <Stack.Screen 
-          name="Profile" 
-          component={ProfileScreen}
+          name="Settings" 
+          component={SettingsScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

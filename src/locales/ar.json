@@ -297,5 +297,12 @@
     "today": "اليوم",
     "yesterday": "أمس",
     "tomorrow": "غداً"
+  },
+  "navigation": {
+    "home": "الرئيسية",
+    "add": "إضافة",
+    "reports": "التقارير",
+    "alerts": "التنبيهات",
+    "profile": "الملف الشخصي"
   }
 }

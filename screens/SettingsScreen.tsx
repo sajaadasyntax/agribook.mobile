@@ -520,7 +520,7 @@ export default function SettingsScreen(): React.JSX.Element {
         <View style={styles.section(colors)}>
           <TouchableOpacity
             style={[styles.profileButton(colors), isRTL && styles.profileButtonRTL]}
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigation.navigate('Main', { screen: 'Profile' })}
           >
             <Icon name="person" size={24} color={colors.primary} />
             <View style={styles.profileButtonContent}>

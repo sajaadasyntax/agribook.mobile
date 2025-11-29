@@ -24,7 +24,7 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function ReportsScreen(): React.JSX.Element {
   const { isAuthenticated } = useUser();
-  const { isRTL } = useI18n();
+  const { t, isRTL } = useI18n();
   const { colors } = useTheme();
   const [period, setPeriod] = useState<ReportPeriod>('week');
   const [date, setDate] = useState(new Date());
@@ -71,7 +71,8 @@ export default function ReportsScreen(): React.JSX.Element {
 
   // Transform chartData for react-native-charts-wrapper BarChart (grouped bars)
   const transformBarChartData = () => {
-    if (!chartData.datasets[0]?.data.length || !chartData.incomeData || !chartData.expenseData) {
+    if (!chartData?.datasets || !chartData.datasets[0] || !chartData.datasets[0].data || 
+        chartData.datasets[0].data.length === 0 || !chartData.incomeData || !chartData.expenseData) {
       return null;
     }
     
@@ -210,7 +211,8 @@ export default function ReportsScreen(): React.JSX.Element {
 
   // Show loading indicator when loading and no data has been loaded yet
   // Since we clear data on period/date change, this will work correctly for period switches
-  const hasNoData = chartData.datasets[0].data.length === 0 && transactions.length === 0;
+  const hasNoData = !chartData?.datasets || !chartData.datasets[0] || 
+                    chartData.datasets[0].data.length === 0 && transactions.length === 0;
   if (loading && hasNoData) {
     return (
       <View style={[styles.container(colors), styles.centerContent]}>
@@ -233,7 +235,8 @@ export default function ReportsScreen(): React.JSX.Element {
       {renderSummaryCards()}
 
       {/* Main Chart - Grouped Column Chart */}
-      {period !== 'day' && chartData.datasets[0].data.length > 0 && chartData.incomeData && chartData.expenseData && (() => {
+      {period !== 'day' && chartData?.datasets && chartData.datasets[0] && 
+       chartData.datasets[0].data.length > 0 && chartData.incomeData && chartData.expenseData && (() => {
         const barChartData = transformBarChartData();
         if (!barChartData) return null;
         

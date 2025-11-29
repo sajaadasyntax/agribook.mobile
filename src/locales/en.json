@@ -297,5 +297,12 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow"
+  },
+  "navigation": {
+    "home": "Home",
+    "add": "Add",
+    "reports": "Reports",
+    "alerts": "Alerts",
+    "profile": "Profile"
   }
 }
