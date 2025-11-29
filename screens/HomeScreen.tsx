@@ -105,6 +105,13 @@ export default function HomeScreen(): React.JSX.Element {
             ? `Network Error: ${error.message}\n\nPlease check:\n- Backend server is running\n- API URL is correct\n- Network connection is active`
             : 'Cannot connect to server. Please check your connection and ensure the backend is running.';
         } 
+        // Authentication errors
+        else if (errorMsg.includes('authentication') || errorMsg.includes('session expired') ||
+                 errorMsg.includes('log in') || errorMsg.includes('401') || errorMsg.includes('403')) {
+          errorMessage = __DEV__
+            ? `Authentication Error: ${error.message}\n\nPlease check if you are logged in.`
+            : 'Authentication required. Please log in again.';
+        }
         // Server errors (Backend issue)
         else if (errorMsg.includes('internal server') || errorMsg.includes('database error') ||
                  errorMsg.includes('500') || errorMsg.includes('server error')) {

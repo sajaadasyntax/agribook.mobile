@@ -120,7 +120,27 @@ class ApiClient {
       (error: AxiosError) => {
         if (error.response) {
           // Server responded with error
-          const message = (error.response.data as { error?: string })?.error || 'An error occurred';
+          const statusCode = error.response.status;
+          const responseData = error.response.data as { error?: string; code?: string };
+          let message = responseData?.error || 'An error occurred';
+          
+          // Handle authentication errors specifically
+          if (statusCode === 401 || statusCode === 403) {
+            if (message.includes('Authentication required') || message.includes('x-user-id')) {
+              message = __DEV__
+                ? `Authentication Error: ${message}\n\nPlease ensure you are logged in.`
+                : 'Authentication required. Please log in again.';
+            } else if (message.includes('User not found')) {
+              message = __DEV__
+                ? `Authentication Error: ${message}\n\nYour user session may have expired. Please log in again.`
+                : 'Session expired. Please log in again.';
+            } else {
+              message = __DEV__
+                ? `Authentication Error (${statusCode}): ${message}`
+                : 'Authentication failed. Please log in again.';
+            }
+          }
+          
           return Promise.reject(new Error(message));
         } else if (error.request) {
           // Request made but no response (network error, timeout, etc.)
