@@ -283,8 +283,13 @@ export default function AddScreen(): React.JSX.Element {
       return;
     }
 
-    if (isOffline || settings?.offlineMode) {
-      Alert.alert(t('app.error'), t('add.connectToLoadCategories'));
+    // Check actual network status
+    const isCurrentlyOnline = await syncService.checkNetworkStatus();
+    if (!isCurrentlyOnline || settings?.offlineMode) {
+      Alert.alert(
+        t('app.error'), 
+        t('add.connectToLoadCategories') || 'Connect to internet to add categories'
+      );
       return;
     }
 
@@ -305,7 +310,10 @@ export default function AddScreen(): React.JSX.Element {
       await loadCategories();
     } catch (error: any) {
       console.error('Error creating category:', error);
-      if (error?.message?.includes('already exists')) {
+      // Check if it's a network error
+      if (!await syncService.checkNetworkStatus()) {
+        Alert.alert(t('app.error'), t('add.connectToLoadCategories') || 'No internet connection');
+      } else if (error?.message?.includes('already exists')) {
         Alert.alert(t('app.error'), t('add.categoryExists'));
       } else {
         Alert.alert(t('app.error'), t('add.errorCreatingCategory'));
@@ -316,8 +324,13 @@ export default function AddScreen(): React.JSX.Element {
   };
 
   const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
-    if (isOffline || settings?.offlineMode) {
-      Alert.alert(t('app.error'), t('add.connectToLoadCategories'));
+    // Check actual network status
+    const isCurrentlyOnline = await syncService.checkNetworkStatus();
+    if (!isCurrentlyOnline || settings?.offlineMode) {
+      Alert.alert(
+        t('app.error'), 
+        t('add.connectToLoadCategories') || 'Connect to internet to delete categories'
+      );
       return;
     }
 

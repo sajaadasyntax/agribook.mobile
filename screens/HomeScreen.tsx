@@ -196,7 +196,7 @@ export default function HomeScreen(): React.JSX.Element {
           label: 'Income',
           values: incomeValues,
           config: {
-            color: '#4CAF50',
+            color: colors.income || '#4CAF50',
             barShadowColor: '#66BB6A',
             highlightAlpha: 90,
             highlightColor: '#66BB6A',
@@ -206,7 +206,7 @@ export default function HomeScreen(): React.JSX.Element {
           label: 'Expense',
           values: expenseValues,
           config: {
-            color: '#F44336',
+            color: colors.expense || '#F44336',
             barShadowColor: '#EF5350',
             highlightAlpha: 90,
             highlightColor: '#EF5350',
@@ -257,24 +257,24 @@ export default function HomeScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Financial Summary */}
+        {/* Financial Summary - Using Reports Summary Cards Style */}
         <View style={styles.section(colors)}>
-          <View style={[styles.financialCards, isRTL && styles.financialCardsRTL]}>
-            <View style={[styles.financialCard(colors), styles.incomeCard(colors)]}>
-              <Text style={styles.financialLabel(colors)}>{t('home.totalIncome')}</Text>
-              <Text style={[styles.financialAmount, styles.incomeAmount(colors)]}>
+          <View style={[styles.summaryContainer, isRTL && styles.summaryContainerRTL]}>
+            <View style={[styles.summaryCard(colors), { backgroundColor: colors.income + '20' }]}>
+              <Text style={styles.summaryLabel(colors)}>{t('home.totalIncome')}</Text>
+              <Text style={[styles.summaryValue, { color: colors.income }]}>
                 ${totalIncome.toLocaleString()}
               </Text>
             </View>
-            <View style={[styles.financialCard(colors), styles.expenseCard(colors)]}>
-              <Text style={styles.financialLabel(colors)}>{t('home.totalExpense')}</Text>
-              <Text style={[styles.financialAmount, styles.expenseAmount(colors)]}>
+            <View style={[styles.summaryCard(colors), { backgroundColor: colors.expense + '20' }]}>
+              <Text style={styles.summaryLabel(colors)}>{t('home.totalExpense')}</Text>
+              <Text style={[styles.summaryValue, { color: colors.expense }]}>
                 ${totalExpense.toLocaleString()}
               </Text>
             </View>
-            <View style={[styles.financialCard(colors), styles.balanceCard(colors)]}>
-              <Text style={styles.financialLabel(colors)}>{t('home.balance')}</Text>
-              <Text style={[styles.financialAmount, styles.balanceAmount(colors)]}>
+            <View style={[styles.summaryCard(colors), { backgroundColor: colors.primary + '20' }]}>
+              <Text style={styles.summaryLabel(colors)}>{t('home.balance')}</Text>
+              <Text style={[styles.summaryValue, { color: colors.primary }]}>
                 ${balance.toLocaleString()}
               </Text>
             </View>
@@ -599,49 +599,29 @@ const styles = {
   sectionTitleRTL: {
     textAlign: 'right' as const,
   },
-  financialCards: {
+  summaryContainer: {
     flexDirection: 'row' as const,
     gap: 10,
   },
-  financialCardsRTL: {
+  summaryContainerRTL: {
     flexDirection: 'row-reverse' as const,
   },
-  financialCard: (colors: any) => ({
+  summaryCard: (colors: any) => ({
     flex: 1,
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
-    backgroundColor: colors.inputBackground,
+    alignItems: 'center' as const,
+    elevation: 2,
   }),
-  incomeCard: (colors: any) => ({
-    borderLeftWidth: 4,
-    borderLeftColor: colors.income,
-  }),
-  expenseCard: (colors: any) => ({
-    borderLeftWidth: 4,
-    borderLeftColor: colors.expense,
-  }),
-  balanceCard: (colors: any) => ({
-    borderLeftWidth: 4,
-    borderLeftColor: colors.income,
-  }),
-  financialLabel: (colors: any) => ({
+  summaryLabel: (colors: any) => ({
     fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 4,
   }),
-  financialAmount: {
-    fontSize: 18,
+  summaryValue: {
+    fontSize: 16,
     fontWeight: 'bold' as const,
   },
-  incomeAmount: (colors: any) => ({
-    color: colors.income,
-  }),
-  expenseAmount: (colors: any) => ({
-    color: colors.expense,
-  }),
-  balanceAmount: (colors: any) => ({
-    color: colors.income,
-  }),
   actionButtons: {
     flexDirection: 'row' as const,
     gap: 12,

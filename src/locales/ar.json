@@ -301,6 +301,15 @@
     "permissionDenied": "تم رفض إذن الوصول إلى الصور",
     "errorUploadingLogo": "خطأ في رفع الشعار. يرجى المحاولة مرة أخرى."
   },
+  "profile": {
+    "title": "الملف الشخصي",
+    "viewProfile": "عرض الملف الشخصي",
+    "personalInfo": "المعلومات الشخصية",
+    "companyInfo": "معلومات الشركة",
+    "companyLogo": "شعار الشركة",
+    "updated": "تم تحديث الملف الشخصي بنجاح",
+    "errorUpdating": "فشل في تحديث الملف الشخصي"
+  },
   "common": {
     "today": "اليوم",
     "yesterday": "أمس",
@@ -311,6 +320,7 @@
     "add": "إضافة",
     "reports": "التقارير",
     "alerts": "التنبيهات",
-    "profile": "الملف الشخصي"
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات"
   }
 }

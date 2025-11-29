@@ -301,6 +301,15 @@
     "permissionDenied": "Permission to access photos was denied",
     "errorUploadingLogo": "Error uploading logo. Please try again."
   },
+  "profile": {
+    "title": "Profile",
+    "viewProfile": "View Profile",
+    "personalInfo": "Personal Information",
+    "companyInfo": "Company Information",
+    "companyLogo": "Company Logo",
+    "updated": "Profile updated successfully",
+    "errorUpdating": "Failed to update profile"
+  },
   "common": {
     "today": "Today",
     "yesterday": "Yesterday",
@@ -311,6 +320,7 @@
     "add": "Add",
     "reports": "Reports",
     "alerts": "Alerts",
-    "profile": "Profile"
+    "profile": "Profile",
+    "settings": "Settings"
   }
 }

@@ -18,7 +18,7 @@ import { useTheme } from '../src/context/ThemeContext';
 import { userApi } from '../src/services/api.service';
 
 export default function ProfileScreen(): React.JSX.Element {
-  const { user, updateUser: updateUserContext } = useUser();
+  const { user, updateUser: updateUserContext, refreshUser } = useUser();
   const { t, isRTL } = useI18n();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
@@ -78,6 +78,12 @@ export default function ProfileScreen(): React.JSX.Element {
       });
       
       updateUserContext(updatedUser);
+      // Refresh user data to ensure logo is loaded
+      await refreshUser();
+      // Update local logo display
+      if (updatedUser.logoUrl) {
+        setLogoUri(updatedUser.logoUrl);
+      }
       Alert.alert(t('app.success'), t('profile.updated'));
     } catch (error) {
       console.error('Error updating profile:', error);
