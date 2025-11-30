@@ -74,14 +74,29 @@ const getDateForWeekDay = (weekStart: Date, dayIndex: number): Date => {
 };
 
 // Group transactions by week (1-4) for a month
+// Weeks are calculated based on actual calendar weeks (Saturday to Friday)
 const groupByWeek = (transactions: Transaction[], year: number, month: number): number[][] => {
   const weeks: number[][] = [[0, 0], [0, 0], [0, 0], [0, 0]]; // [income, expense] for each week
   
+  // Get the first day of the month
+  const firstDayOfMonth = new Date(year, month, 1);
+  // Find the Saturday that starts the week containing the first day of the month
+  const firstDayWeekStart = getStartOfWeek(firstDayOfMonth);
+  
   transactions.forEach(t => {
     const transactionDate = new Date(t.createdAt);
+    // Check if transaction is in the target month and year
     if (transactionDate.getMonth() === month && transactionDate.getFullYear() === year) {
-      const day = transactionDate.getDate();
-      const weekIndex = Math.min(Math.floor((day - 1) / 7), 3); // Week 0-3 (displayed as 1-4)
+      // Calculate which week of the month this transaction belongs to
+      // by finding the Saturday that starts its week
+      const transactionWeekStart = getStartOfWeek(transactionDate);
+      
+      // Calculate the difference in days between transaction week start and month week start
+      const daysDiff = Math.floor((transactionWeekStart.getTime() - firstDayWeekStart.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Calculate week index (0-3) based on which week of the month it falls in
+      // Each week is 7 days, so divide by 7 and clamp to 0-3
+      const weekIndex = Math.min(Math.max(0, Math.floor(daysDiff / 7)), 3);
       
       const amount = parseFloat(t.amount.toString());
       if (t.type === 'INCOME') {

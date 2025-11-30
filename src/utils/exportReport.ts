@@ -1,5 +1,5 @@
 import * as Print from 'expo-print';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import XLSX from 'xlsx';
 import { formatCurrency } from './currency';
@@ -245,15 +245,24 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
     
     try {
       const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.pdf`;
-      const newUri = `${FileSystem.documentDirectory}${filename}`;
+      const newUri = `${Paths.documentDirectory}${filename}`;
       
-      // Delete if file already exists (idempotent: true won't throw if file doesn't exist)
-      await FileSystem.deleteAsync(newUri, { idempotent: true });
+      // Delete if file already exists
+      try {
+        const existingFile = new File(newUri);
+        const fileInfo = await existingFile.info;
+        if (fileInfo.exists) {
+          await existingFile.delete();
+        }
+      } catch (deleteError) {
+        // File doesn't exist, which is fine
+        console.log('File does not exist or already deleted:', deleteError);
+      }
       
-      await FileSystem.moveAsync({
-        from: uri,
-        to: newUri,
-      });
+      // Move the PDF file
+      const sourceFile = new File(uri);
+      await sourceFile.move(newUri);
+      
       await Sharing.shareAsync(newUri);
     } catch (fileError) {
       console.error('Error handling PDF file:', fileError);
@@ -349,16 +358,24 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     }
     
     const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.xlsx`;
-    const fileUri = `${FileSystem.documentDirectory}${filename}`;
+    const fileUri = `${Paths.documentDirectory}${filename}`;
     
     try {
-      // Delete if file already exists (idempotent: true won't throw if file doesn't exist)
-      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+      // Delete if file already exists
+      try {
+        const existingFile = new File(fileUri);
+        const fileInfo = await existingFile.info;
+        if (fileInfo.exists) {
+          await existingFile.delete();
+        }
+      } catch (deleteError) {
+        // File doesn't exist, which is fine
+        console.log('File does not exist or already deleted:', deleteError);
+      }
       
-      // Write file
-      await FileSystem.writeAsStringAsync(fileUri, wbout, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      // Write file using base64 encoding
+      const file = new File(fileUri);
+      await file.write(wbout, { encoding: 'base64' });
     } catch (fileError) {
       console.error('Error writing Excel file:', fileError);
       throw new Error(`Failed to save Excel file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);

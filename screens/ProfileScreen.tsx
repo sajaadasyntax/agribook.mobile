@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,24 @@ import {
   StyleSheet,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { userApi } from '../src/services/api.service';
 import { LogoImage } from '../src/components/LogoImage';
+import {
+  pickAndOptimizeImage,
+  getImageErrorMessage,
+  IMAGE_ERROR_MESSAGES,
+} from '../src/utils/imageUtils';
+
+// Logo state type for simplified management
+interface LogoState {
+  displayUri: string | null;  // URI to display (server URL or local file)
+  uploadUri: string | null;   // Local file URI to upload (null if no new file)
+  serverUri: string | null;   // Original server URL (for tracking changes)
+  isDeleted: boolean;         // Whether user wants to delete the logo
+}
 
 export default function ProfileScreen(): React.JSX.Element {
   const { user, updateUser: updateUserContext, refreshUser } = useUser();
@@ -25,81 +37,93 @@ export default function ProfileScreen(): React.JSX.Element {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [logoUri, setLogoUri] = useState<string | null>(null);
-  const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
-  const [originalLogoUri, setOriginalLogoUri] = useState<string | null>(null);
   const [pickingImage, setPickingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Simplified logo state management
+  const [logoState, setLogoState] = useState<LogoState>({
+    displayUri: null,
+    uploadUri: null,
+    serverUri: null,
+    isDeleted: false,
+  });
+
+  // Initialize state from user
   useEffect(() => {
     if (user) {
       setName(user.name || '');
       setPhone(user.phone || '');
       setCompanyName(user.companyName || '');
-      // Store the original URL as-is (LogoImage handles URL conversion)
-      setLogoUri(user.logoUrl || null);
-      setOriginalLogoUri(user.logoUrl || null);
-      setLogoFileUri(null); // Reset file URI on user change
+      setLogoState({
+        displayUri: user.logoUrl || null,
+        uploadUri: null,
+        serverUri: user.logoUrl || null,
+        isDeleted: false,
+      });
     }
   }, [user]);
 
-  const handlePickImage = async (): Promise<void> => {
-    if (pickingImage) return; // Prevent multiple clicks
-    
+  // Computed values for logo actions
+  const logoActions = useMemo(() => ({
+    hasNewFile: !!logoState.uploadUri,
+    shouldDelete: logoState.isDeleted && !!logoState.serverUri,
+    hasLogo: !!logoState.displayUri,
+    showDeleteWarning: logoState.isDeleted && !!logoState.serverUri,
+  }), [logoState]);
+
+  // Handle image picking with optimization
+  const handlePickImage = useCallback(async () => {
+    if (pickingImage) return;
+
     try {
       setPickingImage(true);
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('app.error'), t('auth.permissionDenied'));
-        setPickingImage(false);
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      
+      const result = await pickAndOptimizeImage({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: false, // Don't need base64, we'll upload the file directly
+        maxDimension: 1024,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        
-        // Validate file size (5MB limit)
-        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-        if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {
-          Alert.alert(
-            t('app.error'),
-            t('auth.fileTooLarge') || 'File size must be less than 5MB'
-          );
-          setPickingImage(false);
-          return;
-        }
-        
-        setLogoUri(asset.uri);
-        setLogoFileUri(asset.uri); // Store the file URI for upload
+      if (result) {
+        // Update logo state with new file
+        setLogoState(prev => ({
+          ...prev,
+          displayUri: result.optimizedUri,
+          uploadUri: result.optimizedUri,
+          isDeleted: false,
+        }));
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert(t('app.error'), t('auth.errorUploadingLogo'));
+      const errorMessage = getImageErrorMessage(error);
+      
+      if (errorMessage !== IMAGE_ERROR_MESSAGES.PERMISSION_DENIED) {
+        Alert.alert(t('app.error'), errorMessage);
+      } else {
+        Alert.alert(t('app.error'), t('auth.permissionDenied'));
+      }
     } finally {
       setPickingImage(false);
     }
-  };
+  }, [pickingImage, t]);
+
+  // Handle logo removal
+  const handleRemoveLogo = useCallback(() => {
+    setLogoState(prev => ({
+      ...prev,
+      displayUri: null,
+      uploadUri: null,
+      isDeleted: true,
+    }));
+  }, []);
 
   const handleSave = async (): Promise<void> => {
     try {
       setLoading(true);
       
-      // Determine logo action: upload new file, delete, or keep existing
-      const hasNewLogoFile = !!logoFileUri;
-      // Only delete if logo was explicitly removed (no logoUri and no new file, but original existed)
-      const shouldDeleteLogo = !logoUri && !logoFileUri && !!originalLogoUri;
-      
       // Set upload state if uploading a file
-      if (hasNewLogoFile) {
+      if (logoActions.hasNewFile) {
         setIsUploading(true);
         setUploadProgress(0);
       }
@@ -109,24 +133,41 @@ export default function ProfileScreen(): React.JSX.Element {
           name: name || undefined,
           phone: phone || undefined,
           companyName: companyName || undefined,
-          logoUrl: shouldDeleteLogo ? '' : undefined, // Empty string signals deletion
+          // Empty string signals deletion, undefined keeps existing
+          logoUrl: logoActions.shouldDelete ? '' : undefined,
         },
-        hasNewLogoFile ? logoFileUri : undefined, // Pass file URI if a new file was selected
-        hasNewLogoFile ? (progress) => setUploadProgress(progress) : undefined // Progress callback
+        logoActions.hasNewFile ? logoState.uploadUri : undefined,
+        logoActions.hasNewFile ? (progress) => setUploadProgress(progress) : undefined
       );
       
       updateUserContext(updatedUser);
-      // Update local state with the URL from server (keep it as-is, LogoImage handles conversion)
-      const newLogoUrl = updatedUser.logoUrl || null;
-      setLogoUri(newLogoUrl);
-      setOriginalLogoUri(newLogoUrl);
-      setLogoFileUri(null); // Clear the file URI after upload
+      
+      // Update logo state with server response
+      setLogoState({
+        displayUri: updatedUser.logoUrl || null,
+        uploadUri: null,
+        serverUri: updatedUser.logoUrl || null,
+        isDeleted: false,
+      });
+      
       Alert.alert(t('app.success'), t('profile.updated'));
       // Refresh user data to ensure consistency
       await refreshUser();
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert(t('app.error'), t('profile.errorUpdating'));
+      // Provide more specific error message
+      let errorMessage = t('profile.errorUpdating');
+      if (error instanceof Error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('logo') || msg.includes('upload') || msg.includes('file')) {
+          errorMessage = getImageErrorMessage(error);
+        } else if (msg.includes('network') || msg.includes('connection')) {
+          errorMessage = t('app.networkError') || 'Network error. Please check your connection.';
+        } else if (msg.includes('timeout')) {
+          errorMessage = IMAGE_ERROR_MESSAGES.TIMEOUT;
+        }
+      }
+      Alert.alert(t('app.error'), errorMessage);
     } finally {
       setLoading(false);
       setIsUploading(false);
@@ -167,18 +208,19 @@ export default function ProfileScreen(): React.JSX.Element {
           >
             {pickingImage ? (
               <ActivityIndicator size="large" color={colors.primary} />
-            ) : (logoUri || logoFileUri) ? (
+            ) : logoActions.hasLogo ? (
               <LogoImage 
-                uri={logoFileUri || logoUri}
-                isLocalFile={!!logoFileUri}
+                uri={logoState.displayUri}
+                isLocalFile={logoActions.hasNewFile}
                 style={styles.logoPreview}
                 containerStyle={styles.logoPreviewContainer}
                 fallbackIconName="add-photo-alternate"
                 fallbackIconSize={40}
                 fallbackIconColor={colors.textSecondary}
+                showLoading={true}
                 onError={(error) => {
-                  console.error('Logo load error:', error);
-                  Alert.alert(t('app.error'), t('profile.logoLoadError') || t('auth.errorUploadingLogo'));
+                  // Only log for preview - don't show alert as LogoImage shows fallback
+                  console.warn('Logo preview load warning:', error);
                 }}
               />
             ) : (
@@ -188,19 +230,16 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             )}
           </TouchableOpacity>
-          {logoUri && (
+          {logoActions.hasLogo && (
             <TouchableOpacity
               style={styles.removeLogoButton}
-              onPress={() => {
-                setLogoUri(null);
-                setLogoFileUri(null);
-              }}
+              onPress={handleRemoveLogo}
             >
               <Icon name="delete" size={20} color={colors.error} />
               <Text style={styles.removeLogoText(colors)}>{t('auth.removeLogo')}</Text>
             </TouchableOpacity>
           )}
-          {!logoUri && originalLogoUri && (
+          {logoActions.showDeleteWarning && (
             <Text style={[styles.pendingDeletionText(colors), isRTL && styles.pendingDeletionTextRTL]}>
               {t('profile.logoWillBeDeleted') || 'Logo will be deleted when you save'}
             </Text>
@@ -462,4 +501,3 @@ const styles = {
     textAlign: 'right' as const,
   },
 };
-

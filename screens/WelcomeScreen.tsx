@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useI18n } from '../src/context/I18nContext';
 import { useUser } from '../src/context/UserContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { LogoImage } from '../src/components/LogoImage';
+import {
+  pickAndOptimizeImage,
+  getImageErrorMessage,
+  IMAGE_ERROR_MESSAGES,
+} from '../src/utils/imageUtils';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -33,10 +37,13 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState('');
-  const [logoUri, setLogoUri] = useState<string | null>(null);
+  // Simplified logo state - only track the optimized file URI for upload
   const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pickingImage, setPickingImage] = useState(false);
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Reset loading when authentication succeeds
   useEffect(() => {
@@ -44,6 +51,43 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       setLoading(false);
     }
   }, [isAuthenticated]);
+
+  // Handle image picking with optimization
+  const handlePickImage = useCallback(async () => {
+    if (pickingImage) return;
+
+    try {
+      setPickingImage(true);
+      
+      const result = await pickAndOptimizeImage({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        maxDimension: 1024,
+      });
+
+      if (result) {
+        // Use the optimized URI for both preview and upload
+        setLogoFileUri(result.optimizedUri);
+      }
+    } catch (error) {
+      const errorMessage = getImageErrorMessage(error);
+      
+      // Only show alert for actual errors, not for permission denied (user cancelled)
+      if (errorMessage !== IMAGE_ERROR_MESSAGES.PERMISSION_DENIED) {
+        Alert.alert(t('app.error'), errorMessage);
+      } else {
+        Alert.alert(t('app.error'), t('auth.permissionDenied'));
+      }
+    } finally {
+      setPickingImage(false);
+    }
+  }, [pickingImage, t]);
+
+  // Handle logo removal
+  const handleRemoveLogo = useCallback(() => {
+    setLogoFileUri(null);
+  }, []);
 
   const handleSubmit = async (): Promise<void> => {
     try {
@@ -76,13 +120,20 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         await login(email || undefined, phone || undefined, password || undefined);
       } else {
         // Register: name is required, password recommended, other fields optional
+        // Set upload state if we have a logo
+        if (logoFileUri) {
+          setIsUploading(true);
+          setUploadProgress(0);
+        }
+        
         await register(
           email || undefined,
           name || undefined,
           phone || undefined,
           password || undefined,
           companyName || undefined,
-          logoFileUri || undefined
+          logoFileUri || undefined,
+          logoFileUri ? (progress) => setUploadProgress(progress) : undefined
         );
       }
       
@@ -90,8 +141,23 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       // Keep loading state true until navigation happens
     } catch (error) {
       console.error('Error authenticating:', error);
-      Alert.alert(t('app.error'), t('auth.error'));
+      // Provide more specific error message
+      let errorMessage = t('auth.error');
+      if (error instanceof Error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('logo') || msg.includes('upload') || msg.includes('file')) {
+          errorMessage = getImageErrorMessage(error);
+        } else if (msg.includes('network') || msg.includes('connection')) {
+          errorMessage = t('app.networkError') || 'Network error. Please check your connection.';
+        } else if (msg.includes('timeout')) {
+          errorMessage = IMAGE_ERROR_MESSAGES.TIMEOUT;
+        }
+      }
+      Alert.alert(t('app.error'), errorMessage);
       setLoading(false);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -254,66 +320,24 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
               <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.companyLogo')}</Text>
               <TouchableOpacity
                 style={[styles.logoUploadButton, isRTL && styles.logoUploadButtonRTL, pickingImage && styles.logoUploadButtonDisabled]}
-                onPress={async () => {
-                  if (pickingImage) return; // Prevent multiple clicks
-                  
-                  try {
-                    setPickingImage(true);
-                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                    if (status !== 'granted') {
-                      Alert.alert(t('app.error'), t('auth.permissionDenied'));
-                      setPickingImage(false);
-                      return;
-                    }
-
-                    const result = await ImagePicker.launchImageLibraryAsync({
-                      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                      allowsEditing: true,
-                      aspect: [1, 1],
-                      quality: 0.8,
-                      base64: false, // Use file upload instead of base64
-                    });
-
-                    if (!result.canceled && result.assets[0]) {
-                      const asset = result.assets[0];
-                      
-                      // Validate file size (5MB limit)
-                      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-                      if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {
-                        Alert.alert(
-                          t('app.error'),
-                          t('auth.fileTooLarge') || 'File size must be less than 5MB'
-                        );
-                        setPickingImage(false);
-                        return;
-                      }
-                      
-                      setLogoUri(asset.uri);
-                      setLogoFileUri(asset.uri); // Store file URI for upload
-                    }
-                  } catch (error) {
-                    console.error('Error picking image:', error);
-                    Alert.alert(t('app.error'), t('auth.errorUploadingLogo'));
-                  } finally {
-                    setPickingImage(false);
-                  }
-                }}
+                onPress={handlePickImage}
                 disabled={pickingImage}
               >
                 {pickingImage ? (
                   <ActivityIndicator size="large" color="#4CAF50" />
-                ) : logoUri ? (
+                ) : logoFileUri ? (
                   <LogoImage 
-                    uri={logoUri}
+                    uri={logoFileUri}
                     isLocalFile={true}
                     style={styles.logoPreview}
                     containerStyle={styles.logoPreviewContainer}
                     fallbackIconName="add-photo-alternate"
                     fallbackIconSize={40}
                     fallbackIconColor="#999"
+                    showLoading={true}
                     onError={(error) => {
-                      console.error('Logo load error:', error);
-                      Alert.alert(t('app.error'), t('auth.errorUploadingLogo') || 'Failed to load image');
+                      // Only log for preview - don't show alert as LogoImage shows fallback
+                      console.warn('Logo preview load warning:', error);
                     }}
                   />
                 ) : (
@@ -323,13 +347,10 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
                   </View>
                 )}
               </TouchableOpacity>
-              {logoUri && (
+              {logoFileUri && (
                 <TouchableOpacity
                   style={styles.removeLogoButton}
-                  onPress={() => {
-                    setLogoUri(null);
-                    setLogoFileUri(null);
-                  }}
+                  onPress={handleRemoveLogo}
                 >
                   <Icon name="delete" size={20} color="#F44336" />
                   <Text style={styles.removeLogoText}>{t('auth.removeLogo')}</Text>
@@ -345,7 +366,14 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <View style={styles.buttonContent}>
+                <ActivityIndicator color="#fff" />
+                {isUploading && uploadProgress > 0 && (
+                  <Text style={styles.uploadProgressText}>
+                    {uploadProgress}%
+                  </Text>
+                )}
+              </View>
             ) : (
               <>
                 <Text style={styles.buttonText}>
@@ -501,6 +529,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadProgressText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   infoText: {
     fontSize: 14,
     color: '#999',
@@ -610,4 +648,3 @@ const styles = StyleSheet.create({
     color: '#F44336',
   },
 });
-

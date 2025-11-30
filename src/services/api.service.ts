@@ -22,6 +22,7 @@ import {
   AuthResponse,
   AuthTokens,
 } from '../types';
+import { prepareImageForUpload } from '../utils/imageUtils';
 
 // User API
 export const userApi = {
@@ -61,25 +62,9 @@ export const userApi = {
       if (password) formData.append('password', password);
       if (companyName) formData.append('companyName', companyName);
       
-      // Add logo file
-      const filename = logoFileUri.split('/').pop() || 'logo.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const ext = match ? match[1].toLowerCase() : 'jpg';
-      // Fix MIME type mapping: jpg -> jpeg
-      const mimeTypeMap: Record<string, string> = {
-        'jpg': 'jpeg',
-        'jpeg': 'jpeg',
-        'png': 'png',
-        'gif': 'gif',
-        'webp': 'webp',
-      };
-      const type = `image/${mimeTypeMap[ext] || 'jpeg'}`;
-      
-      formData.append('logo', {
-        uri: logoFileUri,
-        name: filename,
-        type: type,
-      } as any);
+      // Add logo file using proper URI parsing
+      const imageFile = prepareImageForUpload(logoFileUri);
+      formData.append('logo', imageFile as any);
       
       const response = await apiClient.postMultipart<AuthResponse>('/users/register', formData, onUploadProgress);
       
@@ -131,25 +116,9 @@ export const userApi = {
       if (phone) formData.append('phone', phone);
       if (companyName) formData.append('companyName', companyName);
       
-      // Add logo file
-      const filename = logoFileUri.split('/').pop() || 'logo.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const ext = match ? match[1].toLowerCase() : 'jpg';
-      // Fix MIME type mapping: jpg -> jpeg
-      const mimeTypeMap: Record<string, string> = {
-        'jpg': 'jpeg',
-        'jpeg': 'jpeg',
-        'png': 'png',
-        'gif': 'gif',
-        'webp': 'webp',
-      };
-      const type = `image/${mimeTypeMap[ext] || 'jpeg'}`;
-      
-      formData.append('logo', {
-        uri: logoFileUri,
-        name: filename,
-        type: type,
-      } as any);
+      // Add logo file using proper URI parsing
+      const imageFile = prepareImageForUpload(logoFileUri);
+      formData.append('logo', imageFile as any);
       
       const response = await apiClient.postMultipart<AuthResponse>('/users', formData, onUploadProgress);
       
@@ -204,25 +173,9 @@ export const userApi = {
       if (data.phone) formData.append('phone', data.phone);
       if (data.companyName) formData.append('companyName', data.companyName);
       
-      // Add logo file
-      const filename = logoFileUri.split('/').pop() || 'logo.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const ext = match ? match[1].toLowerCase() : 'jpg';
-      // Fix MIME type mapping: jpg -> jpeg
-      const mimeTypeMap: Record<string, string> = {
-        'jpg': 'jpeg',
-        'jpeg': 'jpeg',
-        'png': 'png',
-        'gif': 'gif',
-        'webp': 'webp',
-      };
-      const type = `image/${mimeTypeMap[ext] || 'jpeg'}`;
-      
-      formData.append('logo', {
-        uri: logoFileUri,
-        name: filename,
-        type: type,
-      } as any);
+      // Add logo file using proper URI parsing
+      const imageFile = prepareImageForUpload(logoFileUri);
+      formData.append('logo', imageFile as any);
       
       return apiClient.putMultipart('/users', formData, onUploadProgress);
     }

@@ -12,7 +12,7 @@ interface UserContextType {
   isOffline: boolean;
   pendingCount: number;
   login: (email?: string, phone?: string, password?: string) => Promise<void>;
-  register: (email?: string, name?: string, phone?: string, password?: string, companyName?: string, logoFileUri?: string) => Promise<void>;
+  register: (email?: string, name?: string, phone?: string, password?: string, companyName?: string, logoFileUri?: string, onUploadProgress?: (progress: number) => void) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   updateSettings: (data: Partial<UserSettings>) => Promise<void>;
@@ -179,10 +179,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     phone?: string, 
     password?: string,
     companyName?: string, 
-    logoFileUri?: string
+    logoFileUri?: string,
+    onUploadProgress?: (progress: number) => void
   ): Promise<void> => {
     try {
-      const result = await userApi.register(email, name, phone, password, companyName, logoFileUri);
+      const result = await userApi.register(email, name, phone, password, companyName, logoFileUri, onUploadProgress);
       setUser(result.user);
       setSettings(result.settings);
       

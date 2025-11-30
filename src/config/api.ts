@@ -334,46 +334,108 @@ class ApiClient {
     return response.data;
   }
 
-  async postMultipart<T>(url: string, formData: FormData, onUploadProgress?: (progress: number) => void): Promise<T> {
+  async postMultipart<T>(url: string, formData: FormData, onUploadProgress?: (progress: number) => void, maxRetries: number = 2): Promise<T> {
     const accessToken = await tokenManager.getAccessToken();
     const userId = await tokenManager.getUserId();
     
-    const response = await this.client.post<T>(url, formData, {
+    const config = {
       headers: {
         'Content-Type': 'multipart/form-data',
         ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
         ...(userId && { 'x-user-id': userId }),
       },
-      timeout: 60000, // 60 seconds for file uploads
-      onUploadProgress: onUploadProgress ? (progressEvent) => {
+      timeout: 90000, // 90 seconds for file uploads (increased for slow networks)
+      onUploadProgress: onUploadProgress ? (progressEvent: { loaded: number; total?: number }) => {
         if (progressEvent.total) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           onUploadProgress(progress);
         }
       } : undefined,
-    });
-    return response.data;
+    };
+
+    // Retry logic for upload failures
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await this.client.post<T>(url, formData, config);
+        return response.data;
+      } catch (error) {
+        lastError = error as Error;
+        const isRetryable = this.isRetryableError(error);
+        
+        if (attempt < maxRetries && isRetryable) {
+          // Reset progress for retry
+          if (onUploadProgress) {
+            onUploadProgress(0);
+          }
+          // Exponential backoff: 1s, 2s
+          await this.delay(1000 * (attempt + 1));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError;
   }
 
-  async putMultipart<T>(url: string, formData: FormData, onUploadProgress?: (progress: number) => void): Promise<T> {
+  async putMultipart<T>(url: string, formData: FormData, onUploadProgress?: (progress: number) => void, maxRetries: number = 2): Promise<T> {
     const accessToken = await tokenManager.getAccessToken();
     const userId = await tokenManager.getUserId();
     
-    const response = await this.client.put<T>(url, formData, {
+    const config = {
       headers: {
         'Content-Type': 'multipart/form-data',
         ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
         ...(userId && { 'x-user-id': userId }),
       },
-      timeout: 60000, // 60 seconds for file uploads
-      onUploadProgress: onUploadProgress ? (progressEvent) => {
+      timeout: 90000, // 90 seconds for file uploads (increased for slow networks)
+      onUploadProgress: onUploadProgress ? (progressEvent: { loaded: number; total?: number }) => {
         if (progressEvent.total) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           onUploadProgress(progress);
         }
       } : undefined,
-    });
-    return response.data;
+    };
+
+    // Retry logic for upload failures
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await this.client.put<T>(url, formData, config);
+        return response.data;
+      } catch (error) {
+        lastError = error as Error;
+        const isRetryable = this.isRetryableError(error);
+        
+        if (attempt < maxRetries && isRetryable) {
+          // Reset progress for retry
+          if (onUploadProgress) {
+            onUploadProgress(0);
+          }
+          // Exponential backoff: 1s, 2s
+          await this.delay(1000 * (attempt + 1));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError;
+  }
+
+  // Check if an error is retryable (network issues, timeouts)
+  private isRetryableError(error: unknown): boolean {
+    if (error instanceof AxiosError) {
+      // Retry on network errors, timeouts, and 5xx server errors
+      if (!error.response) return true; // Network error
+      if (error.code === 'ECONNABORTED') return true; // Timeout
+      if (error.response.status >= 500) return true; // Server error
+    }
+    return false;
+  }
+
+  // Delay helper for retry backoff
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
