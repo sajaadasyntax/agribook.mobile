@@ -105,7 +105,9 @@
     "topExpenses": "Top Expenses",
     "total": "Total",
     "recentTransactions": "Recent Transactions",
-    "noTransactions": "No transactions found for this period."
+    "noTransactions": "No transactions found for this period.",
+    "exportSuccess": "Report exported successfully",
+    "exportError": "Failed to export report"
   },
   "alerts": {
     "title": "Reminders & Alerts",
