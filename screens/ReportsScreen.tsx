@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { BarChart } from 'react-native-charts-wrapper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
@@ -19,6 +20,7 @@ import { useReportData, ReportPeriod, calculateYAxisMax } from '../src/hooks/use
 import { formatDisplayDate, addDays, addWeeks, addMonths } from '../src/utils/date';
 import { formatCurrency } from '../src/utils/currency';
 import { Transaction } from '../src/types';
+import { exportToPDF, exportToExcel } from '../src/utils/exportReport';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -184,21 +186,86 @@ export default function ReportsScreen(): React.JSX.Element {
     </View>
   );
 
+  const handleExportPDF = async () => {
+    try {
+      await exportToPDF({
+        period,
+        date,
+        summary,
+        chartData,
+        transactions,
+        locale,
+      });
+      Alert.alert(
+        t('app.success') || 'Success',
+        t('reports.exportSuccess') || 'Report exported to PDF successfully'
+      );
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      Alert.alert(
+        t('app.error') || 'Error',
+        t('reports.exportError') || 'Failed to export report to PDF'
+      );
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      await exportToExcel({
+        period,
+        date,
+        summary,
+        chartData,
+        transactions,
+        locale,
+      });
+      Alert.alert(
+        t('app.success') || 'Success',
+        t('reports.exportSuccess') || 'Report exported to Excel successfully'
+      );
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      Alert.alert(
+        t('app.error') || 'Error',
+        t('reports.exportError') || 'Failed to export report to Excel'
+      );
+    }
+  };
+
+  const renderExportButtons = () => (
+    <View style={[styles.exportContainer, isRTL && styles.exportContainerRTL]}>
+      <TouchableOpacity
+        style={[styles.exportButton(colors), { backgroundColor: colors.expense }]}
+        onPress={handleExportPDF}
+      >
+        <Icon name="picture-as-pdf" size={20} color="#fff" />
+        <Text style={styles.exportButtonText}>PDF</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.exportButton(colors), { backgroundColor: colors.income }]}
+        onPress={handleExportExcel}
+      >
+        <Icon name="table-chart" size={20} color="#fff" />
+        <Text style={styles.exportButtonText}>Excel</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderSummaryCards = () => (
     <View style={[styles.summaryContainer, isRTL && styles.summaryContainerRTL]}>
-      <View style={styles.summaryCard(colors)}>
+      <View style={[styles.summaryCard(colors), { backgroundColor: colors.income + '20' }]}>
         <Text style={styles.summaryLabel(colors)}>{t('reports.income') || 'Income'}</Text>
         <Text style={[styles.summaryValue, { color: colors.income }]}>
           {formatCurrency(summary.income, { locale })}
         </Text>
       </View>
-      <View style={styles.summaryCard(colors)}>
+      <View style={[styles.summaryCard(colors), { backgroundColor: colors.expense + '20' }]}>
         <Text style={styles.summaryLabel(colors)}>{t('reports.expense') || 'Expense'}</Text>
         <Text style={[styles.summaryValue, { color: colors.expense }]}>
           {formatCurrency(summary.expense, { locale })}
         </Text>
       </View>
-      <View style={styles.summaryCard(colors)}>
+      <View style={[styles.summaryCard(colors), { backgroundColor: colors.primary + '20' }]}>
         <Text style={styles.summaryLabel(colors)}>{t('reports.balance') || 'Balance'}</Text>
         <Text style={[styles.summaryValue, { color: summary.balance < 0 ? colors.expense : colors.primary }]}>
           {formatCurrency(summary.balance, { locale })}
@@ -261,6 +328,7 @@ export default function ReportsScreen(): React.JSX.Element {
 
       {renderPeriodSelector()}
       {renderDateNavigator()}
+      {renderExportButtons()}
       {renderSummaryCards()}
 
       {/* Main Chart - Grouped Bar Chart */}
@@ -421,6 +489,32 @@ const styles = {
     fontWeight: '600' as const,
     color: colors.text,
   }),
+  exportContainer: {
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  exportContainerRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  exportButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    gap: 8,
+    elevation: 2,
+  }),
+  exportButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
   summaryContainer: {
     flexDirection: 'row' as const,
     paddingHorizontal: 16,
