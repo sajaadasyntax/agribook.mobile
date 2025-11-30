@@ -1,11 +1,14 @@
 {
   "expo": {
-    "name": "AgriBooks",
+    "name": "أجري بوكس",
     "slug": "agribooks-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "locales": {
+      "ar": "./src/locales/ar.json"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -18,7 +21,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.agribooks.mobile",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Allow AgriBooks to use Face ID for secure authentication."
+        "NSFaceIDUsageDescription": "السماح لأجري بوكس باستخدام Face ID للمصادقة الآمنة.",
+        "CFBundleLocalizations": ["ar", "en"],
+        "CFBundleDevelopmentRegion": "ar"
       }
     },
     "android": {
@@ -34,7 +39,8 @@
         "android.permission.USE_FINGERPRINT",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
-      ]
+      ],
+      "supportsRTL": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,13 +49,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to attach receipts and images to transactions."
+          "photosPermission": "يحتاج التطبيق للوصول إلى صورك لإرفاق الإيصالات والصور بالمعاملات."
         }
       ],
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow AgriBooks to use Face ID for secure authentication."
+          "faceIDPermission": "السماح لأجري بوكس باستخدام Face ID للمصادقة الآمنة."
         }
       ]
     ],

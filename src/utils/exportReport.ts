@@ -21,8 +21,35 @@ interface ExportData {
   };
   transactions: Transaction[];
   locale?: string;
+  companyName?: string;
 }
 
+/**
+ * Get the cache directory for temporary files
+ */
+const getCacheDirectory = (): string => {
+  return FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+};
+
+/**
+ * Safely delete a file if it exists
+ */
+const safeDeleteFile = async (fileUri: string): Promise<void> => {
+  try {
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+    }
+  } catch (error) {
+    // Ignore errors - file might not exist
+    console.log('Safe delete - file may not exist:', error);
+  }
+};
+
+/**
+ * Export report to PDF format
+ * Uses expo-print for reliable PDF generation on both iOS and Android
+ */
 export const exportToPDF = async (data: ExportData): Promise<void> => {
   try {
     // Validate required data
@@ -44,141 +71,239 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
     
     const periodLabel = data.period === 'day' ? 'Daily' : data.period === 'week' ? 'Weekly' : 'Monthly';
     const dateLabel = formatDisplayDate(data.date, data.period);
+    const reportDate = formatDate(data.date);
+    const companyName = data.companyName || 'AgriBooks';
     
-    // Build HTML content for PDF
-    let htmlContent = `
+    // Build professional HTML content for PDF
+    const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
+          * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+          }
           body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            padding: 30px;
             color: #333;
+            background-color: #fff;
+            line-height: 1.5;
           }
-          h1 {
-            color: #4CAF50;
-            border-bottom: 2px solid #4CAF50;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-          }
-          h2 {
-            color: #666;
-            margin-top: 25px;
-            margin-bottom: 15px;
-          }
-          .summary {
+          
+          /* Header Section */
+          .header {
             display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f5f5f5;
-            border-radius: 8px;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #4CAF50;
           }
-          .summary-item {
+          .company-info {
+            flex: 1;
+          }
+          .company-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2E7D32;
+            margin-bottom: 5px;
+          }
+          .report-meta {
+            font-size: 12px;
+            color: #666;
+          }
+          .report-title-section {
+            text-align: right;
+          }
+          .report-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+          }
+          .report-period {
+            font-size: 14px;
+            color: #4CAF50;
+            font-weight: 600;
+          }
+          
+          /* Summary Section */
+          h2 {
+            color: #2E7D32;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #E8F5E9;
+            padding-bottom: 8px;
+          }
+          .summary-grid {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+          }
+          .summary-card {
+            flex: 1;
+            padding: 20px;
+            border-radius: 12px;
             text-align: center;
+          }
+          .summary-card.income {
+            background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+            border-left: 4px solid #4CAF50;
+          }
+          .summary-card.expense {
+            background: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%);
+            border-left: 4px solid #F44336;
+          }
+          .summary-card.balance {
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+            border-left: 4px solid #2196F3;
           }
           .summary-label {
             font-size: 12px;
             color: #666;
-            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
           }
           .summary-value {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
-            color: #333;
           }
-          .income { color: #4CAF50; }
-          .expense { color: #F44336; }
-          .balance { color: #2196F3; }
+          .summary-value.income { color: #2E7D32; }
+          .summary-value.expense { color: #C62828; }
+          .summary-value.balance { color: #1565C0; }
+          .summary-value.negative { color: #C62828; }
+          
+          /* Table Styles */
           table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
+            font-size: 13px;
           }
           th, td {
-            padding: 10px;
+            padding: 12px 10px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #E0E0E0;
           }
           th {
             background-color: #4CAF50;
             color: white;
-            font-weight: bold;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+          }
+          tr:nth-child(even) {
+            background-color: #F5F5F5;
           }
           tr:hover {
-            background-color: #f5f5f5;
+            background-color: #E8F5E9;
           }
-          .chart-table {
-            margin-top: 20px;
+          .text-right {
+            text-align: right;
           }
-          .chart-table th {
-            background-color: #2196F3;
+          .income-text { color: #2E7D32; font-weight: 600; }
+          .expense-text { color: #C62828; font-weight: 600; }
+          
+          /* Breakdown Table */
+          .breakdown-table th {
+            background-color: #1976D2;
           }
-          .positive { color: #4CAF50; }
-          .negative { color: #F44336; }
+          .breakdown-table tr:hover {
+            background-color: #E3F2FD;
+          }
+          
+          /* Footer */
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #E0E0E0;
+            text-align: center;
+            font-size: 11px;
+            color: #999;
+          }
+          
+          /* Print optimization */
+          @media print {
+            body { padding: 20px; }
+            .summary-card { break-inside: avoid; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
-        <h1>${periodLabel} Report - ${dateLabel}</h1>
+        <!-- Header -->
+        <div class="header">
+          <div class="company-info">
+            <div class="company-name">${companyName}</div>
+            <div class="report-meta">Financial Report • Generated ${new Date().toLocaleDateString()}</div>
+          </div>
+          <div class="report-title-section">
+            <div class="report-title">${periodLabel} Report</div>
+            <div class="report-period">${dateLabel}</div>
+          </div>
+        </div>
         
-        <h2>Summary</h2>
-        <div class="summary">
-          <div class="summary-item">
-            <div class="summary-label">Income</div>
+        <!-- Summary Section -->
+        <h2>Financial Summary</h2>
+        <div class="summary-grid">
+          <div class="summary-card income">
+            <div class="summary-label">Total Income</div>
             <div class="summary-value income">${formatCurrency(data.summary.income, { locale: data.locale })}</div>
           </div>
-          <div class="summary-item">
-            <div class="summary-label">Expense</div>
+          <div class="summary-card expense">
+            <div class="summary-label">Total Expenses</div>
             <div class="summary-value expense">${formatCurrency(data.summary.expense, { locale: data.locale })}</div>
           </div>
-          <div class="summary-item">
-            <div class="summary-label">Balance</div>
-            <div class="summary-value balance ${data.summary.balance < 0 ? 'negative' : 'positive'}">
+          <div class="summary-card balance">
+            <div class="summary-label">Net Balance</div>
+            <div class="summary-value ${data.summary.balance < 0 ? 'negative' : 'balance'}">
               ${formatCurrency(data.summary.balance, { locale: data.locale })}
             </div>
           </div>
         </div>
-    `;
 
-    // Add chart data table
-    if (data.chartData.labels.length > 0) {
-      htmlContent += `
+        ${data.chartData.labels.length > 0 ? `
+        <!-- Period Breakdown -->
         <h2>${data.period === 'week' ? 'Daily' : data.period === 'month' ? 'Weekly' : 'Period'} Breakdown</h2>
-        <table class="chart-table">
+        <table class="breakdown-table">
           <thead>
             <tr>
               <th>${data.period === 'week' ? 'Day' : data.period === 'month' ? 'Week' : 'Period'}</th>
-              <th>Income</th>
-              <th>Expense</th>
+              <th class="text-right">Income</th>
+              <th class="text-right">Expenses</th>
+              <th class="text-right">Net</th>
             </tr>
           </thead>
           <tbody>
-      `;
-      
-      data.chartData.labels.forEach((label, index) => {
-        const income = data.chartData.incomeData[index] || 0;
-        const expense = data.chartData.expenseData[index] || 0;
-        htmlContent += `
-          <tr>
-            <td>${label}</td>
-            <td class="income">${formatCurrency(income, { locale: data.locale })}</td>
-            <td class="expense">${formatCurrency(expense, { locale: data.locale })}</td>
-          </tr>
-        `;
-      });
-      
-      htmlContent += `
+            ${data.chartData.labels.map((label, index) => {
+              const income = data.chartData.incomeData[index] || 0;
+              const expense = data.chartData.expenseData[index] || 0;
+              const net = income - expense;
+              return `
+                <tr>
+                  <td>${label}</td>
+                  <td class="text-right income-text">${formatCurrency(income, { locale: data.locale })}</td>
+                  <td class="text-right expense-text">${formatCurrency(expense, { locale: data.locale })}</td>
+                  <td class="text-right ${net >= 0 ? 'income-text' : 'expense-text'}">${formatCurrency(net, { locale: data.locale })}</td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
-      `;
-    }
+        ` : ''}
 
-    // Add transactions table
-    if (data.transactions.length > 0) {
-      htmlContent += `
-        <h2>Transactions</h2>
+        ${data.transactions.length > 0 ? `
+        <!-- Transactions -->
+        <h2>Transaction Details</h2>
         <table>
           <thead>
             <tr>
@@ -186,88 +311,94 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
               <th>Type</th>
               <th>Category</th>
               <th>Description</th>
-              <th>Amount</th>
+              <th class="text-right">Amount</th>
             </tr>
           </thead>
           <tbody>
-      `;
-      
-      data.transactions.forEach(transaction => {
-        const date = new Date(transaction.createdAt).toLocaleDateString();
-        const type = transaction.type === 'INCOME' ? 'Income' : 'Expense';
-        const category = transaction.category?.name || 'Uncategorized';
-        const description = transaction.description || '-';
-        const amount = formatCurrency(parseFloat(transaction.amount.toString()), { locale: data.locale });
-        const amountClass = transaction.type === 'INCOME' ? 'income' : 'expense';
-        
-        htmlContent += `
-          <tr>
-            <td>${date}</td>
-            <td>${type}</td>
-            <td>${category}</td>
-            <td>${description}</td>
-            <td class="${amountClass}">${transaction.type === 'INCOME' ? '+' : '-'}${amount}</td>
-          </tr>
-        `;
-      });
-      
-      htmlContent += `
+            ${data.transactions.map(transaction => {
+              const date = new Date(transaction.createdAt).toLocaleDateString();
+              const type = transaction.type === 'INCOME' ? 'Income' : 'Expense';
+              const category = transaction.category?.name || 'Uncategorized';
+              const description = transaction.description || '-';
+              const amount = formatCurrency(parseFloat(transaction.amount.toString()), { locale: data.locale });
+              const amountClass = transaction.type === 'INCOME' ? 'income-text' : 'expense-text';
+              
+              return `
+                <tr>
+                  <td>${date}</td>
+                  <td>${type}</td>
+                  <td>${category}</td>
+                  <td>${description}</td>
+                  <td class="text-right ${amountClass}">${transaction.type === 'INCOME' ? '+' : '-'}${amount}</td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
-      `;
-    }
-
-    htmlContent += `
+        ` : ''}
+        
+        <!-- Footer -->
+        <div class="footer">
+          <p>${companyName} • ${periodLabel} Financial Report • ${dateLabel}</p>
+          <p>Generated by AgriBooks on ${new Date().toLocaleString()}</p>
+        </div>
       </body>
       </html>
     `;
 
-    // Generate PDF with print options
-    let uri: string;
+    // Generate PDF using expo-print
+    let pdfUri: string;
     try {
       const result = await Print.printToFileAsync({ 
         html: htmlContent,
         base64: false,
-        width: 612,
-        height: 792,
+        width: 612,  // Letter size width in points
+        height: 792, // Letter size height in points
       });
-      uri = result.uri;
+      pdfUri = result.uri;
     } catch (printError) {
       console.error('Error generating PDF:', printError);
       throw new Error(`Failed to generate PDF: ${printError instanceof Error ? printError.message : 'Unknown error'}`);
     }
     
-    // Share the PDF
+    // Check if sharing is available
     const isSharingAvailable = await Sharing.isAvailableAsync();
     if (!isSharingAvailable) {
       throw new Error('Sharing is not available on this device');
     }
     
+    // Prepare final file path with proper naming
+    const filename = `${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${periodLabel}_Report_${reportDate.replace(/-/g, '_')}.pdf`;
+    const cacheDir = getCacheDirectory();
+    const finalUri = `${cacheDir}${filename}`;
+    
     try {
-      const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.pdf`;
-      const newUri = `${FileSystem.documentDirectory}${filename}`;
+      // Clean up any existing file
+      await safeDeleteFile(finalUri);
       
-      // Delete if file already exists
-      try {
-        const fileInfo = await FileSystem.getInfoAsync(newUri);
-        if (fileInfo.exists) {
-          await FileSystem.deleteAsync(newUri, { idempotent: true });
-        }
-      } catch (deleteError) {
-        // File doesn't exist, which is fine
-        console.log('File does not exist or already deleted:', deleteError);
-      }
-      
-      // Move the PDF file
+      // Move PDF to final location
       await FileSystem.moveAsync({
-        from: uri,
-        to: newUri,
+        from: pdfUri,
+        to: finalUri,
       });
       
-      await Sharing.shareAsync(newUri);
+      // Share the PDF
+      await Sharing.shareAsync(finalUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Share ${periodLabel} Report`,
+        UTI: 'com.adobe.pdf',
+      });
     } catch (fileError) {
       console.error('Error handling PDF file:', fileError);
-      throw new Error(`Failed to save or share PDF: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
+      // Try sharing from original location as fallback
+      try {
+        await Sharing.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Share ${periodLabel} Report`,
+        });
+      } catch (fallbackError) {
+        throw new Error(`Failed to share PDF: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
+      }
     }
   } catch (error) {
     console.error('Error exporting to PDF:', error);
@@ -275,6 +406,10 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
   }
 };
 
+/**
+ * Export report to Excel format
+ * Uses xlsx (SheetJS) for Excel generation
+ */
 export const exportToExcel = async (data: ExportData): Promise<void> => {
   try {
     // Validate required data
@@ -296,38 +431,72 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     
     const periodLabel = data.period === 'day' ? 'Daily' : data.period === 'week' ? 'Weekly' : 'Monthly';
     const dateLabel = formatDisplayDate(data.date, data.period);
+    const reportDate = formatDate(data.date);
+    const companyName = data.companyName || 'AgriBooks';
     
     // Create workbook
     const workbook = XLSX.utils.book_new();
     
-    // Summary sheet
+    // Summary sheet with company info
     const summaryData = [
-      ['Summary'],
-      ['Period', periodLabel],
-      ['Date', dateLabel],
+      [companyName],
+      [`${periodLabel} Financial Report`],
+      [`Report Period: ${dateLabel}`],
+      [`Generated: ${new Date().toLocaleString()}`],
       [''],
-      ['Income', data.summary.income],
-      ['Expense', data.summary.expense],
-      ['Balance', data.summary.balance],
+      ['FINANCIAL SUMMARY'],
+      [''],
+      ['Category', 'Amount'],
+      ['Total Income', data.summary.income],
+      ['Total Expenses', data.summary.expense],
+      ['Net Balance', data.summary.balance],
+      [''],
+      ['STATISTICS'],
+      ['Total Transactions', data.transactions.length],
+      ['Income Transactions', data.transactions.filter(t => t.type === 'INCOME').length],
+      ['Expense Transactions', data.transactions.filter(t => t.type === 'EXPENSE').length],
     ];
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    
+    // Set column widths for summary sheet
+    summarySheet['!cols'] = [
+      { wch: 25 },
+      { wch: 20 },
+    ];
+    
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
     
-    // Chart data sheet
+    // Period Breakdown sheet
     if (data.chartData.labels.length > 0) {
-      const chartHeaders = [
+      const breakdownHeaders = [
         data.period === 'week' ? 'Day' : data.period === 'month' ? 'Week' : 'Period',
         'Income',
-        'Expense',
+        'Expenses',
+        'Net',
       ];
-      const chartRows = data.chartData.labels.map((label, index) => [
-        label,
-        data.chartData.incomeData[index] || 0,
-        data.chartData.expenseData[index] || 0,
-      ]);
-      const chartData = [chartHeaders, ...chartRows];
-      const chartSheet = XLSX.utils.aoa_to_sheet(chartData);
-      XLSX.utils.book_append_sheet(workbook, chartSheet, 'Breakdown');
+      const breakdownRows = data.chartData.labels.map((label, index) => {
+        const income = data.chartData.incomeData[index] || 0;
+        const expense = data.chartData.expenseData[index] || 0;
+        return [label, income, expense, income - expense];
+      });
+      
+      // Add totals row
+      const totalIncome = data.chartData.incomeData.reduce((sum, val) => sum + (val || 0), 0);
+      const totalExpense = data.chartData.expenseData.reduce((sum, val) => sum + (val || 0), 0);
+      breakdownRows.push(['TOTAL', totalIncome, totalExpense, totalIncome - totalExpense]);
+      
+      const breakdownData = [breakdownHeaders, ...breakdownRows];
+      const breakdownSheet = XLSX.utils.aoa_to_sheet(breakdownData);
+      
+      // Set column widths
+      breakdownSheet['!cols'] = [
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+      ];
+      
+      XLSX.utils.book_append_sheet(workbook, breakdownSheet, 'Breakdown');
     }
     
     // Transactions sheet
@@ -338,43 +507,50 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
         transaction.type === 'INCOME' ? 'Income' : 'Expense',
         transaction.category?.name || 'Uncategorized',
         transaction.description || '',
-        parseFloat(transaction.amount.toString()),
+        transaction.type === 'INCOME' 
+          ? parseFloat(transaction.amount.toString())
+          : -parseFloat(transaction.amount.toString()),
       ]);
       const transactionData = [transactionHeaders, ...transactionRows];
       const transactionSheet = XLSX.utils.aoa_to_sheet(transactionData);
+      
+      // Set column widths
+      transactionSheet['!cols'] = [
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 20 },
+        { wch: 30 },
+        { wch: 15 },
+      ];
+      
       XLSX.utils.book_append_sheet(workbook, transactionSheet, 'Transactions');
     }
     
-    // Generate file
-    let wbout: string;
+    // Generate Excel file as base64
+    let base64Data: string;
     try {
-      wbout = XLSX.write(workbook, { 
+      // Write workbook to binary string
+      const wbout = XLSX.write(workbook, { 
         type: 'base64', 
         bookType: 'xlsx',
-        cellStyles: true,
       });
+      base64Data = wbout;
     } catch (writeError) {
       console.error('Error writing Excel workbook:', writeError);
       throw new Error(`Failed to generate Excel file: ${writeError instanceof Error ? writeError.message : 'Unknown error'}`);
     }
     
-    const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.xlsx`;
-    const fileUri = `${FileSystem.documentDirectory}${filename}`;
+    // Prepare file path
+    const filename = `${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${periodLabel}_Report_${reportDate.replace(/-/g, '_')}.xlsx`;
+    const cacheDir = getCacheDirectory();
+    const fileUri = `${cacheDir}${filename}`;
     
     try {
-      // Delete if file already exists
-      try {
-        const fileInfo = await FileSystem.getInfoAsync(fileUri);
-        if (fileInfo.exists) {
-          await FileSystem.deleteAsync(fileUri, { idempotent: true });
-        }
-      } catch (deleteError) {
-        // File doesn't exist, which is fine
-        console.log('File does not exist or already deleted:', deleteError);
-      }
+      // Clean up any existing file
+      await safeDeleteFile(fileUri);
       
       // Write file using base64 encoding
-      await FileSystem.writeAsStringAsync(fileUri, wbout, {
+      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
         encoding: FileSystem.EncodingType.Base64,
       });
     } catch (fileError) {
@@ -382,14 +558,19 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       throw new Error(`Failed to save Excel file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
     }
     
-    // Share the file
+    // Check if sharing is available
     const isSharingAvailable = await Sharing.isAvailableAsync();
     if (!isSharingAvailable) {
       throw new Error('Sharing is not available on this device');
     }
     
+    // Share the file
     try {
-      await Sharing.shareAsync(fileUri);
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: `Share ${periodLabel} Report`,
+        UTI: 'org.openxmlformats.spreadsheetml.sheet',
+      });
     } catch (shareError) {
       console.error('Error sharing Excel file:', shareError);
       throw new Error(`Failed to share Excel file: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
@@ -399,4 +580,3 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     throw error;
   }
 };
-

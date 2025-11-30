@@ -28,7 +28,7 @@ import { exportToPDF, exportToExcel } from '../src/utils/exportReport';
 const screenWidth = Dimensions.get('window').width;
 
 export default function ReportsScreen(): React.JSX.Element {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, user } = useUser();
   const { t, isRTL, locale } = useI18n();
   const { colors } = useTheme();
   const [period, setPeriod] = useState<ReportPeriod>('week');
@@ -237,6 +237,7 @@ export default function ReportsScreen(): React.JSX.Element {
         chartData,
         transactions,
         locale,
+        companyName: user?.companyName || user?.name || undefined,
       });
       Alert.alert(
         t('app.success') || 'Success',
@@ -278,6 +279,7 @@ export default function ReportsScreen(): React.JSX.Element {
         chartData,
         transactions,
         locale,
+        companyName: user?.companyName || user?.name || undefined,
       });
       Alert.alert(
         t('app.success') || 'Success',

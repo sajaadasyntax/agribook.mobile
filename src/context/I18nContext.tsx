@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { I18n } from 'i18n-js';
-import * as Localization from 'expo-localization';
+import { I18nManager } from 'react-native';
 import { useUser } from './UserContext';
 import enTranslations from '../locales/en.json';
 import arTranslations from '../locales/ar.json';
@@ -11,7 +11,9 @@ const i18n = new I18n({
 });
 
 i18n.enableFallback = true;
-i18n.defaultLocale = 'en';
+// Arabic-first: Set Arabic as the default locale
+i18n.defaultLocale = 'ar';
+i18n.locale = 'ar';
 
 interface I18nContextType {
   t: (key: string, options?: Record<string, unknown>) => string;
@@ -36,34 +38,58 @@ interface I18nProviderProps {
 
 export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
   const { settings, updateSettings } = useUser();
-  const [locale, setLocaleState] = useState<'en' | 'ar'>('en');
-  const [isRTL, setIsRTL] = useState(false);
+  // Arabic-first: Default to Arabic language and RTL layout
+  const [locale, setLocaleState] = useState<'en' | 'ar'>('ar');
+  const [isRTL, setIsRTL] = useState(true);
+
+  // Force RTL on initial app load for Arabic-first experience
+  useEffect(() => {
+    // Ensure RTL is properly set at startup
+    if (!I18nManager.isRTL) {
+      I18nManager.allowRTL(true);
+      I18nManager.forceRTL(true);
+    }
+  }, []);
 
   useEffect(() => {
-    // Initialize locale from device or user settings
+    // Initialize locale from user settings, defaulting to Arabic
     try {
-      const deviceLocale = Localization.getLocales()[0]?.languageCode || 'en';
-      const userLocale = (settings?.language as 'en' | 'ar') || deviceLocale;
+      // If user has explicitly set a language preference, use it; otherwise default to Arabic
+      const userLocale = settings?.language as 'en' | 'ar';
+      const initialLocale = userLocale || 'ar'; // Arabic-first: default to Arabic
       
-      // Set locale to Arabic if user preference or device is Arabic
-      const initialLocale = (userLocale === 'ar' || deviceLocale === 'ar') ? 'ar' : 'en';
       setLocaleState(initialLocale);
       setIsRTL(initialLocale === 'ar');
       i18n.locale = initialLocale;
+      
+      // Update RTL layout based on locale
+      const shouldBeRTL = initialLocale === 'ar';
+      if (I18nManager.isRTL !== shouldBeRTL) {
+        I18nManager.allowRTL(shouldBeRTL);
+        I18nManager.forceRTL(shouldBeRTL);
+      }
     } catch (error) {
-      // Fallback to English if there's any error
+      // Fallback to Arabic if there's any error (Arabic-first)
       console.error('Error initializing locale:', error);
-      setLocaleState('en');
-      setIsRTL(false);
-      i18n.locale = 'en';
+      setLocaleState('ar');
+      setIsRTL(true);
+      i18n.locale = 'ar';
     }
   }, [settings]);
 
   const setLocale = async (newLocale: 'en' | 'ar'): Promise<void> => {
     try {
+      const shouldBeRTL = newLocale === 'ar';
+      
       setLocaleState(newLocale);
-      setIsRTL(newLocale === 'ar');
+      setIsRTL(shouldBeRTL);
       i18n.locale = newLocale;
+      
+      // Update RTL layout when language changes
+      if (I18nManager.isRTL !== shouldBeRTL) {
+        I18nManager.allowRTL(shouldBeRTL);
+        I18nManager.forceRTL(shouldBeRTL);
+      }
       
       // Save to user settings
       if (updateSettings) {

@@ -11,6 +11,13 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import * as SecureStore from 'expo-secure-store';
 import syncService from './src/services/sync.service';
 
+// Arabic-first: Force RTL layout at app initialization (before any component renders)
+// This ensures the entire app starts with RTL layout for Arabic
+if (!I18nManager.isRTL) {
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
+}
+
 import HomeScreen from './screens/HomeScreen';
 import AddScreen from './screens/AddScreen';
 import ReportsScreen from './screens/ReportsScreen';
@@ -93,17 +100,16 @@ function AppNavigator(): JSX.Element {
   const [checkingLock, setCheckingLock] = useState(true);
   const navigationRef = React.useRef<NavigationContainerRef<any>>(null);
 
-  // Handle RTL layout changes - only force RTL on initial mount, not on every change
+  // Handle RTL layout changes - ensure RTL is properly set based on locale
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      const shouldBeRTL = isRTL;
-      if (I18nManager.isRTL !== shouldBeRTL) {
-        I18nManager.forceRTL(shouldBeRTL);
-        // Only reload on initial mount if direction mismatch, not on every locale change
-        // This allows instant updates for UI components that use key prop
-      }
+    // Force RTL layout when locale is Arabic (works on both Android and iOS)
+    const shouldBeRTL = isRTL;
+    if (I18nManager.isRTL !== shouldBeRTL) {
+      I18nManager.allowRTL(shouldBeRTL);
+      I18nManager.forceRTL(shouldBeRTL);
+      // Note: Full RTL change requires app restart, but UI components with key prop will update
     }
-  }, []); // Only run once on mount
+  }, [isRTL]); // Update when RTL status changes
 
   // Check onboarding status
   useEffect(() => {
