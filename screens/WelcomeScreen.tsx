@@ -185,12 +185,12 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         </View>
 
         {/* Toggle between Sign In and Sign Up */}
-        <View style={styles.toggleContainer}>
+        <View style={[styles.toggleContainer, isRTL && styles.toggleContainerRTL]}>
           <TouchableOpacity
             style={[styles.toggleButton, !isSignIn && styles.toggleButtonActive]}
             onPress={() => setIsSignIn(false)}
           >
-            <Text style={[styles.toggleText, !isSignIn && styles.toggleTextActive]}>
+            <Text style={[styles.toggleText, !isSignIn && styles.toggleTextActive, isRTL && styles.textRTL]}>
               {t('auth.signUp')}
             </Text>
           </TouchableOpacity>
@@ -198,7 +198,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             style={[styles.toggleButton, isSignIn && styles.toggleButtonActive]}
             onPress={() => setIsSignIn(true)}
           >
-            <Text style={[styles.toggleText, isSignIn && styles.toggleTextActive]}>
+            <Text style={[styles.toggleText, isSignIn && styles.toggleTextActive, isRTL && styles.textRTL]}>
               {t('auth.signIn')}
             </Text>
           </TouchableOpacity>
@@ -226,9 +226,9 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Email Input */}
           <View style={styles.inputContainer}>
-            <View style={styles.labelRow}>
+            <View style={[styles.labelRow, isRTL && styles.labelRowRTL]}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.email')}</Text>
-              {!isSignIn && <Text style={styles.optional}>{t('auth.optional')}</Text>}
+              {!isSignIn && <Text style={[styles.optional, isRTL && styles.textRTL]}>{t('auth.optional')}</Text>}
             </View>
             <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
               <Icon name="email" size={20} color="#666" style={styles.inputIcon} />
@@ -247,9 +247,9 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Phone Input */}
           <View style={styles.inputContainer}>
-            <View style={styles.labelRow}>
+            <View style={[styles.labelRow, isRTL && styles.labelRowRTL]}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.phone')}</Text>
-              {!isSignIn && <Text style={styles.optional}>{t('auth.optional')}</Text>}
+              {!isSignIn && <Text style={[styles.optional, isRTL && styles.textRTL]}>{t('auth.optional')}</Text>}
             </View>
             <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
               <Icon name="phone" size={20} color="#666" style={styles.inputIcon} />
@@ -266,9 +266,9 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <View style={styles.labelRow}>
+            <View style={[styles.labelRow, isRTL && styles.labelRowRTL]}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.password') || 'Password'}</Text>
-              {!isSignIn && <Text style={styles.optional}>{t('auth.optional')}</Text>}
+              {!isSignIn && <Text style={[styles.optional, isRTL && styles.textRTL]}>{t('auth.optional')}</Text>}
             </View>
             <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
               <Icon name="lock" size={20} color="#666" style={styles.inputIcon} />
@@ -287,7 +287,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
               </TouchableOpacity>
             </View>
             {!isSignIn && (
-              <Text style={styles.passwordHint}>
+              <Text style={[styles.passwordHint, isRTL && styles.passwordHintRTL]}>
                 {t('auth.passwordHint') || 'Min 6 characters. Set a password to secure your account.'}
               </Text>
             )}
@@ -296,9 +296,9 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
           {/* Company Name - Only for Sign Up */}
           {!isSignIn && (
             <View style={styles.inputContainer}>
-              <View style={styles.labelRow}>
+              <View style={[styles.labelRow, isRTL && styles.labelRowRTL]}>
                 <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.companyName')}</Text>
-                <Text style={styles.optional}>{t('auth.optional')}</Text>
+                <Text style={[styles.optional, isRTL && styles.textRTL]}>{t('auth.optional')}</Text>
               </View>
               <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
                 <Icon name="business" size={20} color="#666" style={styles.inputIcon} />
@@ -349,11 +349,11 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
               </TouchableOpacity>
               {logoFileUri && (
                 <TouchableOpacity
-                  style={styles.removeLogoButton}
+                  style={[styles.removeLogoButton, isRTL && styles.removeLogoButtonRTL]}
                   onPress={handleRemoveLogo}
                 >
                   <Icon name="delete" size={20} color="#F44336" />
-                  <Text style={styles.removeLogoText}>{t('auth.removeLogo')}</Text>
+                  <Text style={[styles.removeLogoText, isRTL && styles.removeLogoTextRTL]}>{t('auth.removeLogo')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -361,7 +361,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.button, isRTL && styles.buttonRTL, loading && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -376,7 +376,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
               </View>
             ) : (
               <>
-                <Text style={styles.buttonText}>
+                <Text style={[styles.buttonText, isRTL && styles.textRTL]}>
                   {isSignIn ? t('auth.signIn') : t('auth.createAccount')}
                 </Text>
                 <Icon name={isRTL ? 'arrow-back' : 'arrow-forward'} size={24} color="#fff" />
@@ -468,9 +468,16 @@ const styles = StyleSheet.create({
   labelRTL: {
     textAlign: 'right',
   },
+  labelRowRTL: {
+    flexDirection: 'row-reverse',
+  },
   optional: {
     fontSize: 12,
     color: '#999',
+  },
+  textRTL: {
+    writingDirection: 'rtl',
+    textAlign: 'right',
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -486,7 +493,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
   },
   inputIcon: {
-    marginRight: 12,
+    marginHorizontal: 12,
   },
   input: {
     flex: 1,
@@ -502,6 +509,11 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 6,
     marginLeft: 4,
+  },
+  passwordHintRTL: {
+    textAlign: 'right',
+    marginLeft: 0,
+    marginRight: 4,
   },
   inputRTL: {
     textAlign: 'right',
@@ -520,6 +532,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  buttonRTL: {
+    flexDirection: 'row-reverse',
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -561,6 +576,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+  toggleContainerRTL: {
+    flexDirection: 'row-reverse',
   },
   toggleButton: {
     flex: 1,
@@ -642,9 +660,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 8,
   },
+  removeLogoButtonRTL: {
+    flexDirection: 'row-reverse',
+  },
   removeLogoText: {
     marginLeft: 4,
     fontSize: 14,
     color: '#F44336',
+  },
+  removeLogoTextRTL: {
+    marginLeft: 0,
+    marginRight: 4,
   },
 });

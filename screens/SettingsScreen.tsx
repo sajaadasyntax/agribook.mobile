@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
@@ -31,8 +30,6 @@ export default function SettingsScreen(): React.JSX.Element {
   const [pin, setPin] = useState<string[]>(['', '', '', '']);
   const [showPinModal, setShowPinModal] = useState(false);
   const [language, setLanguage] = useState<'en' | 'ar'>(locale as 'en' | 'ar');
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricType, setBiometricType] = useState<string>('');
   const [isOnline, setIsOnline] = useState(!isOffline);
   const [pendingCount, setPendingCount] = useState(contextPendingCount);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -129,9 +126,8 @@ export default function SettingsScreen(): React.JSX.Element {
     }
   }, [checkSyncStatus, t, syncData]);
 
-  // Check biometric availability and sync status on mount / updates
+  // Check sync status on mount / updates
   useEffect(() => {
-    checkBiometricAvailability();
     checkSyncStatus();
   }, [checkSyncStatus]);
 
@@ -196,95 +192,6 @@ export default function SettingsScreen(): React.JSX.Element {
 
     loadHasPinFlag();
   }, [settings?.pinEnabled]);
-
-  const checkBiometricAvailability = async (): Promise<void> => {
-    try {
-      // Check if device has biometric hardware
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      if (!hasHardware) {
-        setBiometricAvailable(false);
-        return;
-      }
-
-      // Check if biometrics are enrolled
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!isEnrolled) {
-        setBiometricAvailable(false);
-        return;
-      }
-
-      setBiometricAvailable(true);
-
-      // Get supported biometric types
-      const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
-      if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-        setBiometricType('Face ID');
-      } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-        setBiometricType('Fingerprint');
-      } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.IRIS)) {
-        setBiometricType('Iris');
-      }
-    } catch (error) {
-      console.error('Error checking biometric availability:', error);
-      setBiometricAvailable(false);
-    }
-  };
-
-  const handleBiometricToggle = async (): Promise<void> => {
-    // If currently enabled, just disable it
-    if (settings?.fingerprintEnabled) {
-      try {
-        await updateSettings({ fingerprintEnabled: false });
-        Alert.alert(t('app.success'), t('settings.biometricDisabled'));
-      } catch (error) {
-        console.error('Error disabling biometric:', error);
-        Alert.alert(t('app.error'), t('settings.errorUpdating'));
-      }
-      return;
-    }
-
-    // Check if PIN is enabled (fingerprint requires PIN to be enabled)
-    if (!settings?.pinEnabled) {
-      Alert.alert(
-        t('settings.pinRequired') || 'PIN Required',
-        t('settings.pinRequiredForBiometric') || 'Please enable PIN first to use fingerprint authentication.',
-        [{ text: t('app.ok') }]
-      );
-      return;
-    }
-
-    // Check if biometrics are available
-    if (!biometricAvailable) {
-      Alert.alert(
-        t('settings.biometricUnavailable'),
-        t('settings.biometricUnavailableDesc'),
-        [{ text: t('app.ok') }]
-      );
-      return;
-    }
-
-    // Authenticate with biometrics before enabling
-    try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: t('settings.biometricPrompt'),
-        cancelLabel: t('app.cancel'),
-        disableDeviceFallback: false,
-        fallbackLabel: t('settings.usePasscode'),
-      });
-
-      if (result.success) {
-        await updateSettings({ fingerprintEnabled: true });
-        Alert.alert(t('app.success'), t('settings.biometricEnabled'));
-      } else if (result.error === 'user_cancel') {
-        // User cancelled, do nothing
-      } else {
-        Alert.alert(t('app.error'), t('settings.biometricFailed'));
-      }
-    } catch (error) {
-      console.error('Error enabling biometric:', error);
-      Alert.alert(t('app.error'), t('settings.errorUpdating'));
-    }
-  };
 
   // In-app PIN keyboard handlers
   const handleNumberPress = (num: string): void => {
@@ -366,8 +273,8 @@ export default function SettingsScreen(): React.JSX.Element {
     }
 
     try {
-      // Disable fingerprint when PIN is disabled
-      await updateSettings({ pinEnabled: false, fingerprintEnabled: false });
+      // Disable PIN
+      await updateSettings({ pinEnabled: false });
       Alert.alert(t('app.success'), t('settings.lockDisabled'));
     } catch (error) {
       console.error('Error disabling lock:', error);
@@ -571,75 +478,6 @@ export default function SettingsScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
 
-        {/* Offline & Sync Section */}
-        <View style={styles.section(colors)}>
-          <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
-            <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.offlineSync')}</Text>
-            <View style={[styles.statusBadge, isOnline ? styles.onlineBadge(colors) : styles.offlineBadge(colors)]}>
-              <Icon name={isOnline ? 'cloud-done' : 'cloud-off'} size={14} color={colors.textInverse} />
-              <Text style={styles.statusBadgeText}>
-                {isOnline ? t('settings.online') : t('settings.offline')}
-              </Text>
-            </View>
-          </View>
-          
-          {pendingCount > 0 && (
-            <View style={styles.pendingBanner(colors)}>
-              <Icon name="sync-problem" size={20} color={colors.warning} />
-              <Text style={styles.pendingText(colors)}>
-                {t('settings.pendingItems', { count: pendingCount })}
-              </Text>
-            </View>
-          )}
-          
-          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
-            <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.offlineMode')}</Text>
-              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.offlineModeDesc')}</Text>
-            </View>
-            <Switch
-              value={settings.offlineMode}
-              onValueChange={handleToggleOfflineMode}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={settings.offlineMode ? colors.primary : colors.inputBackground}
-            />
-          </View>
-          
-          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
-            <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.autoSync')}</Text>
-              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.autoSyncDesc')}</Text>
-            </View>
-            <Switch
-              value={settings.autoSync}
-              onValueChange={handleToggleAutoSync}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={settings.autoSync ? colors.primary : colors.inputBackground}
-            />
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.syncButton(colors), (!isOnline || syncing) && styles.syncButtonDisabled(colors)]}
-            onPress={() => handleManualSync()}
-            disabled={!isOnline || syncing}
-          >
-            {syncing ? (
-              <ActivityIndicator size="small" color={colors.textInverse} />
-            ) : (
-              <Icon name="sync" size={20} color={colors.textInverse} />
-            )}
-            <Text style={styles.syncButtonText}>
-              {syncing ? t('settings.syncing') : t('settings.syncNow')}
-            </Text>
-          </TouchableOpacity>
-          
-          {lastSyncTime && (
-            <Text style={[styles.lastSyncText(colors), isRTL && styles.lastSyncTextRTL]}>
-              {t('settings.lastSync')}: {formatLastTime(lastSyncTime)}
-            </Text>
-          )}
-        </View>
-
         {/* PIN / Biometric Section */}
         <View style={styles.section(colors)}>
           <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.pinBiometric')}</Text>
@@ -656,50 +494,23 @@ export default function SettingsScreen(): React.JSX.Element {
             <Icon name={isRTL ? 'chevron-left' : 'chevron-right'} size={24} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <View style={[styles.securityButtons, isRTL && styles.securityButtonsRTL]}>
-            <TouchableOpacity
+          <TouchableOpacity
+            style={[
+              styles.securityButton(colors),
+              settings.pinEnabled && styles.securityButtonActive(colors),
+            ]}
+            onPress={handleTogglePinLock}
+          >
+            <Icon name="lock" size={20} color={settings.pinEnabled ? colors.textInverse : colors.primary} />
+            <Text
               style={[
-                styles.securityButton(colors),
-                settings.pinEnabled && styles.securityButtonActive(colors),
+                styles.securityButtonText(colors),
+                settings.pinEnabled && styles.securityButtonTextActive,
               ]}
-              onPress={handleTogglePinLock}
             >
-              <Icon name="lock" size={20} color={settings.pinEnabled ? colors.textInverse : colors.primary} />
-              <Text
-                style={[
-                  styles.securityButtonText(colors),
-                  settings.pinEnabled && styles.securityButtonTextActive,
-                ]}
-              >
-                {settings.pinEnabled ? t('settings.lockEnabled') : t('settings.enableLock')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.securityButton(colors),
-                styles.fingerprintButton(colors),
-                settings.fingerprintEnabled && styles.securityButtonActive(colors),
-                !biometricAvailable && styles.securityButtonDisabled(colors),
-              ]}
-              onPress={handleBiometricToggle}
-              disabled={!biometricAvailable && !settings.fingerprintEnabled}
-            >
-              <Icon
-                name="fingerprint"
-                size={20}
-                color={settings.fingerprintEnabled ? colors.textInverse : biometricAvailable ? colors.primary : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.securityButtonText(colors),
-                  settings.fingerprintEnabled && styles.securityButtonTextActive,
-                  !biometricAvailable && !settings.fingerprintEnabled && styles.securityButtonTextDisabled(colors),
-                ]}
-              >
-                {biometricType || t('settings.useFingerprint')}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              {settings.pinEnabled ? t('settings.lockEnabled') : t('settings.enableLock')}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Language Settings */}
@@ -1107,15 +918,7 @@ const styles = {
     fontSize: 16,
     fontWeight: 'bold' as const,
   },
-  securityButtons: {
-    flexDirection: 'row' as const,
-    gap: 12,
-  },
-  securityButtonsRTL: {
-    flexDirection: 'row-reverse' as const,
-  },
   securityButton: (colors: any) => ({
-    flex: 1,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -1125,9 +928,6 @@ const styles = {
     borderColor: colors.primary,
     backgroundColor: colors.surface,
     gap: 8,
-  }),
-  fingerprintButton: (colors: any) => ({
-    backgroundColor: colors.background,
   }),
   securityButtonActive: (colors: any) => ({
     backgroundColor: colors.primary,
@@ -1141,13 +941,6 @@ const styles = {
   securityButtonTextActive: {
     color: '#fff',
   },
-  securityButtonDisabled: (colors: any) => ({
-    borderColor: colors.border,
-    backgroundColor: colors.inputBackground,
-  }),
-  securityButtonTextDisabled: (colors: any) => ({
-    color: colors.textSecondary,
-  }),
   languageOptions: {
     gap: 8,
   },

@@ -4,15 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
-  ScrollView,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import PagerView from 'react-native-pager-view';
 import { useI18n } from '../src/context/I18nContext';
 import * as SecureStore from 'expo-secure-store';
-
-const { width, height } = Dimensions.get('window');
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -70,6 +66,15 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
     }
   };
 
+  // Initialize to last page for RTL on mount
+  React.useEffect(() => {
+    if (isRTL && pagerRef.current) {
+      // For RTL, start at page 0 (which will be shown as the last page visually)
+      pagerRef.current.setPage(0);
+      setCurrentPage(0);
+    }
+  }, []);
+
   const handleSkip = async (): Promise<void> => {
     await SecureStore.setItemAsync('onboarding_completed', 'true');
     onComplete();
@@ -88,23 +93,24 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
     <View style={styles.container}>
       {/* Skip Button */}
       <TouchableOpacity style={[styles.skipButton, isRTL && styles.skipButtonRTL]} onPress={handleSkip}>
-        <Text style={styles.skipButtonText}>{t('onboarding.skip')}</Text>
+        <Text style={[styles.skipButtonText, isRTL && styles.textRTL]}>{t('onboarding.skip')}</Text>
       </TouchableOpacity>
 
       {/* Pager View */}
       <PagerView
         ref={pagerRef}
         style={styles.pagerView}
-        initialPage={0}
+        initialPage={isRTL ? pages.length - 1 : 0}
         onPageSelected={handlePageSelected}
+        layoutDirection={isRTL ? 'rtl' : 'ltr'}
       >
         {pages.map((page, index) => (
           <View key={index} style={styles.page}>
             <View style={styles.iconContainer}>
               <Icon name={page.icon as any} size={120} color="#4CAF50" />
             </View>
-            <Text style={[styles.title, isRTL && styles.titleRTL]}>{page.title}</Text>
-            <Text style={[styles.description, isRTL && styles.descriptionRTL]}>
+            <Text style={[styles.title, isRTL && styles.textRTL]}>{page.title}</Text>
+            <Text style={[styles.description, isRTL && styles.textRTL]}>
               {page.description}
             </Text>
           </View>
@@ -112,14 +118,13 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
       </PagerView>
 
       {/* Pagination Dots */}
-      <View style={styles.pagination}>
+      <View style={[styles.pagination, isRTL && styles.paginationRTL]}>
         {pages.map((_, index) => (
           <View
             key={index}
             style={[
               styles.dot,
               currentPage === index && styles.dotActive,
-              isRTL && styles.dotRTL,
             ]}
           />
         ))}
@@ -128,21 +133,21 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
       {/* Navigation Buttons */}
       <View style={[styles.navigation, isRTL && styles.navigationRTL]}>
         {currentPage > 0 && (
-          <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
+          <TouchableOpacity style={[styles.navButton, isRTL && styles.navButtonRTL]} onPress={handlePrevious}>
             <Icon name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#4CAF50" />
-            <Text style={styles.navButtonText}>{t('onboarding.previous')}</Text>
+            <Text style={[styles.navButtonText, isRTL && styles.textRTL]}>{t('onboarding.previous')}</Text>
           </TouchableOpacity>
         )}
         <View style={styles.spacer} />
-        <TouchableOpacity style={styles.primaryButton} onPress={handleNext}>
-          <Text style={styles.primaryButtonText}>
+        <TouchableOpacity style={[styles.primaryButton, isRTL && styles.primaryButtonRTL]} onPress={handleNext}>
+          <Text style={[styles.primaryButtonText, isRTL && styles.textRTL]}>
             {currentPage === pages.length - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
           </Text>
           <Icon
             name={isRTL ? 'arrow-back' : 'arrow-forward'}
             size={24}
             color="#fff"
-            style={styles.buttonIcon}
+            style={isRTL ? styles.buttonIconRTL : styles.buttonIcon}
           />
         </TouchableOpacity>
       </View>
@@ -170,6 +175,10 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 16,
     fontWeight: '600',
+  },
+  textRTL: {
+    writingDirection: 'rtl',
+    textAlign: 'right',
   },
   pagerView: {
     flex: 1,
@@ -199,23 +208,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
-  titleRTL: {
-    textAlign: 'right',
-  },
   description: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
     lineHeight: 24,
   },
-  descriptionRTL: {
-    textAlign: 'right',
-  },
   pagination: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
+  },
+  paginationRTL: {
+    flexDirection: 'row-reverse',
   },
   dot: {
     width: 8,
@@ -227,9 +233,6 @@ const styles = StyleSheet.create({
   dotActive: {
     width: 24,
     backgroundColor: '#4CAF50',
-  },
-  dotRTL: {
-    marginHorizontal: 4,
   },
   navigation: {
     flexDirection: 'row',
@@ -246,6 +249,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     gap: 8,
+  },
+  navButtonRTL: {
+    flexDirection: 'row-reverse',
   },
   navButtonText: {
     color: '#4CAF50',
@@ -269,13 +275,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  primaryButtonRTL: {
+    flexDirection: 'row-reverse',
+  },
   primaryButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
   buttonIcon: {
-    marginLeft: 0,
+    marginLeft: 4,
+  },
+  buttonIconRTL: {
+    marginRight: 4,
   },
 });
 

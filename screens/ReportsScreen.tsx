@@ -74,21 +74,40 @@ export default function ReportsScreen(): React.JSX.Element {
       return null;
     }
     
+    // For monthly reports, ensure we have 4 weeks of data
+    // If we don't have exactly 4, pad with zeros or truncate to ensure consistency
+    let incomeData = [...chartData.incomeData];
+    let expenseData = [...chartData.expenseData];
+    
+    if (period === 'month') {
+      const expectedLength = 4;
+      // Pad or truncate to ensure we always have 4 weeks
+      while (incomeData.length < expectedLength) {
+        incomeData.push(0);
+        expenseData.push(0);
+      }
+      
+      if (incomeData.length > expectedLength) {
+        incomeData = incomeData.slice(0, expectedLength);
+        expenseData = expenseData.slice(0, expectedLength);
+      }
+    }
+    
     // Check that both arrays exist and have data, and they match in length
-    if (chartData.incomeData.length === 0 && chartData.expenseData.length === 0) {
+    if (incomeData.length === 0 && expenseData.length === 0) {
       return null;
     }
     
-    if (chartData.incomeData.length !== chartData.expenseData.length) {
+    if (incomeData.length !== expenseData.length) {
       return null;
     }
     
-    const incomeValues = chartData.incomeData.map((value, index) => ({
+    const incomeValues = incomeData.map((value, index) => ({
       x: index,
       y: value || 0,
     }));
     
-    const expenseValues = chartData.expenseData.map((value, index) => ({
+    const expenseValues = expenseData.map((value, index) => ({
       x: index,
       y: value || 0,
     }));

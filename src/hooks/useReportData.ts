@@ -78,15 +78,26 @@ const getDateForWeekDay = (weekStart: Date, dayIndex: number): Date => {
 const groupByWeek = (transactions: Transaction[], year: number, month: number): number[][] => {
   const weeks: number[][] = [[0, 0], [0, 0], [0, 0], [0, 0]]; // [income, expense] for each week
   
+  if (!transactions || transactions.length === 0) {
+    return weeks;
+  }
+  
   // Get the first day of the month
   const firstDayOfMonth = new Date(year, month, 1);
+  firstDayOfMonth.setHours(0, 0, 0, 0);
+  
+  // Get the last day of the month
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+  lastDayOfMonth.setHours(23, 59, 59, 999);
+  
   // Find the Saturday that starts the week containing the first day of the month
   const firstDayWeekStart = getStartOfWeek(firstDayOfMonth);
   
   transactions.forEach(t => {
     const transactionDate = new Date(t.createdAt);
     // Check if transaction is in the target month and year
-    if (transactionDate.getMonth() === month && transactionDate.getFullYear() === year) {
+    // Use date comparison to handle edge cases properly
+    if (transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth) {
       // Calculate which week of the month this transaction belongs to
       // by finding the Saturday that starts its week
       const transactionWeekStart = getStartOfWeek(transactionDate);
@@ -99,10 +110,12 @@ const groupByWeek = (transactions: Transaction[], year: number, month: number): 
       const weekIndex = Math.min(Math.max(0, Math.floor(daysDiff / 7)), 3);
       
       const amount = parseFloat(t.amount.toString());
-      if (t.type === 'INCOME') {
-        weeks[weekIndex][0] += amount;
-      } else {
-        weeks[weekIndex][1] += amount;
+      if (!isNaN(amount)) {
+        if (t.type === 'INCOME') {
+          weeks[weekIndex][0] += amount;
+        } else if (t.type === 'EXPENSE') {
+          weeks[weekIndex][1] += amount;
+        }
       }
     }
   });
