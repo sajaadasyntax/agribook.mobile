@@ -10,6 +10,8 @@ import {
   Alert,
   RefreshControl,
   Image,
+  Platform,
+  processColor,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { Dimensions } from 'react-native';
@@ -20,13 +22,15 @@ import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { reportApi, transactionApi, categoryApi, alertApi, reminderApi } from '../src/services/api.service';
 import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from '../src/types';
+import { calculateYAxisMax } from '../src/hooks/useReportData';
+import { formatCurrency } from '../src/utils/currency';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen(): React.JSX.Element {
   const navigation = useNavigation<any>();
   const { user, isAuthenticated } = useUser();
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, locale } = useI18n();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -234,26 +238,47 @@ export default function HomeScreen(): React.JSX.Element {
       y: m.expense,
     }));
     
+    // Use colors with fallbacks - ensure they're always defined
+    const incomeColor = colors.income || '#4CAF50';
+    const expenseColor = colors.expense || '#F44336';
+    
+    // Define shadow colors (lighter variants)
+    const incomeShadow = '#66BB6A'; // Lighter green
+    const expenseShadow = '#EF5350'; // Lighter red
+    
+    // For react-native-charts-wrapper, Android needs processColor, iOS can use strings
+    const getChartColor = (color: string) => {
+      if (Platform.OS === 'android') {
+        try {
+          return processColor(color);
+        } catch (e) {
+          console.warn('Failed to process color:', color, e);
+          return color;
+        }
+      }
+      return color;
+    };
+    
     return {
       dataSets: [
         {
           label: 'Income',
           values: incomeValues,
           config: {
-            color: colors.income || '#4CAF50',
-            barShadowColor: '#66BB6A',
+            color: getChartColor(incomeColor) as any,
+            barShadowColor: getChartColor(incomeShadow) as any,
             highlightAlpha: 90,
-            highlightColor: '#66BB6A',
+            highlightColor: getChartColor(incomeShadow) as any,
           },
         },
         {
           label: 'Expense',
           values: expenseValues,
           config: {
-            color: colors.expense || '#F44336',
-            barShadowColor: '#EF5350',
+            color: getChartColor(expenseColor) as any,
+            barShadowColor: getChartColor(expenseShadow) as any,
             highlightAlpha: 90,
-            highlightColor: '#EF5350',
+            highlightColor: getChartColor(expenseShadow) as any,
           },
         },
       ],
@@ -307,19 +332,19 @@ export default function HomeScreen(): React.JSX.Element {
             <View style={[styles.summaryCard(colors), { backgroundColor: colors.income + '20' }]}>
               <Text style={styles.summaryLabel(colors)}>{t('home.totalIncome')}</Text>
               <Text style={[styles.summaryValue, { color: colors.income }]}>
-                ${totalIncome.toLocaleString()}
+                {formatCurrency(totalIncome, { locale })}
               </Text>
             </View>
             <View style={[styles.summaryCard(colors), { backgroundColor: colors.expense + '20' }]}>
               <Text style={styles.summaryLabel(colors)}>{t('home.totalExpense')}</Text>
               <Text style={[styles.summaryValue, { color: colors.expense }]}>
-                ${totalExpense.toLocaleString()}
+                {formatCurrency(totalExpense, { locale })}
               </Text>
             </View>
             <View style={[styles.summaryCard(colors), { backgroundColor: colors.primary + '20' }]}>
               <Text style={styles.summaryLabel(colors)}>{t('home.balance')}</Text>
-              <Text style={[styles.summaryValue, { color: colors.primary }]}>
-                ${balance.toLocaleString()}
+              <Text style={[styles.summaryValue, { color: balance < 0 ? colors.expense : colors.primary }]}>
+                {formatCurrency(balance, { locale })}
               </Text>
             </View>
           </View>
@@ -350,10 +375,11 @@ export default function HomeScreen(): React.JSX.Element {
           const barChartData = transformBarChartData();
           if (!barChartData) return null;
           
-          const maxValue = Math.max(
-            ...monthlyReport.monthlyTrend.map(m => Math.max(m.income, m.expense)),
-            100
-          ) * 1.2;
+          // Calculate Y-axis maximum using the same function as ReportsScreen
+          const maxIncome = Math.max(...monthlyReport.monthlyTrend.map(m => m.income), 0);
+          const maxExpense = Math.max(...monthlyReport.monthlyTrend.map(m => m.expense), 0);
+          const yAxisMax = calculateYAxisMax(maxIncome, maxExpense);
+          
           const labels = monthlyReport.monthlyTrend.map(m => m.month);
           
           return (
@@ -377,12 +403,12 @@ export default function HomeScreen(): React.JSX.Element {
                   yAxis={{
                     left: {
                       axisMinimum: 0,
-                      axisMaximum: maxValue,
+                      axisMaximum: yAxisMax,
                       textSize: 10,
                       textColor: colors.textSecondary,
                       axisLineColor: colors.border,
                       gridColor: colors.border + '40',
-                      valueFormatter: '$#',
+                      valueFormatter: 'SDG #',
                     },
                     right: {
                       enabled: false,
@@ -410,8 +436,8 @@ export default function HomeScreen(): React.JSX.Element {
               </View>
               <View style={[styles.chartInfo, isRTL && styles.chartInfoRTL]}>
                 <Text style={styles.chartLabel(colors)}>
-                  {t('home.profit')} ${monthlyReport.balance >= 0 ? '+' : ''}
-                  {monthlyReport.balance.toLocaleString()}
+                  {t('home.profit')} {monthlyReport.balance >= 0 ? '+' : ''}
+                  {formatCurrency(monthlyReport.balance, { locale })}
                 </Text>
                 <Text style={styles.chartLabel(colors)}>
                   {t('home.month')}: {new Date(monthlyReport.year, monthlyReport.month - 1).toLocaleString('default', { month: 'short' })}
@@ -475,12 +501,6 @@ export default function HomeScreen(): React.JSX.Element {
             >
               <Text style={styles.saveButtonText}>{t('home.saveIncome')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveButton, styles.saveNewButton(colors)]}
-              onPress={() => handleSaveAndNew('income')}
-            >
-              <Text style={styles.saveButtonText}>{t('home.saveNew')}</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -537,12 +557,6 @@ export default function HomeScreen(): React.JSX.Element {
               onPress={handleSaveExpense}
             >
               <Text style={styles.saveButtonText}>{t('home.saveExpense')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveButton, styles.saveNewButton(colors)]}
-              onPress={() => handleSaveAndNew('expense')}
-            >
-              <Text style={styles.saveButtonText}>{t('home.saveNew')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -645,7 +659,9 @@ const styles = {
   },
   summaryContainer: {
     flexDirection: 'row' as const,
-    gap: 10,
+    paddingHorizontal: 0,
+    gap: 12,
+    marginBottom: 0,
   },
   summaryContainerRTL: {
     flexDirection: 'row-reverse' as const,
@@ -655,6 +671,7 @@ const styles = {
     padding: 12,
     borderRadius: 12,
     alignItems: 'center' as const,
+    backgroundColor: colors.surface,
     elevation: 2,
   }),
   summaryLabel: (colors: any) => ({
@@ -694,17 +711,11 @@ const styles = {
     fontWeight: 'bold' as const,
   },
   chartContainer: (colors: any) => ({
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginVertical: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    marginHorizontal: 0,
+    marginBottom: 0,
+    padding: 16,
+    borderRadius: 12,
     elevation: 2,
   }),
   chart: {
@@ -790,7 +801,8 @@ const styles = {
     fontWeight: 'bold' as const,
   },
   barChart: {
-    height: 280,
+    height: 240,
+    width: screenWidth - 64, // Account for container margins (32px) and padding (32px)
     marginVertical: 12,
   },
 };

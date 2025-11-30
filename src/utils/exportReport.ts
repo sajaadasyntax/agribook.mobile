@@ -205,13 +205,25 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
       </html>
     `;
 
-    // Generate PDF
-    const { uri } = await Print.printToFileAsync({ html: htmlContent });
+    // Generate PDF with print options
+    const { uri } = await Print.printToFileAsync({ 
+      html: htmlContent,
+      base64: false,
+      width: 612,
+      height: 792,
+    });
     
     // Share the PDF
     if (await Sharing.isAvailableAsync()) {
       const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.pdf`;
       const newUri = `${FileSystem.documentDirectory}${filename}`;
+      
+      // Check if file already exists and delete it
+      const fileInfo = await FileSystem.getInfoAsync(newUri);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(newUri, { idempotent: true });
+      }
+      
       await FileSystem.moveAsync({
         from: uri,
         to: newUri,
@@ -280,9 +292,19 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     }
     
     // Generate file
-    const wbout = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
+    const wbout = XLSX.write(workbook, { 
+      type: 'base64', 
+      bookType: 'xlsx',
+      cellStyles: true,
+    });
     const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.xlsx`;
     const fileUri = `${FileSystem.documentDirectory}${filename}`;
+    
+    // Check if file already exists and delete it
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+    }
     
     // Write file
     await FileSystem.writeAsStringAsync(fileUri, wbout, {

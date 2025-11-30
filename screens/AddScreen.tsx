@@ -506,7 +506,7 @@ export default function AddScreen(): React.JSX.Element {
         <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
           {t('add.title') || 'Add Transaction'}
         </Text>
-        {(isOffline || settings?.offlineMode) && (
+        {(!isNetworkOnline || settings?.offlineMode) && (
           <View style={[styles.offlineBadge, isRTL && styles.offlineBadgeRTL]}>
             <Icon name="cloud-off" size={16} color={colors.textInverse} />
             <Text style={styles.offlineBadgeText}>
@@ -619,7 +619,7 @@ export default function AddScreen(): React.JSX.Element {
             <Text style={styles.noCategoriesText(colors)}>
               {t('add.noCategories') || 'No categories available'}
             </Text>
-            {(isOffline || settings?.offlineMode) && (
+            {(!isNetworkOnline || settings?.offlineMode) && (
               <Text style={styles.noCategoriesHint(colors)}>
                 {t('add.connectToLoadCategories') || 'Connect to internet to load categories'}
               </Text>
@@ -690,7 +690,7 @@ export default function AddScreen(): React.JSX.Element {
           textAlign={isRTL ? 'right' : 'left'}
         />
 
-        {/* Save Buttons */}
+        {/* Save Button */}
         <View style={[styles.saveButtons, isRTL && styles.saveButtonsRTL]}>
           <TouchableOpacity
             style={[
@@ -705,7 +705,7 @@ export default function AddScreen(): React.JSX.Element {
               <ActivityIndicator color={colors.textInverse} />
             ) : (
               <>
-                {(isOffline || settings?.offlineMode) && (
+                {(!isNetworkOnline || settings?.offlineMode) && (
                   <Icon name="cloud-off" size={18} color={colors.textInverse} style={styles.saveButtonIcon} />
                 )}
                 <Text style={styles.saveButtonText}>
@@ -716,15 +716,6 @@ export default function AddScreen(): React.JSX.Element {
                 </Text>
               </>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.saveButton, styles.saveNewButton(colors), loading && styles.saveButtonDisabled]}
-            onPress={handleSaveAndNew}
-            disabled={loading}
-          >
-            <Text style={styles.saveButtonText}>
-              {t('add.saveAndNew') || 'Save & New'}
-            </Text>
           </TouchableOpacity>
         </View>
       </View>

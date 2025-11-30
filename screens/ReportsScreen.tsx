@@ -9,6 +9,8 @@ import {
   RefreshControl,
   Dimensions,
   Alert,
+  Platform,
+  processColor,
 } from 'react-native';
 import { BarChart } from 'react-native-charts-wrapper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
@@ -119,26 +121,47 @@ export default function ReportsScreen(): React.JSX.Element {
       barSpace = 0.06;
     }
     
+    // Use colors with fallbacks - ensure they're always defined
+    const incomeColor = colors.income || '#4CAF50';
+    const expenseColor = colors.expense || '#F44336';
+    
+    // Define shadow colors (lighter variants)
+    const incomeShadow = '#66BB6A'; // Lighter green
+    const expenseShadow = '#EF5350'; // Lighter red
+    
+    // For react-native-charts-wrapper, Android needs processColor, iOS can use strings
+    const getChartColor = (color: string) => {
+      if (Platform.OS === 'android') {
+        try {
+          return processColor(color);
+        } catch (e) {
+          console.warn('Failed to process color:', color, e);
+          return color;
+        }
+      }
+      return color;
+    };
+    
     return {
       dataSets: [
         {
           label: t('reports.income') || 'Income',
           values: incomeValues,
           config: {
-            color: colors.income,
-            barShadowColor: colors.income + '80',
+            color: getChartColor(incomeColor),
+            barShadowColor: getChartColor(incomeShadow),
             highlightAlpha: 90,
-            highlightColor: colors.income + 'CC',
+            highlightColor: getChartColor(incomeShadow),
           },
         },
         {
           label: t('reports.expense') || 'Expense',
           values: expenseValues,
           config: {
-            color: colors.expense,
-            barShadowColor: colors.expense + '80',
+            color: getChartColor(expenseColor),
+            barShadowColor: getChartColor(expenseShadow),
             highlightAlpha: 90,
-            highlightColor: colors.expense + 'CC',
+            highlightColor: getChartColor(expenseShadow),
           },
         },
       ],

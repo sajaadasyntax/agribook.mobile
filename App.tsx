@@ -30,6 +30,7 @@ function MainTabs(): JSX.Element {
 
   return (
     <Tab.Navigator
+      key={isRTL ? 'rtl' : 'ltr'}
       screenOptions={({ route }) => ({
         direction: isRTL ? 'rtl' : 'ltr',
         tabBarIcon: ({ focused, color, size }) => {
@@ -92,16 +93,17 @@ function AppNavigator(): JSX.Element {
   const [checkingLock, setCheckingLock] = useState(true);
   const navigationRef = React.useRef<NavigationContainerRef<any>>(null);
 
-  // Handle RTL layout changes
+  // Handle RTL layout changes - only force RTL on initial mount, not on every change
   useEffect(() => {
-    if (Platform.OS === 'android' && I18nManager.isRTL !== isRTL) {
-      I18nManager.forceRTL(isRTL);
-      // Reload is required on Android
-      if (Platform.OS === 'android') {
-        require('react-native').NativeModules.DevSettings?.reload?.();
+    if (Platform.OS === 'android') {
+      const shouldBeRTL = isRTL;
+      if (I18nManager.isRTL !== shouldBeRTL) {
+        I18nManager.forceRTL(shouldBeRTL);
+        // Only reload on initial mount if direction mismatch, not on every locale change
+        // This allows instant updates for UI components that use key prop
       }
     }
-  }, [isRTL, locale]);
+  }, []); // Only run once on mount
 
   // Check onboarding status
   useEffect(() => {

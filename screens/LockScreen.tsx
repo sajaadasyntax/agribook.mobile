@@ -28,7 +28,7 @@ export default function LockScreen({
   fingerprintEnabled = false,
   onError 
 }: LockScreenProps): JSX.Element {
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
   const [pin, setPin] = useState<string[]>(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [attempts, setAttempts] = useState(0);
@@ -246,6 +246,7 @@ export default function LockScreen({
       <Animated.View 
         style={[
           styles.pinContainer,
+          isRTL && styles.pinContainerRTL,
           { transform: [{ translateX: shakeAnimation }] }
         ]}
       >
@@ -268,9 +269,9 @@ export default function LockScreen({
       )}
 
       {/* Number pad */}
-      <View style={styles.numberPad}>
+      <View style={[styles.numberPad, isRTL && styles.numberPadRTL]}>
         {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'back']].map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.numberRow}>
+          <View key={rowIndex} style={[styles.numberRow, isRTL && styles.numberRowRTL]}>
             {row.map((num, colIndex) => {
               if (num === '') {
                 return <View key={colIndex} style={styles.numberButtonEmpty} />;
@@ -313,7 +314,7 @@ export default function LockScreen({
       {/* Biometric button */}
       {showBiometricOption && !lockedOut && (
         <TouchableOpacity
-          style={styles.biometricButton}
+          style={[styles.biometricButton, isRTL && styles.biometricButtonRTL]}
           onPress={handleBiometricAuth}
           disabled={loading}
         >
@@ -363,6 +364,9 @@ const styles = StyleSheet.create({
     gap: 20,
     marginBottom: 40,
   },
+  pinContainerRTL: {
+    flexDirection: 'row',
+  },
   pinDot: {
     width: 20,
     height: 20,
@@ -392,11 +396,17 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 300,
   },
+  numberPadRTL: {
+    // RTL support handled at row level
+  },
   numberRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 20,
     marginBottom: 16,
+  },
+  numberRowRTL: {
+    flexDirection: 'row',
   },
   numberButton: {
     width: 70,
@@ -439,6 +449,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  biometricButtonRTL: {
+    flexDirection: 'row-reverse',
   },
   biometricText: {
     fontSize: 16,

@@ -210,6 +210,17 @@ class ApiClient {
     return response.data;
   }
 
+  async postMultipart<T>(url: string, formData: FormData): Promise<T> {
+    const userId = await SecureStore.getItemAsync('userId');
+    const response = await this.client.post<T>(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(userId && { 'x-user-id': userId }),
+      },
+    });
+    return response.data;
+  }
+
   async putMultipart<T>(url: string, formData: FormData): Promise<T> {
     const userId = await SecureStore.getItemAsync('userId');
     const response = await this.client.put<T>(url, formData, {

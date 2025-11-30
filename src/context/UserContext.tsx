@@ -151,9 +151,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     };
   }, [settings?.autoSync, user, syncData]);
 
-  const login = async (email?: string, name?: string, phone?: string, companyName?: string, logoUrl?: string): Promise<void> => {
+  const login = async (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string): Promise<void> => {
     try {
-      const result = await userApi.createOrGet(email, name, phone, companyName, logoUrl);
+      const result = await userApi.createOrGet(email, name, phone, companyName, logoFileUri);
       await SecureStore.setItemAsync('userId', result.user.id);
       setUser(result.user);
       setSettings(result.settings);

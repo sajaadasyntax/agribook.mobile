@@ -27,21 +27,29 @@ export default function ProfileScreen(): React.JSX.Element {
   const [companyName, setCompanyName] = useState('');
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
+  const [originalLogoUri, setOriginalLogoUri] = useState<string | null>(null);
+  const [pickingImage, setPickingImage] = useState(false);
 
   useEffect(() => {
     if (user) {
       setName(user.name || '');
       setPhone(user.phone || '');
       setCompanyName(user.companyName || '');
-      setLogoUri(user.logoUrl || null);
+      const userLogoUrl = user.logoUrl || null;
+      setLogoUri(userLogoUrl);
+      setOriginalLogoUri(userLogoUrl); // Store original for cancel/restore
     }
   }, [user]);
 
   const handlePickImage = async (): Promise<void> => {
+    if (pickingImage) return; // Prevent multiple clicks
+    
     try {
+      setPickingImage(true);
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(t('app.error'), t('auth.permissionDenied'));
+        setPickingImage(false);
         return;
       }
 
@@ -55,12 +63,26 @@ export default function ProfileScreen(): React.JSX.Element {
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        
+        // Validate file size (5MB limit)
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {
+          Alert.alert(
+            t('app.error'),
+            t('auth.fileTooLarge') || 'File size must be less than 5MB'
+          );
+          setPickingImage(false);
+          return;
+        }
+        
         setLogoUri(asset.uri);
         setLogoFileUri(asset.uri); // Store the file URI for upload
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert(t('app.error'), t('auth.errorUploadingLogo'));
+    } finally {
+      setPickingImage(false);
     }
   };
 
@@ -68,26 +90,28 @@ export default function ProfileScreen(): React.JSX.Element {
     try {
       setLoading(true);
       
-      // If logoFileUri exists, upload the file; otherwise use logoUrl (could be empty to delete)
+      // Determine logo action: upload new file, delete, or keep existing
+      const hasNewLogoFile = !!logoFileUri;
+      // Only delete if logo was explicitly removed (no logoUri and no new file, but original existed)
+      const shouldDeleteLogo = !logoUri && !logoFileUri && !!originalLogoUri;
+      
       const updatedUser = await userApi.update(
         {
           name: name || undefined,
           phone: phone || undefined,
           companyName: companyName || undefined,
-          logoUrl: logoFileUri ? undefined : (logoUri ? undefined : ''), // Empty string to delete, undefined to keep
+          logoUrl: shouldDeleteLogo ? '' : undefined, // Empty string signals deletion
         },
-        logoFileUri || undefined // Pass file URI if a new file was selected
+        hasNewLogoFile ? logoFileUri : undefined // Pass file URI if a new file was selected
       );
       
       updateUserContext(updatedUser);
       // Refresh user data to ensure logo is loaded
       await refreshUser();
       // Update local logo display with the URL from server
-      if (updatedUser.logoUrl) {
-        setLogoUri(updatedUser.logoUrl);
-      } else {
-        setLogoUri(null);
-      }
+      const newLogoUrl = updatedUser.logoUrl || null;
+      setLogoUri(newLogoUrl);
+      setOriginalLogoUri(newLogoUrl); // Update original after successful save
       setLogoFileUri(null); // Clear the file URI after upload
       Alert.alert(t('app.success'), t('profile.updated'));
     } catch (error) {
@@ -121,11 +145,25 @@ export default function ProfileScreen(): React.JSX.Element {
             {t('profile.companyLogo')}
           </Text>
           <TouchableOpacity
-            style={[styles.logoUploadButton(colors), isRTL && styles.logoUploadButtonRTL]}
+            style={[
+              styles.logoUploadButton(colors), 
+              isRTL && styles.logoUploadButtonRTL,
+              pickingImage && styles.logoUploadButtonDisabled
+            ]}
             onPress={handlePickImage}
+            disabled={pickingImage}
           >
-            {logoUri ? (
-              <Image source={{ uri: logoUri }} style={styles.logoPreview} />
+            {pickingImage ? (
+              <ActivityIndicator size="large" color={colors.primary} />
+            ) : logoUri ? (
+              <Image 
+                source={{ uri: logoUri }} 
+                style={styles.logoPreview}
+                onError={(error) => {
+                  console.error('Logo load error:', error);
+                  Alert.alert(t('app.error'), t('profile.logoLoadError') || t('auth.errorUploadingLogo'));
+                }}
+              />
             ) : (
               <View style={styles.logoPlaceholder}>
                 <Icon name="add-photo-alternate" size={40} color={colors.textSecondary} />
@@ -144,6 +182,11 @@ export default function ProfileScreen(): React.JSX.Element {
               <Icon name="delete" size={20} color={colors.error} />
               <Text style={styles.removeLogoText(colors)}>{t('auth.removeLogo')}</Text>
             </TouchableOpacity>
+          )}
+          {!logoUri && originalLogoUri && (
+            <Text style={[styles.pendingDeletionText(colors), isRTL && styles.pendingDeletionTextRTL]}>
+              {t('profile.logoWillBeDeleted') || 'Logo will be deleted when you save'}
+            </Text>
           )}
         </View>
 
@@ -297,6 +340,9 @@ const styles = {
   logoUploadButtonRTL: {
     alignSelf: 'center' as const,
   },
+  logoUploadButtonDisabled: {
+    opacity: 0.6,
+  },
   logoPlaceholder: {
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
@@ -364,6 +410,16 @@ const styles = {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold' as const,
+  },
+  pendingDeletionText: (colors: any) => ({
+    fontSize: 12,
+    color: colors.error,
+    textAlign: 'center' as const,
+    marginTop: 8,
+    fontStyle: 'italic' as const,
+  }),
+  pendingDeletionTextRTL: {
+    textAlign: 'right' as const,
   },
 };
 

@@ -23,8 +23,42 @@ import {
 
 // User API
 export const userApi = {
-  createOrGet: async (email?: string, name?: string, phone?: string, companyName?: string, logoUrl?: string): Promise<{ user: User; settings: UserSettings }> => {
-    return apiClient.post('/users', { email, name, phone, companyName, logoUrl });
+  createOrGet: async (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string | null): Promise<{ user: User; settings: UserSettings }> => {
+    // If logoFileUri is provided, upload as file using FormData
+    if (logoFileUri) {
+      const formData = new FormData();
+      
+      // Add text fields
+      if (email) formData.append('email', email);
+      if (name) formData.append('name', name);
+      if (phone) formData.append('phone', phone);
+      if (companyName) formData.append('companyName', companyName);
+      
+      // Add logo file
+      const filename = logoFileUri.split('/').pop() || 'logo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const ext = match ? match[1].toLowerCase() : 'jpg';
+      // Fix MIME type mapping: jpg -> jpeg
+      const mimeTypeMap: Record<string, string> = {
+        'jpg': 'jpeg',
+        'jpeg': 'jpeg',
+        'png': 'png',
+        'gif': 'gif',
+        'webp': 'webp',
+      };
+      const type = `image/${mimeTypeMap[ext] || 'jpeg'}`;
+      
+      formData.append('logo', {
+        uri: logoFileUri,
+        name: filename,
+        type: type,
+      } as any);
+      
+      return apiClient.postMultipart('/users', formData);
+    }
+    
+    // Otherwise, send as JSON (backward compatible)
+    return apiClient.post('/users', { email, name, phone, companyName });
   },
 
   getById: async (id: string): Promise<User> => {
@@ -44,7 +78,16 @@ export const userApi = {
       // Add logo file
       const filename = logoFileUri.split('/').pop() || 'logo.jpg';
       const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      const ext = match ? match[1].toLowerCase() : 'jpg';
+      // Fix MIME type mapping: jpg -> jpeg
+      const mimeTypeMap: Record<string, string> = {
+        'jpg': 'jpeg',
+        'jpeg': 'jpeg',
+        'png': 'png',
+        'gif': 'gif',
+        'webp': 'webp',
+      };
+      const type = `image/${mimeTypeMap[ext] || 'jpeg'}`;
       
       formData.append('logo', {
         uri: logoFileUri,

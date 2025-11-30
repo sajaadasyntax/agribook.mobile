@@ -32,8 +32,9 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [logoUri, setLogoUri] = useState<string | null>(null);
-  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pickingImage, setPickingImage] = useState(false);
 
   // Reset loading when authentication succeeds
   useEffect(() => {
@@ -66,7 +67,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         isSignIn ? undefined : name || undefined, 
         phone || undefined,
         isSignIn ? undefined : companyName || undefined,
-        isSignIn ? undefined : logoBase64 || undefined
+        isSignIn ? undefined : logoFileUri || undefined
       );
       
       // Navigation will happen automatically when isAuthenticated becomes true
@@ -207,12 +208,16 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.companyLogo')}</Text>
               <TouchableOpacity
-                style={[styles.logoUploadButton, isRTL && styles.logoUploadButtonRTL]}
+                style={[styles.logoUploadButton, isRTL && styles.logoUploadButtonRTL, pickingImage && styles.logoUploadButtonDisabled]}
                 onPress={async () => {
+                  if (pickingImage) return; // Prevent multiple clicks
+                  
                   try {
+                    setPickingImage(true);
                     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                     if (status !== 'granted') {
                       Alert.alert(t('app.error'), t('auth.permissionDenied'));
+                      setPickingImage(false);
                       return;
                     }
 
@@ -221,24 +226,46 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
                       allowsEditing: true,
                       aspect: [1, 1],
                       quality: 0.8,
-                      base64: true,
+                      base64: false, // Use file upload instead of base64
                     });
 
                     if (!result.canceled && result.assets[0]) {
                       const asset = result.assets[0];
-                      setLogoUri(asset.uri);
-                      if (asset.base64) {
-                        setLogoBase64(`data:image/${asset.type || 'jpeg'};base64,${asset.base64}`);
+                      
+                      // Validate file size (5MB limit)
+                      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+                      if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {
+                        Alert.alert(
+                          t('app.error'),
+                          t('auth.fileTooLarge') || 'File size must be less than 5MB'
+                        );
+                        setPickingImage(false);
+                        return;
                       }
+                      
+                      setLogoUri(asset.uri);
+                      setLogoFileUri(asset.uri); // Store file URI for upload
                     }
                   } catch (error) {
                     console.error('Error picking image:', error);
                     Alert.alert(t('app.error'), t('auth.errorUploadingLogo'));
+                  } finally {
+                    setPickingImage(false);
                   }
                 }}
+                disabled={pickingImage}
               >
-                {logoUri ? (
-                  <Image source={{ uri: logoUri }} style={styles.logoPreview} />
+                {pickingImage ? (
+                  <ActivityIndicator size="large" color="#4CAF50" />
+                ) : logoUri ? (
+                  <Image 
+                    source={{ uri: logoUri }} 
+                    style={styles.logoPreview}
+                    onError={(error) => {
+                      console.error('Logo load error:', error);
+                      Alert.alert(t('app.error'), t('auth.errorUploadingLogo') || 'Failed to load image');
+                    }}
+                  />
                 ) : (
                   <View style={styles.logoPlaceholder}>
                     <Icon name="add-photo-alternate" size={40} color="#999" />
@@ -251,7 +278,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
                   style={styles.removeLogoButton}
                   onPress={() => {
                     setLogoUri(null);
-                    setLogoBase64(null);
+                    setLogoFileUri(null);
                   }}
                 >
                   <Icon name="delete" size={20} color="#F44336" />
@@ -485,6 +512,9 @@ const styles = StyleSheet.create({
   },
   logoUploadButtonRTL: {
     alignSelf: 'center',
+  },
+  logoUploadButtonDisabled: {
+    opacity: 0.6,
   },
   logoPlaceholder: {
     justifyContent: 'center',
