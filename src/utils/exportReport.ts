@@ -5,6 +5,41 @@ import XLSX from 'xlsx';
 import { formatCurrency } from './currency';
 import { formatDisplayDate, formatDate } from './date';
 import { Transaction, ReportPeriod } from '../types';
+import enTranslations from '../locales/en.json';
+import arTranslations from '../locales/ar.json';
+
+// Type for translations
+type Translations = typeof enTranslations;
+
+/**
+ * Get translations based on locale
+ */
+const getTranslations = (locale?: string): Translations['reports']['export'] => {
+  const isArabic = locale === 'ar';
+  const translations = isArabic ? arTranslations : enTranslations;
+  return translations.reports.export;
+};
+
+/**
+ * Get period label based on locale
+ */
+const getPeriodLabel = (period: ReportPeriod, locale?: string): string => {
+  const t = getTranslations(locale);
+  if (period === 'day') return t.day;
+  if (period === 'week') return t.week;
+  return t.period;
+};
+
+/**
+ * Get period label for report title
+ */
+const getPeriodTitleLabel = (period: ReportPeriod, locale?: string): string => {
+  const isArabic = locale === 'ar';
+  const translations = isArabic ? arTranslations : enTranslations;
+  if (period === 'day') return translations.reports.daily;
+  if (period === 'week') return translations.reports.weekly;
+  return translations.reports.monthly;
+};
 
 interface ExportData {
   period: ReportPeriod;
@@ -93,15 +128,20 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
       throw new Error('Invalid export data: missing or invalid transactions');
     }
     
-    const periodLabel = data.period === 'day' ? 'Daily' : data.period === 'week' ? 'Weekly' : 'Monthly';
+    const isArabic = data.locale === 'ar';
+    const t = getTranslations(data.locale);
+    const periodLabel = getPeriodTitleLabel(data.period, data.locale);
     const dateLabel = formatDisplayDate(data.date, data.period);
     const reportDate = formatDate(data.date);
-    const companyName = data.companyName || 'AgriBooks';
+    const companyName = data.companyName || (isArabic ? 'أجري بوكس' : 'AgriBooks');
+    const dir = isArabic ? 'rtl' : 'ltr';
+    const textAlign = isArabic ? 'right' : 'left';
+    const fontFamily = isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Helvetica Neue', Arial, sans-serif";
     
     // Build professional HTML content for PDF
     const htmlContent = `
       <!DOCTYPE html>
-      <html>
+      <html dir="${dir}" lang="${data.locale || 'en'}">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -112,11 +152,13 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
             padding: 0;
           }
           body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-family: ${fontFamily};
             padding: 30px;
             color: #333;
             background-color: #fff;
             line-height: 1.5;
+            direction: ${dir};
+            text-align: ${textAlign};
           }
           
           /* Header Section */
@@ -142,7 +184,7 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
             color: #666;
           }
           .report-title-section {
-            text-align: right;
+            text-align: ${isArabic ? 'left' : 'right'};
           }
           .report-title {
             font-size: 20px;
@@ -213,7 +255,7 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
           }
           th, td {
             padding: 12px 10px;
-            text-align: left;
+            text-align: ${textAlign};
             border-bottom: 1px solid #E0E0E0;
           }
           th {
@@ -231,7 +273,7 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
             background-color: #E8F5E9;
           }
           .text-right {
-            text-align: right;
+            text-align: ${isArabic ? 'left' : 'right'};
           }
           .income-text { color: #2E7D32; font-weight: 600; }
           .expense-text { color: #C62828; font-weight: 600; }
@@ -268,27 +310,27 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
         <div class="header">
           <div class="company-info">
             <div class="company-name">${companyName}</div>
-            <div class="report-meta">Financial Report • Generated ${new Date().toLocaleDateString()}</div>
+            <div class="report-meta">${t.financialReport} • ${t.generated} ${new Date().toLocaleDateString(data.locale || 'en-US')}</div>
           </div>
           <div class="report-title-section">
-            <div class="report-title">${periodLabel} Report</div>
+            <div class="report-title">${periodLabel} ${t.financialReport}</div>
             <div class="report-period">${dateLabel}</div>
           </div>
         </div>
         
         <!-- Summary Section -->
-        <h2>Financial Summary</h2>
+        <h2>${t.financialSummary}</h2>
         <div class="summary-grid">
           <div class="summary-card income">
-            <div class="summary-label">Total Income</div>
+            <div class="summary-label">${t.totalIncome}</div>
             <div class="summary-value income">${formatCurrency(data.summary.income, { locale: data.locale })}</div>
           </div>
           <div class="summary-card expense">
-            <div class="summary-label">Total Expenses</div>
+            <div class="summary-label">${t.totalExpenses}</div>
             <div class="summary-value expense">${formatCurrency(data.summary.expense, { locale: data.locale })}</div>
           </div>
           <div class="summary-card balance">
-            <div class="summary-label">Net Balance</div>
+            <div class="summary-label">${t.netBalance}</div>
             <div class="summary-value ${data.summary.balance < 0 ? 'negative' : 'balance'}">
               ${formatCurrency(data.summary.balance, { locale: data.locale })}
             </div>
@@ -297,14 +339,14 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
 
         ${data.chartData.labels.length > 0 ? `
         <!-- Period Breakdown -->
-        <h2>${data.period === 'week' ? 'Daily' : data.period === 'month' ? 'Weekly' : 'Period'} Breakdown</h2>
+        <h2>${data.period === 'week' ? t.dailyBreakdown : data.period === 'month' ? t.weeklyBreakdown : t.periodBreakdown}</h2>
         <table class="breakdown-table">
           <thead>
             <tr>
-              <th>${data.period === 'week' ? 'Day' : data.period === 'month' ? 'Week' : 'Period'}</th>
-              <th class="text-right">Income</th>
-              <th class="text-right">Expenses</th>
-              <th class="text-right">Net</th>
+              <th>${data.period === 'week' ? t.day : data.period === 'month' ? t.week : t.period}</th>
+              <th class="text-right">${t.income}</th>
+              <th class="text-right">${t.expense}</th>
+              <th class="text-right">${t.net}</th>
             </tr>
           </thead>
           <tbody>
@@ -327,22 +369,22 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
 
         ${data.transactions.length > 0 ? `
         <!-- Transactions -->
-        <h2>Transaction Details</h2>
+        <h2>${t.transactionDetails}</h2>
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Category</th>
-              <th>Description</th>
-              <th class="text-right">Amount</th>
+              <th>${t.date}</th>
+              <th>${t.type}</th>
+              <th>${t.category}</th>
+              <th>${t.description}</th>
+              <th class="text-right">${t.amount}</th>
             </tr>
           </thead>
           <tbody>
             ${data.transactions.map(transaction => {
-              const date = new Date(transaction.createdAt).toLocaleDateString();
-              const type = transaction.type === 'INCOME' ? 'Income' : 'Expense';
-              const category = transaction.category?.name || 'Uncategorized';
+              const date = new Date(transaction.createdAt).toLocaleDateString(data.locale || 'en-US');
+              const type = transaction.type === 'INCOME' ? t.income : t.expense;
+              const category = transaction.category?.name || t.uncategorized;
               const description = transaction.description || '-';
               const amount = formatCurrency(parseFloat(transaction.amount.toString()), { locale: data.locale });
               const amountClass = transaction.type === 'INCOME' ? 'income-text' : 'expense-text';
@@ -363,8 +405,8 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
         
         <!-- Footer -->
         <div class="footer">
-          <p>${companyName} • ${periodLabel} Financial Report • ${dateLabel}</p>
-          <p>Generated by AgriBooks on ${new Date().toLocaleString()}</p>
+          <p>${companyName} • ${periodLabel} ${t.financialReport} • ${dateLabel}</p>
+          <p>${t.generatedBy} ${new Date().toLocaleString(data.locale || 'en-US')}</p>
         </div>
       </body>
       </html>
@@ -407,18 +449,20 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
       });
       
       // Share the PDF
+      const shareTitle = isArabic ? `مشاركة تقرير ${periodLabel}` : `Share ${periodLabel} Report`;
       await Sharing.shareAsync(finalUri, {
         mimeType: 'application/pdf',
-        dialogTitle: `Share ${periodLabel} Report`,
+        dialogTitle: shareTitle,
         UTI: 'com.adobe.pdf',
       });
     } catch (fileError) {
       console.error('Error handling PDF file:', fileError);
       // Try sharing from original location as fallback
       try {
+        const shareTitle = isArabic ? `مشاركة تقرير ${periodLabel}` : `Share ${periodLabel} Report`;
         await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Share ${periodLabel} Report`,
+          dialogTitle: shareTitle,
         });
       } catch (fallbackError) {
         throw new Error(`Failed to share PDF: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
@@ -453,10 +497,13 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       throw new Error('Invalid export data: missing or invalid transactions');
     }
     
-    const periodLabel = data.period === 'day' ? 'Daily' : data.period === 'week' ? 'Weekly' : 'Monthly';
+    const isArabic = data.locale === 'ar';
+    const translations = isArabic ? arTranslations : enTranslations;
+    const t = getTranslations(data.locale);
+    const periodLabel = getPeriodTitleLabel(data.period, data.locale);
     const dateLabel = formatDisplayDate(data.date, data.period);
     const reportDate = formatDate(data.date);
-    const companyName = data.companyName || 'AgriBooks';
+    const companyName = data.companyName || translations.app.name;
     
     // Create workbook
     const workbook = XLSX.utils.book_new();
@@ -464,21 +511,21 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     // Summary sheet with company info
     const summaryData = [
       [companyName],
-      [`${periodLabel} Financial Report`],
-      [`Report Period: ${dateLabel}`],
-      [`Generated: ${new Date().toLocaleString()}`],
+      [`${periodLabel} ${t.financialReport}`],
+      [`${t.reportPeriod}: ${dateLabel}`],
+      [`${t.generated}: ${new Date().toLocaleString(data.locale || 'en-US')}`],
       [''],
-      ['FINANCIAL SUMMARY'],
+      [t.financialSummary.toUpperCase()],
       [''],
-      ['Category', 'Amount'],
-      ['Total Income', data.summary.income],
-      ['Total Expenses', data.summary.expense],
-      ['Net Balance', data.summary.balance],
+      [t.category, t.amount],
+      [t.totalIncome, data.summary.income],
+      [t.totalExpenses, data.summary.expense],
+      [t.netBalance, data.summary.balance],
       [''],
-      ['STATISTICS'],
-      ['Total Transactions', data.transactions.length],
-      ['Income Transactions', data.transactions.filter(t => t.type === 'INCOME').length],
-      ['Expense Transactions', data.transactions.filter(t => t.type === 'EXPENSE').length],
+      [t.statistics],
+      [t.totalTransactions, data.transactions.length],
+      [t.incomeTransactions, data.transactions.filter(tr => tr.type === 'INCOME').length],
+      [t.expenseTransactions, data.transactions.filter(tr => tr.type === 'EXPENSE').length],
     ];
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
     
@@ -488,15 +535,16 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       { wch: 20 },
     ];
     
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+    const summarySheetName = isArabic ? 'الملخص' : 'Summary';
+    XLSX.utils.book_append_sheet(workbook, summarySheet, summarySheetName);
     
     // Period Breakdown sheet
     if (data.chartData.labels.length > 0) {
       const breakdownHeaders = [
-        data.period === 'week' ? 'Day' : data.period === 'month' ? 'Week' : 'Period',
-        'Income',
-        'Expenses',
-        'Net',
+        data.period === 'week' ? t.day : data.period === 'month' ? t.week : t.period,
+        t.income,
+        t.expense,
+        t.net,
       ];
       const breakdownRows = data.chartData.labels.map((label, index) => {
         const income = data.chartData.incomeData[index] || 0;
@@ -507,7 +555,8 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       // Add totals row
       const totalIncome = data.chartData.incomeData.reduce((sum, val) => sum + (val || 0), 0);
       const totalExpense = data.chartData.expenseData.reduce((sum, val) => sum + (val || 0), 0);
-      breakdownRows.push(['TOTAL', totalIncome, totalExpense, totalIncome - totalExpense]);
+      const totalLabel = isArabic ? 'الإجمالي' : 'TOTAL';
+      breakdownRows.push([totalLabel, totalIncome, totalExpense, totalIncome - totalExpense]);
       
       const breakdownData = [breakdownHeaders, ...breakdownRows];
       const breakdownSheet = XLSX.utils.aoa_to_sheet(breakdownData);
@@ -520,16 +569,17 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
         { wch: 15 },
       ];
       
-      XLSX.utils.book_append_sheet(workbook, breakdownSheet, 'Breakdown');
+      const breakdownSheetName = isArabic ? 'التفصيل' : 'Breakdown';
+      XLSX.utils.book_append_sheet(workbook, breakdownSheet, breakdownSheetName);
     }
     
     // Transactions sheet
     if (data.transactions.length > 0) {
-      const transactionHeaders = ['Date', 'Type', 'Category', 'Description', 'Amount'];
+      const transactionHeaders = [t.date, t.type, t.category, t.description, t.amount];
       const transactionRows = data.transactions.map(transaction => [
-        new Date(transaction.createdAt).toLocaleDateString(),
-        transaction.type === 'INCOME' ? 'Income' : 'Expense',
-        transaction.category?.name || 'Uncategorized',
+        new Date(transaction.createdAt).toLocaleDateString(data.locale || 'en-US'),
+        transaction.type === 'INCOME' ? t.income : t.expense,
+        transaction.category?.name || t.uncategorized,
         transaction.description || '',
         transaction.type === 'INCOME' 
           ? parseFloat(transaction.amount.toString())
@@ -547,7 +597,8 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
         { wch: 15 },
       ];
       
-      XLSX.utils.book_append_sheet(workbook, transactionSheet, 'Transactions');
+      const transactionsSheetName = isArabic ? 'المعاملات' : 'Transactions';
+      XLSX.utils.book_append_sheet(workbook, transactionSheet, transactionsSheetName);
     }
     
     // Generate Excel file as base64
@@ -600,13 +651,14 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       throw new Error('Sharing is not available on this device');
     }
     
-    // Share the file
-    try {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: `Share ${periodLabel} Report`,
-        UTI: 'org.openxmlformats.spreadsheetml.sheet',
-      });
+      // Share the file
+      try {
+        const shareTitle = isArabic ? `مشاركة تقرير ${periodLabel}` : `Share ${periodLabel} Report`;
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          dialogTitle: shareTitle,
+          UTI: 'org.openxmlformats.spreadsheetml.sheet',
+        });
     } catch (shareError) {
       console.error('Error sharing Excel file:', shareError);
       throw new Error(`Failed to share Excel file: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
