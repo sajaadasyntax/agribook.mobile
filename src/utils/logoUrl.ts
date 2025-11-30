@@ -50,12 +50,34 @@ export const getAbsoluteLogoUrl = (logoUrl: string | null | undefined): string |
   
   // If it's a relative URL, construct the full URL using the API base URL
   // Remove /api from the base URL since /uploads is served at root level
-  const apiBaseUrl = getApiBaseUrl().replace('/api', '');
+  let apiBaseUrl = getApiBaseUrl();
+  
+  // Remove trailing /api if present
+  if (apiBaseUrl.endsWith('/api')) {
+    apiBaseUrl = apiBaseUrl.slice(0, -4); // Remove '/api'
+  } else if (apiBaseUrl.endsWith('/api/')) {
+    apiBaseUrl = apiBaseUrl.slice(0, -5); // Remove '/api/'
+  }
+  
+  // Ensure apiBaseUrl doesn't end with a slash
+  apiBaseUrl = apiBaseUrl.replace(/\/+$/, '');
   
   // Ensure logoUrl starts with / for proper concatenation
   const relativePath = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
   
   // Construct full URL
-  return `${apiBaseUrl}${relativePath}`;
+  const fullUrl = `${apiBaseUrl}${relativePath}`;
+  
+  // Debug logging in development
+  if (__DEV__) {
+    console.log('Logo URL conversion:', {
+      original: logoUrl,
+      baseUrl: apiBaseUrl,
+      relativePath,
+      fullUrl,
+    });
+  }
+  
+  return fullUrl;
 };
 

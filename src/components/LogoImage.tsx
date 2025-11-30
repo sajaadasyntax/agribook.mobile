@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ImageStyle,
   ViewStyle,
+  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { getAbsoluteLogoUrl } from '../utils/logoUrl';
@@ -84,13 +85,20 @@ export const LogoImage: React.FC<LogoImageProps> = ({
   }, [onLoad]);
 
   // Handle image load error
-  const handleError = useCallback(() => {
+  const handleError = useCallback((error?: any) => {
     setIsLoading(false);
     setHasError(true);
     const errorMsg = `Failed to load logo from: ${displayUrl}`;
-    console.error(errorMsg);
+    console.error('LogoImage load error:', {
+      error,
+      displayUrl,
+      uri,
+      isLocalFile,
+      isLocalUri,
+      platform: Platform.OS,
+    });
     onError?.(errorMsg);
-  }, [displayUrl, onError]);
+  }, [displayUrl, onError, uri, isLocalFile]);
 
   // Retry loading the image
   const handleRetry = useCallback(() => {

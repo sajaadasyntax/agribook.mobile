@@ -225,7 +225,7 @@ export const userApi = {
 // Category API
 export const categoryApi = {
   getAll: async (type?: 'INCOME' | 'EXPENSE'): Promise<Category[]> => {
-    return apiClient.get('/categories', type ? { type } : undefined);
+    return apiClient.get('/categories', type ? { type } : {});
   },
 
   getById: async (id: string): Promise<Category> => {
@@ -278,11 +278,11 @@ export const reportApi = {
   },
 
   getDaily: async (date?: string): Promise<DailyReport> => {
-    return apiClient.get('/reports/daily', date ? { date } : undefined);
+    return apiClient.get('/reports/daily', date ? { date } : {});
   },
 
   getWeekly: async (weekStart?: string): Promise<WeeklyReport> => {
-    return apiClient.get('/reports/weekly', weekStart ? { weekStart } : undefined);
+    return apiClient.get('/reports/weekly', weekStart ? { weekStart } : {});
   },
 
   getMonthly: async (year?: number, month?: number): Promise<MonthlyReport> => {

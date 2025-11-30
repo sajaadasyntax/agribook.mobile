@@ -125,7 +125,16 @@ export default function AddScreen(): React.JSX.Element {
             // Don't show error if we successfully loaded from cache
             return;
           } else {
-            throw apiError; // No cache available, throw original error
+            // No cache available - check if we're actually offline now
+            const currentNetworkStatus = await syncService.checkNetworkStatus();
+            if (!currentNetworkStatus) {
+              // Actually offline, silently fail (UI will show appropriate message)
+              setCategories([]);
+              setAllCategories([]);
+              return;
+            }
+            // Online but API failed and no cache - this is a real error
+            throw apiError;
           }
         }
       }
@@ -138,36 +147,42 @@ export default function AddScreen(): React.JSX.Element {
       const errorInfo = detectErrorType(error);
       const type = entryType === 'income' ? 'INCOME' : 'EXPENSE';
       
-      // Try to load from cache on error
+      // Always try to load from cache as final fallback
       try {
         const cachedCategories = await syncService.getCachedCategories();
         const filteredCategories = cachedCategories.filter(cat => cat.type === type);
         if (filteredCategories.length > 0) {
           setCategories(filteredCategories);
           setAllCategories(cachedCategories);
-          
-          // Show info message about using cached data
-          if (errorInfo.isNetworkError) {
-            // Silent success - cache loaded successfully
-            return;
-          }
+          // Successfully loaded from cache - don't show error
+          return;
         }
       } catch (cacheError) {
         // Cache also failed
+        console.error('Cache read failed:', cacheError);
       }
       
-      // Provide specific error messages
-      let errorText = t('add.loadCategoriesFailed') || 'Failed to load categories';
-      
-      if (errorInfo.isNetworkError) {
-        errorText = t('add.networkErrorCategories') || 'Network error. Please check your connection.';
-      } else if (errorInfo.isAuthError) {
-        errorText = t('add.authErrorCategories') || 'Authentication required. Please log in again.';
-      } else if (errorInfo.isServerError) {
-        errorText = t('add.serverErrorCategories') || 'Server error. Please try again later.';
+      // Only show alert if we're online and have no cache
+      // If offline, the UI will show the appropriate message
+      const currentNetworkStatus = await syncService.checkNetworkStatus();
+      if (currentNetworkStatus && !settings?.offlineMode) {
+        // Provide specific error messages only when online
+        let errorText = t('add.loadCategoriesFailed') || 'Failed to load categories';
+        
+        if (errorInfo.isNetworkError) {
+          errorText = t('add.networkErrorCategories') || 'Network error. Please check your connection.';
+        } else if (errorInfo.isAuthError) {
+          errorText = t('add.authErrorCategories') || 'Authentication required. Please log in again.';
+        } else if (errorInfo.isServerError) {
+          errorText = t('add.serverErrorCategories') || 'Server error. Please try again later.';
+        }
+        
+        Alert.alert(t('app.error') || 'Error', errorText);
       }
       
-      Alert.alert(t('app.error') || 'Error', errorText);
+      // Set empty categories so UI can show appropriate message
+      setCategories([]);
+      setAllCategories([]);
     } finally {
       setLoadingCategories(false);
     }
