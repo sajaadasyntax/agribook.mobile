@@ -47,6 +47,30 @@ const safeDeleteFile = async (fileUri: string): Promise<void> => {
 };
 
 /**
+ * Convert Uint8Array to base64 string (React Native compatible)
+ */
+const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  let i = 0;
+  
+  while (i < bytes.length) {
+    const a = bytes[i++];
+    const b = i < bytes.length ? bytes[i++] : 0;
+    const c = i < bytes.length ? bytes[i++] : 0;
+    
+    const bitmap = (a << 16) | (b << 8) | c;
+    
+    result += chars.charAt((bitmap >> 18) & 63);
+    result += chars.charAt((bitmap >> 12) & 63);
+    result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
+    result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+  }
+  
+  return result;
+};
+
+/**
  * Export report to PDF format
  * Uses expo-print for reliable PDF generation on both iOS and Android
  */
@@ -529,12 +553,22 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     // Generate Excel file as base64
     let base64Data: string;
     try {
-      // Write workbook to binary string
-      const wbout = XLSX.write(workbook, { 
-        type: 'base64', 
-        bookType: 'xlsx',
-      });
-      base64Data = wbout;
+      // Option 1: Try direct base64 output from XLSX (simplest)
+      try {
+        const wbout = XLSX.write(workbook, { 
+          type: 'base64', 
+          bookType: 'xlsx',
+        });
+        base64Data = wbout;
+      } catch (base64Error) {
+        // Fallback: Use array type and convert to base64 manually
+        console.warn('Direct base64 failed, using array conversion:', base64Error);
+        const wbout = XLSX.write(workbook, { 
+          type: 'array', 
+          bookType: 'xlsx',
+        });
+        base64Data = uint8ArrayToBase64(wbout);
+      }
     } catch (writeError) {
       console.error('Error writing Excel workbook:', writeError);
       throw new Error(`Failed to generate Excel file: ${writeError instanceof Error ? writeError.message : 'Unknown error'}`);
@@ -550,8 +584,10 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       await safeDeleteFile(fileUri);
       
       // Write file using base64 encoding
+      // expo-file-system v19: EncodingType enum doesn't exist
+      // Try with string 'base64' first, if that fails, the error will be caught below
       await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64' as any,
       });
     } catch (fileError) {
       console.error('Error writing Excel file:', fileError);
