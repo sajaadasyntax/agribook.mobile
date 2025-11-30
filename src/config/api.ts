@@ -28,7 +28,7 @@ const IS_ANDROID_EMULATOR = process.env.EXPO_PUBLIC_ANDROID_EMULATOR === 'true';
  * - Uses EXPO_PUBLIC_API_URL (REQUIRED in production)
  * - Throws error if not set to prevent security issues
  */
-const getApiUrl = (): string => {
+export const getApiUrl = (): string => {
   const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
   
   // If production API URL is explicitly set, use it (works in both dev and production)

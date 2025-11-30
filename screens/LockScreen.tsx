@@ -43,6 +43,7 @@ export default function LockScreen({
     if (!showBiometricOption || loading || lockedOut) return;
 
     try {
+      setLoading(true);
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: t('lock.biometricPrompt') || 'Authenticate to unlock AgriBooks',
         cancelLabel: t('app.cancel') || 'Cancel',
@@ -54,11 +55,21 @@ export default function LockScreen({
         onUnlock();
       } else if (result.error === 'user_cancel') {
         // User cancelled, do nothing - in-app keypad is always available
+      } else {
+        // Show error for other failures
+        if (onError) {
+          onError(result.error || 'Biometric authentication failed');
+        }
       }
     } catch (error) {
       console.error('Biometric auth error:', error);
+      if (onError) {
+        onError('An error occurred during biometric authentication');
+      }
+    } finally {
+      setLoading(false);
     }
-  }, [lockedOut, loading, onUnlock, showBiometricOption, t]);
+  }, [lockedOut, loading, onUnlock, showBiometricOption, t, onError]);
 
   const biometricAuthRef = useRef<(() => Promise<void>) | null>(null);
   useEffect(() => {

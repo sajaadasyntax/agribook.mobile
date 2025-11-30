@@ -24,6 +24,7 @@ import { reportApi, transactionApi, categoryApi, alertApi, reminderApi } from '.
 import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from '../src/types';
 import { calculateYAxisMax } from '../src/hooks/useReportData';
 import { formatCurrency } from '../src/utils/currency';
+import { getAbsoluteLogoUrl } from '../src/utils/logoUrl';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -301,7 +302,14 @@ export default function HomeScreen(): React.JSX.Element {
     <View style={styles.container(colors)}>
       <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
         {user?.logoUrl ? (
-          <Image source={{ uri: user.logoUrl }} style={styles.logoImage} resizeMode="contain" />
+          <Image 
+            source={{ uri: getAbsoluteLogoUrl(user.logoUrl) || user.logoUrl }} 
+            style={styles.logoImage} 
+            resizeMode="contain" 
+            onError={(error) => {
+              console.error('Logo load error in HomeScreen:', error);
+            }}
+          />
         ) : (
           <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
         )}

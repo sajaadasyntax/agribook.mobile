@@ -172,6 +172,7 @@ export default function ReportsScreen(): React.JSX.Element {
           groupSpace,
           barSpace,
         },
+        highlightAlpha: 90,
       },
     };
   };
@@ -374,6 +375,7 @@ export default function ReportsScreen(): React.JSX.Element {
                 axisLineColor: colors.border,
                 gridColor: colors.border,
                 avoidFirstLastClipping: true,
+                yOffset: 5,
               }}
               yAxis={{
                 left: {
@@ -384,6 +386,8 @@ export default function ReportsScreen(): React.JSX.Element {
                   axisLineColor: colors.border,
                   gridColor: colors.border + '40',
                   valueFormatter: 'SDG #',
+                  spaceTop: 0,
+                  spaceBottom: 0,
                 },
                 right: {
                   enabled: false,
@@ -569,8 +573,10 @@ const styles = {
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
+    paddingLeft: 8, // Reduce left padding to align chart with y-axis
     borderRadius: 12,
     elevation: 2,
+    alignItems: 'center' as const,
   }),
   section: (colors: any) => ({
     paddingHorizontal: 16,
@@ -635,7 +641,9 @@ const styles = {
   },
   barChart: {
     height: 240,
-    width: screenWidth - 64, // Account for container margins (32px) and padding (32px)
+    width: screenWidth - 48, // Account for container margins (32px) and reduced padding (16px)
     marginVertical: 12,
+    marginLeft: -8, // Negative margin to align bars with y-axis
+    marginRight: 0,
   },
 };

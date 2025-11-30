@@ -16,6 +16,7 @@ import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { userApi } from '../src/services/api.service';
+import { getAbsoluteLogoUrl } from '../src/utils/logoUrl';
 
 export default function ProfileScreen(): React.JSX.Element {
   const { user, updateUser: updateUserContext, refreshUser } = useUser();
@@ -35,7 +36,7 @@ export default function ProfileScreen(): React.JSX.Element {
       setName(user.name || '');
       setPhone(user.phone || '');
       setCompanyName(user.companyName || '');
-      const userLogoUrl = user.logoUrl || null;
+      const userLogoUrl = user.logoUrl ? getAbsoluteLogoUrl(user.logoUrl) : null;
       setLogoUri(userLogoUrl);
       setOriginalLogoUri(userLogoUrl); // Store original for cancel/restore
     }
@@ -157,7 +158,7 @@ export default function ProfileScreen(): React.JSX.Element {
               <ActivityIndicator size="large" color={colors.primary} />
             ) : logoUri ? (
               <Image 
-                source={{ uri: logoUri }} 
+                source={{ uri: getAbsoluteLogoUrl(logoUri) || logoUri }} 
                 style={styles.logoPreview}
                 onError={(error) => {
                   console.error('Logo load error:', error);

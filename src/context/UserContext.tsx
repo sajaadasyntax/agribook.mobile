@@ -11,7 +11,8 @@ interface UserContextType {
   isAuthenticated: boolean;
   isOffline: boolean;
   pendingCount: number;
-  login: (email?: string, name?: string, phone?: string, companyName?: string, logoUrl?: string) => Promise<void>;
+  login: (email?: string, phone?: string) => Promise<void>;
+  register: (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateSettings: (data: Partial<UserSettings>) => Promise<void>;
   updateUser: (user: User) => void;
@@ -151,9 +152,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     };
   }, [settings?.autoSync, user, syncData]);
 
-  const login = async (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string): Promise<void> => {
+  const login = async (email?: string, phone?: string): Promise<void> => {
     try {
-      const result = await userApi.createOrGet(email, name, phone, companyName, logoFileUri);
+      const result = await userApi.login(email, phone);
       await SecureStore.setItemAsync('userId', result.user.id);
       setUser(result.user);
       setSettings(result.settings);
@@ -162,6 +163,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       await syncService.cacheUserSettings(result.settings);
     } catch (error) {
       console.error('Error logging in:', error);
+      throw error;
+    }
+  };
+
+  const register = async (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string): Promise<void> => {
+    try {
+      const result = await userApi.register(email, name, phone, companyName, logoFileUri);
+      await SecureStore.setItemAsync('userId', result.user.id);
+      setUser(result.user);
+      setSettings(result.settings);
+      
+      // Cache settings for offline use
+      await syncService.cacheUserSettings(result.settings);
+    } catch (error) {
+      console.error('Error registering:', error);
       throw error;
     }
   };
@@ -327,6 +343,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         isOffline,
         pendingCount,
         login,
+        register,
         logout,
         updateSettings,
         updateUser,

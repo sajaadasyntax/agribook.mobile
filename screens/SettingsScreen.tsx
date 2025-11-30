@@ -243,6 +243,16 @@ export default function SettingsScreen(): React.JSX.Element {
       return;
     }
 
+    // Check if PIN is enabled (fingerprint requires PIN to be enabled)
+    if (!settings?.pinEnabled) {
+      Alert.alert(
+        t('settings.pinRequired') || 'PIN Required',
+        t('settings.pinRequiredForBiometric') || 'Please enable PIN first to use fingerprint authentication.',
+        [{ text: t('app.ok') }]
+      );
+      return;
+    }
+
     // Check if biometrics are available
     if (!biometricAvailable) {
       Alert.alert(
@@ -356,7 +366,8 @@ export default function SettingsScreen(): React.JSX.Element {
     }
 
     try {
-      await updateSettings({ pinEnabled: false });
+      // Disable fingerprint when PIN is disabled
+      await updateSettings({ pinEnabled: false, fingerprintEnabled: false });
       Alert.alert(t('app.success'), t('settings.lockDisabled'));
     } catch (error) {
       console.error('Error disabling lock:', error);

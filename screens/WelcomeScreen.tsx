@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useI18n } from '../src/context/I18nContext';
 import { useUser } from '../src/context/UserContext';
 import { useTheme } from '../src/context/ThemeContext';
+import { getAbsoluteLogoUrl } from '../src/utils/logoUrl';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -24,7 +25,7 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React.JSX.Element {
   const { t, isRTL } = useI18n();
-  const { login, isAuthenticated } = useUser();
+  const { login, register, isAuthenticated } = useUser();
   const { colors } = useTheme();
   const [isSignIn, setIsSignIn] = useState(false);
   const [name, setName] = useState('');
@@ -54,6 +55,13 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         return;
       }
 
+      // For registration, require name
+      if (!isSignIn && !name) {
+        Alert.alert(t('app.error'), 'Name is required for registration');
+        setLoading(false);
+        return;
+      }
+
       // Validate email if provided
       if (email && !email.includes('@')) {
         Alert.alert(t('app.error'), 'Please enter a valid email address');
@@ -61,14 +69,20 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         return;
       }
 
-      // Login or create account
-      await login(
-        email || undefined, 
-        isSignIn ? undefined : name || undefined, 
-        phone || undefined,
-        isSignIn ? undefined : companyName || undefined,
-        isSignIn ? undefined : logoFileUri || undefined
-      );
+      // Login or register based on mode
+      if (isSignIn) {
+        // Login: only email or phone required
+        await login(email || undefined, phone || undefined);
+      } else {
+        // Register: name is required, other fields optional
+        await register(
+          email || undefined,
+          name || undefined,
+          phone || undefined,
+          companyName || undefined,
+          logoFileUri || undefined
+        );
+      }
       
       // Navigation will happen automatically when isAuthenticated becomes true
       // Keep loading state true until navigation happens
@@ -259,7 +273,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
                   <ActivityIndicator size="large" color="#4CAF50" />
                 ) : logoUri ? (
                   <Image 
-                    source={{ uri: logoUri }} 
+                    source={{ uri: getAbsoluteLogoUrl(logoUri) || logoUri }} 
                     style={styles.logoPreview}
                     onError={(error) => {
                       console.error('Logo load error:', error);
