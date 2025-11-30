@@ -30,6 +30,8 @@ export default function ProfileScreen(): React.JSX.Element {
   const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
   const [originalLogoUri, setOriginalLogoUri] = useState<string | null>(null);
   const [pickingImage, setPickingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -96,6 +98,12 @@ export default function ProfileScreen(): React.JSX.Element {
       // Only delete if logo was explicitly removed (no logoUri and no new file, but original existed)
       const shouldDeleteLogo = !logoUri && !logoFileUri && !!originalLogoUri;
       
+      // Set upload state if uploading a file
+      if (hasNewLogoFile) {
+        setIsUploading(true);
+        setUploadProgress(0);
+      }
+      
       const updatedUser = await userApi.update(
         {
           name: name || undefined,
@@ -103,7 +111,8 @@ export default function ProfileScreen(): React.JSX.Element {
           companyName: companyName || undefined,
           logoUrl: shouldDeleteLogo ? '' : undefined, // Empty string signals deletion
         },
-        hasNewLogoFile ? logoFileUri : undefined // Pass file URI if a new file was selected
+        hasNewLogoFile ? logoFileUri : undefined, // Pass file URI if a new file was selected
+        hasNewLogoFile ? (progress) => setUploadProgress(progress) : undefined // Progress callback
       );
       
       updateUserContext(updatedUser);
@@ -120,6 +129,8 @@ export default function ProfileScreen(): React.JSX.Element {
       Alert.alert(t('app.error'), t('profile.errorUpdating'));
     } finally {
       setLoading(false);
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -259,7 +270,14 @@ export default function ProfileScreen(): React.JSX.Element {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={colors.textInverse} />
+            <View style={styles.saveButtonContent}>
+              <ActivityIndicator color={colors.textInverse} size="small" />
+              {isUploading && uploadProgress > 0 && (
+                <Text style={styles.uploadProgressText}>
+                  {uploadProgress}%
+                </Text>
+              )}
+            </View>
           ) : (
             <Text style={styles.saveButtonText}>{t('app.save')}</Text>
           )}
@@ -411,6 +429,16 @@ const styles = {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold' as const,
+  },
+  saveButtonContent: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
+  uploadProgressText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
   pendingDeletionText: (colors: any) => ({
     fontSize: 12,

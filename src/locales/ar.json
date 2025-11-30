@@ -309,7 +309,11 @@
     "uploadLogo": "رفع الشعار",
     "removeLogo": "إزالة",
     "permissionDenied": "تم رفض إذن الوصول إلى الصور",
-    "errorUploadingLogo": "خطأ في رفع الشعار. يرجى المحاولة مرة أخرى."
+    "errorUploadingLogo": "خطأ في رفع الشعار. يرجى المحاولة مرة أخرى.",
+    "password": "كلمة المرور",
+    "passwordPlaceholder": "أدخل كلمة المرور",
+    "passwordHint": "6 أحرف على الأقل. قم بتعيين كلمة مرور لتأمين حسابك.",
+    "fileTooLarge": "حجم الملف يجب أن يكون أقل من 5 ميجابايت"
   },
   "profile": {
     "title": "الملف الشخصي",

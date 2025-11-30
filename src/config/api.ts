@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // API Configuration from Environment Variables
@@ -16,6 +16,14 @@ const PRODUCTION_API_URL = process.env.EXPO_PUBLIC_API_URL || '';
 const DEV_API_HOST = process.env.EXPO_PUBLIC_API_HOST || 'localhost';
 const DEV_API_PORT = process.env.EXPO_PUBLIC_API_PORT || '3001';
 const IS_ANDROID_EMULATOR = process.env.EXPO_PUBLIC_ANDROID_EMULATOR === 'true';
+
+// Secure storage keys
+const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'accessToken',
+  REFRESH_TOKEN: 'refreshToken',
+  ACCESS_TOKEN_EXPIRES: 'accessTokenExpires',
+  USER_ID: 'userId',
+};
 
 /**
  * Get the appropriate API URL based on environment
@@ -88,6 +96,63 @@ if (__DEV__) {
   });
 }
 
+/**
+ * Token management utilities
+ */
+export const tokenManager = {
+  async getAccessToken(): Promise<string | null> {
+    return SecureStore.getItemAsync(STORAGE_KEYS.ACCESS_TOKEN);
+  },
+
+  async getRefreshToken(): Promise<string | null> {
+    return SecureStore.getItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
+  },
+
+  async setTokens(accessToken: string, refreshToken: string, accessTokenExpires?: string): Promise<void> {
+    await Promise.all([
+      SecureStore.setItemAsync(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+      SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
+      accessTokenExpires ? SecureStore.setItemAsync(STORAGE_KEYS.ACCESS_TOKEN_EXPIRES, accessTokenExpires) : Promise.resolve(),
+    ]);
+  },
+
+  async clearTokens(): Promise<void> {
+    await Promise.all([
+      SecureStore.deleteItemAsync(STORAGE_KEYS.ACCESS_TOKEN),
+      SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
+      SecureStore.deleteItemAsync(STORAGE_KEYS.ACCESS_TOKEN_EXPIRES),
+      SecureStore.deleteItemAsync(STORAGE_KEYS.USER_ID),
+    ]);
+  },
+
+  async getUserId(): Promise<string | null> {
+    return SecureStore.getItemAsync(STORAGE_KEYS.USER_ID);
+  },
+
+  async setUserId(userId: string): Promise<void> {
+    await SecureStore.setItemAsync(STORAGE_KEYS.USER_ID, userId);
+  },
+
+  async isTokenExpired(): Promise<boolean> {
+    const expiresAt = await SecureStore.getItemAsync(STORAGE_KEYS.ACCESS_TOKEN_EXPIRES);
+    if (!expiresAt) return true;
+    return new Date(expiresAt) <= new Date();
+  },
+};
+
+// Flag to prevent multiple refresh token requests
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+const subscribeTokenRefresh = (cb: (token: string) => void) => {
+  refreshSubscribers.push(cb);
+};
+
+const onTokenRefreshed = (token: string) => {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+};
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -102,11 +167,19 @@ class ApiClient {
 
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
-      async (config) => {
-        const userId = await SecureStore.getItemAsync('userId');
+      async (config: InternalAxiosRequestConfig) => {
+        const accessToken = await tokenManager.getAccessToken();
+        
+        if (accessToken && config.headers) {
+          config.headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+        
+        // Also include x-user-id for backward compatibility during migration
+        const userId = await tokenManager.getUserId();
         if (userId && config.headers) {
           config.headers['x-user-id'] = userId;
         }
+        
         return config;
       },
       (error) => {
@@ -114,26 +187,77 @@ class ApiClient {
       }
     );
 
-    // Response interceptor for error handling
+    // Response interceptor for error handling and token refresh
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError) => {
+      async (error: AxiosError) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        
+        // Handle 401 Unauthorized - attempt token refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          if (isRefreshing) {
+            // Wait for the refresh to complete
+            return new Promise((resolve) => {
+              subscribeTokenRefresh((token) => {
+                if (originalRequest.headers) {
+                  originalRequest.headers['Authorization'] = `Bearer ${token}`;
+                }
+                resolve(this.client(originalRequest));
+              });
+            });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          try {
+            const refreshToken = await tokenManager.getRefreshToken();
+            
+            if (refreshToken) {
+              // Try to refresh the token
+              const response = await axios.post(`${API_BASE_URL}/users/refresh-token`, {
+                refreshToken,
+              });
+
+              const { accessToken, accessTokenExpiresAt } = response.data;
+              await tokenManager.setTokens(accessToken, refreshToken, accessTokenExpiresAt);
+              
+              if (originalRequest.headers) {
+                originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+              }
+              
+              onTokenRefreshed(accessToken);
+              isRefreshing = false;
+              
+              return this.client(originalRequest);
+            }
+          } catch (refreshError) {
+            // Refresh failed - clear tokens and let the error propagate
+            await tokenManager.clearTokens();
+            isRefreshing = false;
+            refreshSubscribers = [];
+          }
+        }
+
+        // Handle other errors
         if (error.response) {
           // Server responded with error
           const statusCode = error.response.status;
-          const responseData = error.response.data as { error?: string; code?: string };
-          let message = responseData?.error || 'An error occurred';
+          const responseData = error.response.data as { error?: string; message?: string; code?: string };
+          let message = responseData?.error || responseData?.message || 'An error occurred';
           
           // Handle authentication errors specifically
           if (statusCode === 401 || statusCode === 403) {
-            if (message.includes('Authentication required') || message.includes('x-user-id')) {
+            if (message.includes('Authentication required') || message.includes('Invalid or expired token')) {
               message = __DEV__
-                ? `Authentication Error: ${message}\n\nPlease ensure you are logged in.`
-                : 'Authentication required. Please log in again.';
+                ? `Authentication Error: ${message}\n\nPlease log in again.`
+                : 'Session expired. Please log in again.';
             } else if (message.includes('User not found')) {
               message = __DEV__
-                ? `Authentication Error: ${message}\n\nYour user session may have expired. Please log in again.`
-                : 'Session expired. Please log in again.';
+                ? `Authentication Error: ${message}\n\nYour account may have been deleted.`
+                : 'Account not found. Please register again.';
+            } else if (message.includes('Invalid password')) {
+              message = 'Invalid password. Please try again.';
             } else {
               message = __DEV__
                 ? `Authentication Error (${statusCode}): ${message}`
@@ -210,24 +334,44 @@ class ApiClient {
     return response.data;
   }
 
-  async postMultipart<T>(url: string, formData: FormData): Promise<T> {
-    const userId = await SecureStore.getItemAsync('userId');
+  async postMultipart<T>(url: string, formData: FormData, onUploadProgress?: (progress: number) => void): Promise<T> {
+    const accessToken = await tokenManager.getAccessToken();
+    const userId = await tokenManager.getUserId();
+    
     const response = await this.client.post<T>(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
         ...(userId && { 'x-user-id': userId }),
       },
+      timeout: 60000, // 60 seconds for file uploads
+      onUploadProgress: onUploadProgress ? (progressEvent) => {
+        if (progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onUploadProgress(progress);
+        }
+      } : undefined,
     });
     return response.data;
   }
 
-  async putMultipart<T>(url: string, formData: FormData): Promise<T> {
-    const userId = await SecureStore.getItemAsync('userId');
+  async putMultipart<T>(url: string, formData: FormData, onUploadProgress?: (progress: number) => void): Promise<T> {
+    const accessToken = await tokenManager.getAccessToken();
+    const userId = await tokenManager.getUserId();
+    
     const response = await this.client.put<T>(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
         ...(userId && { 'x-user-id': userId }),
       },
+      timeout: 60000, // 60 seconds for file uploads
+      onUploadProgress: onUploadProgress ? (progressEvent) => {
+        if (progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onUploadProgress(progress);
+        }
+      } : undefined,
     });
     return response.data;
   }

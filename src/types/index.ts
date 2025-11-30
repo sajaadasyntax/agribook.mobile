@@ -11,6 +11,34 @@ export interface User {
   settings?: UserSettings | null;
 }
 
+// Authentication Types
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresAt: string;
+  refreshTokenExpiresAt: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  settings: UserSettings;
+  tokens: AuthTokens;
+}
+
+export interface LoginDto {
+  email?: string;
+  phone?: string;
+  password?: string;
+}
+
+export interface RegisterDto {
+  email?: string;
+  name?: string;
+  phone?: string;
+  password?: string;
+  companyName?: string;
+}
+
 export interface UserSettings {
   id: string;
   userId: string;

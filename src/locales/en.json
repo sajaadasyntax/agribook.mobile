@@ -309,7 +309,11 @@
     "uploadLogo": "Upload Logo",
     "removeLogo": "Remove",
     "permissionDenied": "Permission to access photos was denied",
-    "errorUploadingLogo": "Error uploading logo. Please try again."
+    "errorUploadingLogo": "Error uploading logo. Please try again.",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "passwordHint": "Min 6 characters. Set a password to secure your account.",
+    "fileTooLarge": "File size must be less than 5MB"
   },
   "profile": {
     "title": "Profile",

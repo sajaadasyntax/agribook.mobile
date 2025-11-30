@@ -1,4 +1,4 @@
-import apiClient from '../config/api';
+import apiClient, { tokenManager } from '../config/api';
 import {
   User,
   UserSettings,
@@ -19,15 +19,37 @@ import {
   VerifyPinDto,
   PaginatedResponse,
   CreateCategoryDto,
+  AuthResponse,
+  AuthTokens,
 } from '../types';
 
 // User API
 export const userApi = {
-  login: async (email?: string, phone?: string): Promise<{ user: User; settings: UserSettings }> => {
-    return apiClient.post('/users/login', { email, phone });
+  login: async (email?: string, phone?: string, password?: string): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>('/users/login', { email, phone, password });
+    
+    // Store tokens
+    if (response.tokens) {
+      await tokenManager.setTokens(
+        response.tokens.accessToken,
+        response.tokens.refreshToken,
+        response.tokens.accessTokenExpiresAt
+      );
+      await tokenManager.setUserId(response.user.id);
+    }
+    
+    return response;
   },
 
-  register: async (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string | null): Promise<{ user: User; settings: UserSettings }> => {
+  register: async (
+    email?: string, 
+    name?: string, 
+    phone?: string, 
+    password?: string,
+    companyName?: string, 
+    logoFileUri?: string | null,
+    onUploadProgress?: (progress: number) => void
+  ): Promise<AuthResponse> => {
     // If logoFileUri is provided, upload as file using FormData
     if (logoFileUri) {
       const formData = new FormData();
@@ -36,6 +58,7 @@ export const userApi = {
       if (email) formData.append('email', email);
       if (name) formData.append('name', name);
       if (phone) formData.append('phone', phone);
+      if (password) formData.append('password', password);
       if (companyName) formData.append('companyName', companyName);
       
       // Add logo file
@@ -58,15 +81,46 @@ export const userApi = {
         type: type,
       } as any);
       
-      return apiClient.postMultipart('/users/register', formData);
+      const response = await apiClient.postMultipart<AuthResponse>('/users/register', formData, onUploadProgress);
+      
+      // Store tokens
+      if (response.tokens) {
+        await tokenManager.setTokens(
+          response.tokens.accessToken,
+          response.tokens.refreshToken,
+          response.tokens.accessTokenExpiresAt
+        );
+        await tokenManager.setUserId(response.user.id);
+      }
+      
+      return response;
     }
     
     // Otherwise, send as JSON
-    return apiClient.post('/users/register', { email, name, phone, companyName });
+    const response = await apiClient.post<AuthResponse>('/users/register', { email, name, phone, password, companyName });
+    
+    // Store tokens
+    if (response.tokens) {
+      await tokenManager.setTokens(
+        response.tokens.accessToken,
+        response.tokens.refreshToken,
+        response.tokens.accessTokenExpiresAt
+      );
+      await tokenManager.setUserId(response.user.id);
+    }
+    
+    return response;
   },
 
   // Legacy method for backward compatibility (deprecated)
-  createOrGet: async (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string | null): Promise<{ user: User; settings: UserSettings }> => {
+  createOrGet: async (
+    email?: string, 
+    name?: string, 
+    phone?: string, 
+    companyName?: string, 
+    logoFileUri?: string | null,
+    onUploadProgress?: (progress: number) => void
+  ): Promise<AuthResponse> => {
     // If logoFileUri is provided, upload as file using FormData
     if (logoFileUri) {
       const formData = new FormData();
@@ -97,18 +151,50 @@ export const userApi = {
         type: type,
       } as any);
       
-      return apiClient.postMultipart('/users', formData);
+      const response = await apiClient.postMultipart<AuthResponse>('/users', formData, onUploadProgress);
+      
+      // Store tokens
+      if (response.tokens) {
+        await tokenManager.setTokens(
+          response.tokens.accessToken,
+          response.tokens.refreshToken,
+          response.tokens.accessTokenExpiresAt
+        );
+        await tokenManager.setUserId(response.user.id);
+      }
+      
+      return response;
     }
     
     // Otherwise, send as JSON (backward compatible)
-    return apiClient.post('/users', { email, name, phone, companyName });
+    const response = await apiClient.post<AuthResponse>('/users', { email, name, phone, companyName });
+    
+    // Store tokens
+    if (response.tokens) {
+      await tokenManager.setTokens(
+        response.tokens.accessToken,
+        response.tokens.refreshToken,
+        response.tokens.accessTokenExpiresAt
+      );
+      await tokenManager.setUserId(response.user.id);
+    }
+    
+    return response;
   },
 
   getById: async (id: string): Promise<User> => {
     return apiClient.get(`/users/${id}`);
   },
 
-  update: async (data: { name?: string; phone?: string; companyName?: string; logoUrl?: string }, logoFileUri?: string | null): Promise<User> => {
+  getCurrentUser: async (): Promise<User> => {
+    return apiClient.get('/users/me');
+  },
+
+  update: async (
+    data: { name?: string; phone?: string; companyName?: string; logoUrl?: string }, 
+    logoFileUri?: string | null,
+    onUploadProgress?: (progress: number) => void
+  ): Promise<User> => {
     // If logoFileUri is provided, upload as file using FormData
     if (logoFileUri) {
       const formData = new FormData();
@@ -138,7 +224,7 @@ export const userApi = {
         type: type,
       } as any);
       
-      return apiClient.putMultipart('/users', formData);
+      return apiClient.putMultipart('/users', formData, onUploadProgress);
     }
     
     // Otherwise, send as JSON (backward compatible with base64 or for deletion)
@@ -148,6 +234,38 @@ export const userApi = {
       logoUrl: data.logoUrl === '' ? null : data.logoUrl,
     };
     return apiClient.put('/users', updateData);
+  },
+
+  logout: async (refreshToken?: string): Promise<void> => {
+    try {
+      await apiClient.post('/users/logout', { refreshToken });
+    } finally {
+      await tokenManager.clearTokens();
+    }
+  },
+
+  logoutAll: async (): Promise<void> => {
+    try {
+      await apiClient.post('/users/logout-all');
+    } finally {
+      await tokenManager.clearTokens();
+    }
+  },
+
+  refreshToken: async (refreshToken: string): Promise<{ accessToken: string; accessTokenExpiresAt: string }> => {
+    const response = await apiClient.post<{ accessToken: string; accessTokenExpiresAt: string }>('/users/refresh-token', { refreshToken });
+    
+    // Update stored access token
+    const currentRefreshToken = await tokenManager.getRefreshToken();
+    if (currentRefreshToken) {
+      await tokenManager.setTokens(response.accessToken, currentRefreshToken, response.accessTokenExpiresAt);
+    }
+    
+    return response;
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiClient.post('/users/change-password', { currentPassword, newPassword });
   },
 };
 
@@ -300,4 +418,3 @@ export const settingsApi = {
     return apiClient.post('/settings/verify-pin', data);
   },
 };
-

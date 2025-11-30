@@ -31,6 +31,8 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
@@ -71,14 +73,15 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
       // Login or register based on mode
       if (isSignIn) {
-        // Login: only email or phone required
-        await login(email || undefined, phone || undefined);
+        // Login: email/phone and password required
+        await login(email || undefined, phone || undefined, password || undefined);
       } else {
-        // Register: name is required, other fields optional
+        // Register: name is required, password recommended, other fields optional
         await register(
           email || undefined,
           name || undefined,
           phone || undefined,
+          password || undefined,
           companyName || undefined,
           logoFileUri || undefined
         );
@@ -194,6 +197,35 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
                 keyboardType="phone-pad"
               />
             </View>
+          </View>
+
+          {/* Password Input */}
+          <View style={styles.inputContainer}>
+            <View style={styles.labelRow}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.password') || 'Password'}</Text>
+              {!isSignIn && <Text style={styles.optional}>{t('auth.optional')}</Text>}
+            </View>
+            <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
+              <Icon name="lock" size={20} color="#666" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, isRTL && styles.inputRTL, { flex: 1 }]}
+                placeholder={t('auth.passwordPlaceholder') || 'Enter password'}
+                value={password}
+                onChangeText={setPassword}
+                textAlign={isRTL ? 'right' : 'left'}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                <Icon name={showPassword ? 'visibility' : 'visibility-off'} size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+            {!isSignIn && (
+              <Text style={styles.passwordHint}>
+                {t('auth.passwordHint') || 'Min 6 characters. Set a password to secure your account.'}
+              </Text>
+            )}
           </View>
 
           {/* Company Name - Only for Sign Up */}
@@ -428,6 +460,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#333',
+  },
+  eyeIcon: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 6,
+    marginLeft: 4,
   },
   inputRTL: {
     textAlign: 'right',

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useUser } from './UserContext';
 
-interface ThemeColors {
+// Export ThemeColors for use in typed styles
+export interface ThemeColors {
   background: string;
   surface: string;
   primary: string;

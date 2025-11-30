@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import { User, UserSettings } from '../types';
-import { userApi, settingsApi } from '../services/api.service';
+import { userApi, settingsApi, transactionApi, alertApi, reminderApi } from '../services/api.service';
+import { tokenManager } from '../config/api';
 import syncService from '../services/sync.service';
 
 interface UserContextType {
@@ -11,9 +11,10 @@ interface UserContextType {
   isAuthenticated: boolean;
   isOffline: boolean;
   pendingCount: number;
-  login: (email?: string, phone?: string) => Promise<void>;
-  register: (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string) => Promise<void>;
+  login: (email?: string, phone?: string, password?: string) => Promise<void>;
+  register: (email?: string, name?: string, phone?: string, password?: string, companyName?: string, logoFileUri?: string) => Promise<void>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
   updateSettings: (data: Partial<UserSettings>) => Promise<void>;
   updateUser: (user: User) => void;
   refreshUser: () => Promise<void>;
@@ -63,14 +64,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   // Load user data
   const loadUser = useCallback(async (): Promise<void> => {
     try {
-      const userId = await SecureStore.getItemAsync('userId');
-      if (userId) {
+      const userId = await tokenManager.getUserId();
+      const accessToken = await tokenManager.getAccessToken();
+      
+      if (userId && accessToken) {
         const isOnline = await syncService.checkNetworkStatus();
         setIsOffline(!isOnline);
         
         if (isOnline) {
           try {
-            const userData = await userApi.getById(userId);
+            // Use the /me endpoint for authenticated user data
+            const userData = await userApi.getCurrentUser();
             setUser(userData);
             setSettings(userData.settings || null);
             
@@ -85,6 +89,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             if (cachedSettings) {
               setSettings(cachedSettings);
               setUser({ id: userId, createdAt: '', updatedAt: '', settings: cachedSettings });
+            } else {
+              // Token might be invalid, clear it
+              await tokenManager.clearTokens();
             }
           }
         } else {
@@ -150,12 +157,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     return () => {
       syncService.stopAutoSync();
     };
-  }, [settings?.autoSync, user, syncData]);
+  }, [settings?.autoSync, user]);
 
-  const login = async (email?: string, phone?: string): Promise<void> => {
+  const login = async (email?: string, phone?: string, password?: string): Promise<void> => {
     try {
-      const result = await userApi.login(email, phone);
-      await SecureStore.setItemAsync('userId', result.user.id);
+      const result = await userApi.login(email, phone, password);
       setUser(result.user);
       setSettings(result.settings);
       
@@ -167,10 +173,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (email?: string, name?: string, phone?: string, companyName?: string, logoFileUri?: string): Promise<void> => {
+  const register = async (
+    email?: string, 
+    name?: string, 
+    phone?: string, 
+    password?: string,
+    companyName?: string, 
+    logoFileUri?: string
+  ): Promise<void> => {
     try {
-      const result = await userApi.register(email, name, phone, companyName, logoFileUri);
-      await SecureStore.setItemAsync('userId', result.user.id);
+      const result = await userApi.register(email, name, phone, password, companyName, logoFileUri);
       setUser(result.user);
       setSettings(result.settings);
       
@@ -184,13 +196,32 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const logout = async (): Promise<void> => {
     try {
-      await SecureStore.deleteItemAsync('userId');
+      const refreshToken = await tokenManager.getRefreshToken();
+      await userApi.logout(refreshToken || undefined);
+    } catch (error) {
+      console.error('Error during logout API call:', error);
+    } finally {
+      // Always clear local state and tokens
+      await tokenManager.clearTokens();
       await syncService.clearAll();
       setUser(null);
       setSettings(null);
       setPendingCount(0);
+    }
+  };
+
+  const logoutAll = async (): Promise<void> => {
+    try {
+      await userApi.logoutAll();
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('Error during logout all API call:', error);
+    } finally {
+      // Always clear local state and tokens
+      await tokenManager.clearTokens();
+      await syncService.clearAll();
+      setUser(null);
+      setSettings(null);
+      setPendingCount(0);
     }
   };
 
@@ -242,7 +273,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
     if (isOnline) {
       try {
-        const userData = await userApi.getById(user.id);
+        const userData = await userApi.getCurrentUser();
         setUser(userData);
         setSettings(userData.settings || null);
 
@@ -278,10 +309,38 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           switch (operation.type) {
             case 'UPDATE_SETTINGS':
               await settingsApi.update(operation.data);
-              await syncService.removePendingOperation(operation.id);
               break;
-            // Add more operation types as needed
+            case 'CREATE_TRANSACTION':
+              await transactionApi.create(operation.data);
+              break;
+            case 'UPDATE_TRANSACTION':
+              await transactionApi.update(operation.data.id, operation.data);
+              break;
+            case 'DELETE_TRANSACTION':
+              await transactionApi.delete(operation.data.id);
+              break;
+            case 'CREATE_ALERT':
+              await alertApi.create(operation.data);
+              break;
+            case 'UPDATE_ALERT':
+              await alertApi.markAsRead(operation.data.id);
+              break;
+            case 'DELETE_ALERT':
+              await alertApi.delete(operation.data.id);
+              break;
+            case 'CREATE_REMINDER':
+              await reminderApi.create(operation.data);
+              break;
+            case 'UPDATE_REMINDER':
+              await reminderApi.update(operation.data.id, operation.data);
+              break;
+            case 'DELETE_REMINDER':
+              await reminderApi.delete(operation.data.id);
+              break;
+            default:
+              console.warn(`Unknown operation type: ${operation.type}`);
           }
+          await syncService.removePendingOperation(operation.id);
         } catch (error) {
           console.error(`Error syncing operation ${operation.id}:`, error);
           
@@ -304,7 +363,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Refresh user data from server
       if (user) {
         try {
-          const userData = await userApi.getById(user.id);
+          const userData = await userApi.getCurrentUser();
           setUser(userData);
           setSettings(userData.settings || null);
           
@@ -345,6 +404,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         login,
         register,
         logout,
+        logoutAll,
         updateSettings,
         updateUser,
         refreshUser,
