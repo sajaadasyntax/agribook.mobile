@@ -247,11 +247,8 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
       const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.pdf`;
       const newUri = `${FileSystem.documentDirectory}${filename}`;
       
-      // Check if file already exists and delete it
-      const fileInfo = await FileSystem.getInfoAsync(newUri);
-      if (fileInfo.exists) {
-        await FileSystem.deleteAsync(newUri, { idempotent: true });
-      }
+      // Delete if file already exists (idempotent: true won't throw if file doesn't exist)
+      await FileSystem.deleteAsync(newUri, { idempotent: true });
       
       await FileSystem.moveAsync({
         from: uri,
@@ -355,11 +352,8 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     const fileUri = `${FileSystem.documentDirectory}${filename}`;
     
     try {
-      // Check if file already exists and delete it
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      if (fileInfo.exists) {
-        await FileSystem.deleteAsync(fileUri, { idempotent: true });
-      }
+      // Delete if file already exists (idempotent: true won't throw if file doesn't exist)
+      await FileSystem.deleteAsync(fileUri, { idempotent: true });
       
       // Write file
       await FileSystem.writeAsStringAsync(fileUri, wbout, {

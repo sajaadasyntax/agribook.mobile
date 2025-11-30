@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   processColor,
+  SafeAreaView,
 } from 'react-native';
 import { BarChart } from 'react-native-charts-wrapper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
@@ -364,27 +365,28 @@ export default function ReportsScreen(): React.JSX.Element {
   );
 
   // Show loading indicator
-  const hasNoData = !chartData || chartData.incomeData.length === 0 && transactions.length === 0;
+  const hasNoData = !chartData || (chartData.incomeData.length === 0 && transactions.length === 0);
   if (loading && hasNoData) {
     return (
-      <View style={[styles.container(colors), styles.centerContent]}>
+      <SafeAreaView style={[styles.safeArea(colors), styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   const barChartData = transformBarChartData();
 
   return (
-    <ScrollView
-      style={styles.container(colors)}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
-    >
-      <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
-        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>
-          {t('reports.title')}
-        </Text>
-      </View>
+    <SafeAreaView style={styles.safeArea(colors)}>
+      <ScrollView
+        style={styles.container(colors)}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+      >
+        <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
+          <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>
+            {t('reports.title')}
+          </Text>
+        </View>
 
       {renderPeriodSelector()}
       {renderDateNavigator()}
@@ -476,11 +478,16 @@ export default function ReportsScreen(): React.JSX.Element {
           </Text>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = {
+  safeArea: (colors: any) => ({
+    flex: 1,
+    backgroundColor: colors.background,
+  }),
   container: (colors: any) => ({
     flex: 1,
     backgroundColor: colors.background,
@@ -592,8 +599,6 @@ const styles = {
     padding: 12,
     borderRadius: 12,
     alignItems: 'center' as const,
-    backgroundColor: colors.surface,
-    elevation: 2,
   }),
   summaryLabel: (colors: any) => ({
     fontSize: 12,
@@ -609,10 +614,7 @@ const styles = {
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
-    paddingLeft: 8, // Reduce left padding to align chart with y-axis
     borderRadius: 12,
-    elevation: 2,
-    alignItems: 'center' as const,
   }),
   section: (colors: any) => ({
     paddingHorizontal: 16,
@@ -677,9 +679,8 @@ const styles = {
   },
   barChart: {
     height: 240,
-    width: screenWidth - 48, // Account for container margins (32px) and reduced padding (16px)
+    width: screenWidth - 64, // Account for container margins (32px) and padding (32px)
     marginVertical: 12,
-    marginLeft: -8, // Negative margin to align bars with y-axis
-    marginRight: 0,
+    alignSelf: 'center' as const,
   },
 };

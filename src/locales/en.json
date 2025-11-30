@@ -106,6 +106,9 @@
     "total": "Total",
     "recentTransactions": "Recent Transactions",
     "noTransactions": "No transactions found for this period.",
+    "noChartData": "No chart data available for this period.",
+    "noDataToExport": "No data available to export. Please wait for the report to load.",
+    "loadingData": "Please wait for the report to finish loading.",
     "exportSuccess": "Report exported successfully",
     "exportError": "Failed to export report"
   },
@@ -322,7 +325,9 @@
     "companyInfo": "Company Information",
     "companyLogo": "Company Logo",
     "updated": "Profile updated successfully",
-    "errorUpdating": "Failed to update profile"
+    "errorUpdating": "Failed to update profile",
+    "logoLoadError": "Failed to load logo",
+    "logoWillBeDeleted": "Logo will be deleted when you save"
   },
   "common": {
     "today": "Today",

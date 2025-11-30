@@ -740,8 +740,6 @@ const styles = {
     padding: 12,
     borderRadius: 12,
     alignItems: 'center' as const,
-    backgroundColor: colors.surface,
-    elevation: 2,
   }),
   summaryLabel: (colors: any) => ({
     fontSize: 12,
