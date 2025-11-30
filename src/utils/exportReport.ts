@@ -25,6 +25,23 @@ interface ExportData {
 
 export const exportToPDF = async (data: ExportData): Promise<void> => {
   try {
+    // Validate required data
+    if (!data || !data.date) {
+      throw new Error('Invalid export data: missing date');
+    }
+    
+    if (!data.summary || typeof data.summary.income !== 'number' || typeof data.summary.expense !== 'number') {
+      throw new Error('Invalid export data: missing or invalid summary');
+    }
+    
+    if (!data.chartData || !Array.isArray(data.chartData.labels)) {
+      throw new Error('Invalid export data: missing or invalid chart data');
+    }
+    
+    if (!data.transactions || !Array.isArray(data.transactions)) {
+      throw new Error('Invalid export data: missing or invalid transactions');
+    }
+    
     const periodLabel = data.period === 'day' ? 'Daily' : data.period === 'week' ? 'Weekly' : 'Monthly';
     const dateLabel = formatDisplayDate(data.date, data.period);
     
@@ -206,15 +223,27 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
     `;
 
     // Generate PDF with print options
-    const { uri } = await Print.printToFileAsync({ 
-      html: htmlContent,
-      base64: false,
-      width: 612,
-      height: 792,
-    });
+    let uri: string;
+    try {
+      const result = await Print.printToFileAsync({ 
+        html: htmlContent,
+        base64: false,
+        width: 612,
+        height: 792,
+      });
+      uri = result.uri;
+    } catch (printError) {
+      console.error('Error generating PDF:', printError);
+      throw new Error(`Failed to generate PDF: ${printError instanceof Error ? printError.message : 'Unknown error'}`);
+    }
     
     // Share the PDF
-    if (await Sharing.isAvailableAsync()) {
+    const isSharingAvailable = await Sharing.isAvailableAsync();
+    if (!isSharingAvailable) {
+      throw new Error('Sharing is not available on this device');
+    }
+    
+    try {
       const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.pdf`;
       const newUri = `${FileSystem.documentDirectory}${filename}`;
       
@@ -229,8 +258,9 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
         to: newUri,
       });
       await Sharing.shareAsync(newUri);
-    } else {
-      throw new Error('Sharing is not available on this device');
+    } catch (fileError) {
+      console.error('Error handling PDF file:', fileError);
+      throw new Error(`Failed to save or share PDF: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
     }
   } catch (error) {
     console.error('Error exporting to PDF:', error);
@@ -240,6 +270,23 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
 
 export const exportToExcel = async (data: ExportData): Promise<void> => {
   try {
+    // Validate required data
+    if (!data || !data.date) {
+      throw new Error('Invalid export data: missing date');
+    }
+    
+    if (!data.summary || typeof data.summary.income !== 'number' || typeof data.summary.expense !== 'number') {
+      throw new Error('Invalid export data: missing or invalid summary');
+    }
+    
+    if (!data.chartData || !Array.isArray(data.chartData.labels)) {
+      throw new Error('Invalid export data: missing or invalid chart data');
+    }
+    
+    if (!data.transactions || !Array.isArray(data.transactions)) {
+      throw new Error('Invalid export data: missing or invalid transactions');
+    }
+    
     const periodLabel = data.period === 'day' ? 'Daily' : data.period === 'week' ? 'Weekly' : 'Monthly';
     const dateLabel = formatDisplayDate(data.date, data.period);
     
@@ -292,30 +339,48 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     }
     
     // Generate file
-    const wbout = XLSX.write(workbook, { 
-      type: 'base64', 
-      bookType: 'xlsx',
-      cellStyles: true,
-    });
+    let wbout: string;
+    try {
+      wbout = XLSX.write(workbook, { 
+        type: 'base64', 
+        bookType: 'xlsx',
+        cellStyles: true,
+      });
+    } catch (writeError) {
+      console.error('Error writing Excel workbook:', writeError);
+      throw new Error(`Failed to generate Excel file: ${writeError instanceof Error ? writeError.message : 'Unknown error'}`);
+    }
+    
     const filename = `report_${data.period}_${formatDate(data.date).replace(/-/g, '_')}.xlsx`;
     const fileUri = `${FileSystem.documentDirectory}${filename}`;
     
-    // Check if file already exists and delete it
-    const fileInfo = await FileSystem.getInfoAsync(fileUri);
-    if (fileInfo.exists) {
-      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+    try {
+      // Check if file already exists and delete it
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(fileUri, { idempotent: true });
+      }
+      
+      // Write file
+      await FileSystem.writeAsStringAsync(fileUri, wbout, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+    } catch (fileError) {
+      console.error('Error writing Excel file:', fileError);
+      throw new Error(`Failed to save Excel file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
     }
     
-    // Write file
-    await FileSystem.writeAsStringAsync(fileUri, wbout, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    
     // Share the file
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri);
-    } else {
+    const isSharingAvailable = await Sharing.isAvailableAsync();
+    if (!isSharingAvailable) {
       throw new Error('Sharing is not available on this device');
+    }
+    
+    try {
+      await Sharing.shareAsync(fileUri);
+    } catch (shareError) {
+      console.error('Error sharing Excel file:', shareError);
+      throw new Error(`Failed to share Excel file: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
     }
   } catch (error) {
     console.error('Error exporting to Excel:', error);

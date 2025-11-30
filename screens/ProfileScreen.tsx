@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
   ActivityIndicator,
   Alert,
   StyleSheet,
@@ -16,7 +15,7 @@ import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { userApi } from '../src/services/api.service';
-import { getAbsoluteLogoUrl } from '../src/utils/logoUrl';
+import { LogoImage } from '../src/components/LogoImage';
 
 export default function ProfileScreen(): React.JSX.Element {
   const { user, updateUser: updateUserContext, refreshUser } = useUser();
@@ -38,9 +37,10 @@ export default function ProfileScreen(): React.JSX.Element {
       setName(user.name || '');
       setPhone(user.phone || '');
       setCompanyName(user.companyName || '');
-      const userLogoUrl = user.logoUrl ? getAbsoluteLogoUrl(user.logoUrl) : null;
-      setLogoUri(userLogoUrl);
-      setOriginalLogoUri(userLogoUrl); // Store original for cancel/restore
+      // Store the original URL as-is (LogoImage handles URL conversion)
+      setLogoUri(user.logoUrl || null);
+      setOriginalLogoUri(user.logoUrl || null);
+      setLogoFileUri(null); // Reset file URI on user change
     }
   }, [user]);
 
@@ -116,14 +116,14 @@ export default function ProfileScreen(): React.JSX.Element {
       );
       
       updateUserContext(updatedUser);
-      // Refresh user data to ensure logo is loaded
-      await refreshUser();
-      // Update local logo display with the URL from server
+      // Update local state with the URL from server (keep it as-is, LogoImage handles conversion)
       const newLogoUrl = updatedUser.logoUrl || null;
       setLogoUri(newLogoUrl);
-      setOriginalLogoUri(newLogoUrl); // Update original after successful save
+      setOriginalLogoUri(newLogoUrl);
       setLogoFileUri(null); // Clear the file URI after upload
       Alert.alert(t('app.success'), t('profile.updated'));
+      // Refresh user data to ensure consistency
+      await refreshUser();
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert(t('app.error'), t('profile.errorUpdating'));
@@ -167,10 +167,15 @@ export default function ProfileScreen(): React.JSX.Element {
           >
             {pickingImage ? (
               <ActivityIndicator size="large" color={colors.primary} />
-            ) : logoUri ? (
-              <Image 
-                source={{ uri: getAbsoluteLogoUrl(logoUri) || logoUri }} 
+            ) : (logoUri || logoFileUri) ? (
+              <LogoImage 
+                uri={logoFileUri || logoUri}
+                isLocalFile={!!logoFileUri}
                 style={styles.logoPreview}
+                containerStyle={styles.logoPreviewContainer}
+                fallbackIconName="add-photo-alternate"
+                fallbackIconSize={40}
+                fallbackIconColor={colors.textSecondary}
                 onError={(error) => {
                   console.error('Logo load error:', error);
                   Alert.alert(t('app.error'), t('profile.logoLoadError') || t('auth.errorUploadingLogo'));
@@ -376,6 +381,12 @@ const styles = {
     width: '100%',
     height: '100%',
     borderRadius: 10,
+  },
+  logoPreviewContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+    backgroundColor: 'transparent',
   },
   removeLogoButton: {
     flexDirection: 'row' as const,

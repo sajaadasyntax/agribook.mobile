@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Image,
   Platform,
   processColor,
 } from 'react-native';
@@ -21,16 +20,17 @@ import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { reportApi, transactionApi, categoryApi, alertApi, reminderApi } from '../src/services/api.service';
+import syncService from '../src/services/sync.service';
 import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from '../src/types';
 import { calculateYAxisMax } from '../src/hooks/useReportData';
 import { formatCurrency } from '../src/utils/currency';
-import { getAbsoluteLogoUrl } from '../src/utils/logoUrl';
+import { LogoImage } from '../src/components/LogoImage';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen(): React.JSX.Element {
   const navigation = useNavigation<any>();
-  const { user, isAuthenticated } = useUser();
+  const { user, isAuthenticated, isOffline, settings } = useUser();
   const { t, isRTL, locale } = useI18n();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -70,11 +70,63 @@ export default function HomeScreen(): React.JSX.Element {
 
     try {
       setLoading(true);
-      const [summaryData, monthlyData, incomeCats, expenseCats, alertCountData, remindersData] = await Promise.all([
+      
+      // Load categories with offline fallback
+      const loadCategoriesWithFallback = async (): Promise<{ income: Category[]; expense: Category[] }> => {
+        try {
+          // Check actual network status first
+          const isCurrentlyOnline = await syncService.checkNetworkStatus();
+          const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+          
+          if (shouldUseOffline) {
+            // Load from cache when offline
+            const cachedCategories = await syncService.getCachedCategories();
+            return {
+              income: cachedCategories.filter(cat => cat.type === 'INCOME'),
+              expense: cachedCategories.filter(cat => cat.type === 'EXPENSE'),
+            };
+          } else {
+            // Load from API when online
+            try {
+              // Fetch all categories at once to avoid duplicate calls
+              const allCats = await categoryApi.getAll();
+              
+              // Cache all categories for offline use
+              await syncService.cacheCategories(allCats);
+              
+              return {
+                income: allCats.filter(cat => cat.type === 'INCOME'),
+                expense: allCats.filter(cat => cat.type === 'EXPENSE'),
+              };
+            } catch (apiError) {
+              // API failed, try cache as fallback
+              console.warn('API call failed, falling back to cache:', apiError);
+              const cachedCategories = await syncService.getCachedCategories();
+              
+              if (cachedCategories.length > 0) {
+                return {
+                  income: cachedCategories.filter(cat => cat.type === 'INCOME'),
+                  expense: cachedCategories.filter(cat => cat.type === 'EXPENSE'),
+                };
+              } else {
+                throw apiError; // No cache available, throw original error
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading categories:', error);
+          // Return empty arrays as fallback
+          return { income: [], expense: [] };
+        }
+      };
+
+      // Load categories with offline support
+      const { income: incomeCats, expense: expenseCats } = await loadCategoriesWithFallback();
+
+      // Load other data in parallel
+      const [summaryData, monthlyData, alertCountData, remindersData] = await Promise.all([
         reportApi.getSummary(),
         reportApi.getMonthly(),
-        categoryApi.getAll('INCOME'),
-        categoryApi.getAll('EXPENSE'),
         alertApi.getUnreadCount(),
         reminderApi.getAll(false), // Get incomplete reminders
       ]);
@@ -132,7 +184,7 @@ export default function HomeScreen(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user, t]);
+  }, [isAuthenticated, user, isOffline, settings, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -302,10 +354,15 @@ export default function HomeScreen(): React.JSX.Element {
     <View style={styles.container(colors)}>
       <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
         {user?.logoUrl ? (
-          <Image 
-            source={{ uri: getAbsoluteLogoUrl(user.logoUrl) || user.logoUrl }} 
-            style={styles.logoImage} 
-            resizeMode="contain" 
+          <LogoImage 
+            uri={user.logoUrl}
+            style={styles.logoImage}
+            containerStyle={styles.logoContainer}
+            resizeMode="contain"
+            showLoading={false}
+            fallbackText={user.companyName || t('app.name')}
+            fallbackIconSize={24}
+            fallbackIconColor={colors.textInverse}
             onError={(error) => {
               console.error('Logo load error in HomeScreen:', error);
             }}
@@ -612,7 +669,11 @@ const styles = {
   logoImage: {
     width: 120,
     height: 40,
-    maxWidth: 150,
+  },
+  logoContainer: {
+    width: 120,
+    height: 40,
+    backgroundColor: 'transparent',
   },
   appBarRTL: {
     flexDirection: 'row-reverse' as const,

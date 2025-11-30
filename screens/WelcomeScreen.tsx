@@ -10,14 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useI18n } from '../src/context/I18nContext';
 import { useUser } from '../src/context/UserContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { getAbsoluteLogoUrl } from '../src/utils/logoUrl';
+import { LogoImage } from '../src/components/LogoImage';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -304,9 +303,14 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
                 {pickingImage ? (
                   <ActivityIndicator size="large" color="#4CAF50" />
                 ) : logoUri ? (
-                  <Image 
-                    source={{ uri: getAbsoluteLogoUrl(logoUri) || logoUri }} 
+                  <LogoImage 
+                    uri={logoUri}
+                    isLocalFile={true}
                     style={styles.logoPreview}
+                    containerStyle={styles.logoPreviewContainer}
+                    fallbackIconName="add-photo-alternate"
+                    fallbackIconSize={40}
+                    fallbackIconColor="#999"
                     onError={(error) => {
                       console.error('Logo load error:', error);
                       Alert.alert(t('app.error'), t('auth.errorUploadingLogo') || 'Failed to load image');
@@ -586,6 +590,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 10,
+  },
+  logoPreviewContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+    backgroundColor: 'transparent',
   },
   removeLogoButton: {
     flexDirection: 'row',

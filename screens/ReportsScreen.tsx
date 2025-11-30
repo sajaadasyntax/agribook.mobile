@@ -212,6 +212,23 @@ export default function ReportsScreen(): React.JSX.Element {
 
   const handleExportPDF = async () => {
     try {
+      // Validate data before exporting
+      if (!summary || !chartData || !transactions) {
+        Alert.alert(
+          t('app.error') || 'Error',
+          t('reports.noDataToExport') || 'No data available to export. Please wait for the report to load.'
+        );
+        return;
+      }
+      
+      if (loading) {
+        Alert.alert(
+          t('app.error') || 'Error',
+          t('reports.loadingData') || 'Please wait for the report to finish loading.'
+        );
+        return;
+      }
+      
       await exportToPDF({
         period,
         date,
@@ -226,15 +243,33 @@ export default function ReportsScreen(): React.JSX.Element {
       );
     } catch (error) {
       console.error('Error exporting PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : (t('reports.exportError') || 'Failed to export report to PDF');
       Alert.alert(
         t('app.error') || 'Error',
-        t('reports.exportError') || 'Failed to export report to PDF'
+        errorMessage
       );
     }
   };
 
   const handleExportExcel = async () => {
     try {
+      // Validate data before exporting
+      if (!summary || !chartData || !transactions) {
+        Alert.alert(
+          t('app.error') || 'Error',
+          t('reports.noDataToExport') || 'No data available to export. Please wait for the report to load.'
+        );
+        return;
+      }
+      
+      if (loading) {
+        Alert.alert(
+          t('app.error') || 'Error',
+          t('reports.loadingData') || 'Please wait for the report to finish loading.'
+        );
+        return;
+      }
+      
       await exportToExcel({
         period,
         date,
@@ -249,9 +284,10 @@ export default function ReportsScreen(): React.JSX.Element {
       );
     } catch (error) {
       console.error('Error exporting Excel:', error);
+      const errorMessage = error instanceof Error ? error.message : (t('reports.exportError') || 'Failed to export report to Excel');
       Alert.alert(
         t('app.error') || 'Error',
-        t('reports.exportError') || 'Failed to export report to Excel'
+        errorMessage
       );
     }
   };

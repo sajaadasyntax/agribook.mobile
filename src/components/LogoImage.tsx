@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Image,
   View,
@@ -7,13 +7,12 @@ import {
   StyleSheet,
   ImageStyle,
   ViewStyle,
-  TextStyle,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { getAbsoluteLogoUrl } from '../utils/logoUrl';
 
 interface LogoImageProps {
-  /** Logo URL (can be relative or absolute) */
+  /** Logo URL (can be relative, absolute, or local file URI) */
   uri: string | null | undefined;
   /** Image style */
   style?: ImageStyle;
@@ -33,6 +32,10 @@ interface LogoImageProps {
   onLoad?: () => void;
   /** Callback when image fails to load */
   onError?: (error: string) => void;
+  /** Fallback icon name (MaterialIcons) */
+  fallbackIconName?: keyof typeof Icon.glyphMap;
+  /** Whether the URI is a local file (skip URL conversion) */
+  isLocalFile?: boolean;
 }
 
 /**
@@ -55,13 +58,23 @@ export const LogoImage: React.FC<LogoImageProps> = ({
   resizeMode = 'contain',
   onLoad,
   onError,
+  fallbackIconName = 'business',
+  isLocalFile = false,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Get absolute URL
-  const absoluteUrl = getAbsoluteLogoUrl(uri);
+  // Get the display URL - local files don't need conversion
+  const isLocalUri = uri && (uri.startsWith('file://') || uri.startsWith('content://') || uri.startsWith('ph://'));
+  const displayUrl = isLocalFile || isLocalUri ? uri : getAbsoluteLogoUrl(uri);
+
+  // Reset state when URI changes
+  useEffect(() => {
+    setIsLoading(true);
+    setHasError(false);
+    setRetryCount(0);
+  }, [uri]);
 
   // Handle image load success
   const handleLoad = useCallback(() => {
@@ -74,10 +87,10 @@ export const LogoImage: React.FC<LogoImageProps> = ({
   const handleError = useCallback(() => {
     setIsLoading(false);
     setHasError(true);
-    const errorMsg = `Failed to load logo from: ${absoluteUrl}`;
+    const errorMsg = `Failed to load logo from: ${displayUrl}`;
     console.error(errorMsg);
     onError?.(errorMsg);
-  }, [absoluteUrl, onError]);
+  }, [displayUrl, onError]);
 
   // Retry loading the image
   const handleRetry = useCallback(() => {
@@ -93,7 +106,7 @@ export const LogoImage: React.FC<LogoImageProps> = ({
   const containerStyleFlat = StyleSheet.flatten([styles.container, containerStyle]) as ViewStyle;
 
   // If no URL provided, show fallback
-  if (!absoluteUrl) {
+  if (!displayUrl) {
     return (
       <View style={[containerStyleFlat, styles.fallbackContainer]}>
         {fallbackText ? (
@@ -101,7 +114,7 @@ export const LogoImage: React.FC<LogoImageProps> = ({
             {fallbackText.substring(0, 2).toUpperCase()}
           </Text>
         ) : (
-          <Icon name="business" size={fallbackIconSize} color={fallbackIconColor} />
+          <Icon name={fallbackIconName} size={fallbackIconSize} color={fallbackIconColor} />
         )}
       </View>
     );
@@ -131,7 +144,7 @@ export const LogoImage: React.FC<LogoImageProps> = ({
       )}
       <Image
         key={retryCount} // Force re-render on retry
-        source={{ uri: absoluteUrl }}
+        source={{ uri: displayUrl }}
         style={imageStyle}
         resizeMode={resizeMode}
         onLoad={handleLoad}
