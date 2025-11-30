@@ -354,13 +354,13 @@ class ApiClient {
     };
 
     // Retry logic for upload failures
-    let lastError: Error | null = null;
+    let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const response = await this.client.post<T>(url, formData, config);
         return response.data;
       } catch (error) {
-        lastError = error as Error;
+        lastError = error;
         const isRetryable = this.isRetryableError(error);
         
         if (attempt < maxRetries && isRetryable) {
@@ -372,10 +372,12 @@ class ApiClient {
           await this.delay(1000 * (attempt + 1));
           continue;
         }
+        // If not retryable or max retries reached, throw the error
         throw error;
       }
     }
-    throw lastError;
+    // This should never be reached (loop always returns or throws), but needed for TypeScript
+    throw lastError || new Error('Unexpected: retry loop completed without returning or throwing');
   }
 
   async putMultipart<T>(url: string, formData: FormData, onUploadProgress?: (progress: number) => void, maxRetries: number = 2): Promise<T> {
@@ -398,13 +400,13 @@ class ApiClient {
     };
 
     // Retry logic for upload failures
-    let lastError: Error | null = null;
+    let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const response = await this.client.put<T>(url, formData, config);
         return response.data;
       } catch (error) {
-        lastError = error as Error;
+        lastError = error;
         const isRetryable = this.isRetryableError(error);
         
         if (attempt < maxRetries && isRetryable) {
@@ -416,10 +418,12 @@ class ApiClient {
           await this.delay(1000 * (attempt + 1));
           continue;
         }
+        // If not retryable or max retries reached, throw the error
         throw error;
       }
     }
-    throw lastError;
+    // This should never be reached (loop always returns or throws), but needed for TypeScript
+    throw lastError || new Error('Unexpected: retry loop completed without returning or throwing');
   }
 
   // Check if an error is retryable (network issues, timeouts)
