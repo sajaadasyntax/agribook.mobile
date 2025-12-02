@@ -244,8 +244,8 @@ export default function LockScreen({
     <View style={styles.container}>
       <View style={styles.header}>
         <Icon name="lock" size={60} color="#4CAF50" />
-        <Text style={styles.title}>{t('lock.title') || 'AgriBooks'}</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, isRTL && styles.titleRTL]}>{t('lock.title') || 'AgriBooks'}</Text>
+        <Text style={[styles.subtitle, isRTL && styles.subtitleRTL]}>
           {lockedOut 
             ? (t('lock.lockedOut', { time: formatLockoutTime(lockoutRemaining) }) || 
                `Locked. Try again in ${formatLockoutTime(lockoutRemaining)}`)
@@ -330,14 +330,14 @@ export default function LockScreen({
           disabled={loading}
         >
           <Icon name="fingerprint" size={32} color="#4CAF50" />
-          <Text style={styles.biometricText}>
+          <Text style={[styles.biometricText, isRTL && styles.biometricTextRTL]}>
             {t('lock.useBiometric', { type: biometricType }) || `Use ${biometricType}`}
           </Text>
         </TouchableOpacity>
       )}
 
       {attempts > 0 && !lockedOut && (
-        <Text style={styles.attemptsText}>
+        <Text style={[styles.attemptsText, isRTL && styles.attemptsTextRTL]}>
           {t('lock.attemptsCount', { current: attempts, max: MAX_ATTEMPTS }) ||
             `Attempt ${attempts} of ${MAX_ATTEMPTS}`}
         </Text>
@@ -363,11 +363,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4CAF50',
     marginTop: 16,
+    textAlign: 'center',
+  },
+  titleRTL: {
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: '#666',
     marginTop: 8,
+    textAlign: 'center',
+  },
+  subtitleRTL: {
     textAlign: 'center',
   },
   pinContainer: {
@@ -468,11 +475,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4CAF50',
     fontWeight: '600',
+    textAlign: 'left',
+  },
+  biometricTextRTL: {
+    textAlign: 'right',
   },
   attemptsText: {
     marginTop: 16,
     fontSize: 14,
     color: '#F44336',
+    textAlign: 'center',
+  },
+  attemptsTextRTL: {
+    textAlign: 'center',
   },
 });
 

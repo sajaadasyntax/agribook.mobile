@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -269,30 +271,36 @@ export default function HomeScreen(): React.JSX.Element {
   const balance = summary?.balance || 0;
 
   return (
-    <View style={styles.container(colors)}>
-      <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-        <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
-        <TouchableOpacity 
-          style={styles.notificationButton}
-          onPress={() => navigation.navigate('Alerts')}
-        >
-          <Icon name="notifications" size={24} color={colors.textInverse} />
-          {(unreadAlertCount > 0 || upcomingReminderCount > 0) && (
-            <View style={[styles.notificationBadge, isRTL && styles.notificationBadgeRTL]}>
-              <Text style={styles.notificationBadgeText}>
-                {(unreadAlertCount + upcomingReminderCount) > 99 ? '99+' : (unreadAlertCount + upcomingReminderCount)}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+    <KeyboardAvoidingView 
+      style={styles.keyboardAvoid(colors)}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.container(colors)}>
+        <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
+          <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('Alerts')}
+          >
+            <Icon name="notifications" size={24} color={colors.textInverse} />
+            {(unreadAlertCount > 0 || upcomingReminderCount > 0) && (
+              <View style={[styles.notificationBadge, isRTL && styles.notificationBadgeRTL]}>
+                <Text style={styles.notificationBadgeText}>
+                  {(unreadAlertCount + upcomingReminderCount) > 99 ? '99+' : (unreadAlertCount + upcomingReminderCount)}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
         {/* Financial Summary - Using Reports Summary Cards Style */}
         <View style={styles.section(colors)}>
           <View style={[styles.summaryContainer, isRTL && styles.summaryContainerRTL]}>
@@ -450,12 +458,17 @@ export default function HomeScreen(): React.JSX.Element {
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = {
+  keyboardAvoid: (colors: any) => ({
+    flex: 1,
+    backgroundColor: colors.background,
+  }),
   container: (colors: any) => ({
     flex: 1,
     backgroundColor: colors.background,
@@ -463,6 +476,10 @@ const styles = {
   centerContent: {
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
   },
   loadingText: (colors: any) => ({
     marginTop: 10,
@@ -487,6 +504,7 @@ const styles = {
     fontSize: 24,
     fontWeight: 'bold' as const,
     color: '#fff',
+    textAlign: 'left' as const,
   },
   appBarTitleRTL: {
     textAlign: 'right' as const,
@@ -562,10 +580,12 @@ const styles = {
     fontSize: 12,
     color: colors.textSecondary,
     marginBottom: 4,
+    textAlign: 'center' as const,
   }),
   summaryValue: {
     fontSize: 16,
     fontWeight: 'bold' as const,
+    textAlign: 'center' as const,
   },
   actionButtons: {
     flexDirection: 'row' as const,
@@ -615,6 +635,7 @@ const styles = {
     color: colors.primary,
     fontSize: 14,
     fontWeight: '500' as const,
+    textAlign: 'center' as const,
   }),
   categoryButtonTextActive: {
     color: '#fff',

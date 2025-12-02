@@ -235,11 +235,11 @@ export default function ReportsScreen(): React.JSX.Element {
   const renderDateNavigator = () => (
     <View style={[styles.dateNavigator, isRTL && styles.dateNavigatorRTL]}>
       <TouchableOpacity onPress={handlePrevious} style={styles.navButton(colors)}>
-        <Icon name={isRTL ? "chevron-right" : "chevron-left"} size={28} color={colors.text} />
+        <Icon name={isRTL ? "keyboard-arrow-right" : "keyboard-arrow-left"} size={28} color={colors.text} />
       </TouchableOpacity>
       <Text style={styles.dateText(colors)}>{formatDisplayDate(date, period)}</Text>
       <TouchableOpacity onPress={handleNext} style={styles.navButton(colors)}>
-        <Icon name={isRTL ? "chevron-left" : "chevron-right"} size={28} color={colors.text} />
+        <Icon name={isRTL ? "keyboard-arrow-left" : "keyboard-arrow-right"} size={28} color={colors.text} />
       </TouchableOpacity>
     </View>
   );
@@ -384,14 +384,15 @@ export default function ReportsScreen(): React.JSX.Element {
           />
         </View>
         <View>
-          <Text style={styles.transactionCategory(colors)}>{item.category?.name || 'Uncategorized'}</Text>
-          <Text style={styles.transactionDate(colors)}>
+          <Text style={[styles.transactionCategory(colors), isRTL && styles.transactionCategoryRTL]}>{item.category?.name || 'Uncategorized'}</Text>
+          <Text style={[styles.transactionDate(colors), isRTL && styles.transactionDateRTL]}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
       </View>
       <Text style={[
         styles.transactionAmount,
+        isRTL && styles.transactionAmountRTL,
         { color: item.type === 'INCOME' ? colors.income : colors.expense }
       ]}>
         {item.type === 'INCOME' ? '+' : '-'}{formatCurrency(parseFloat(item.amount.toString()), { locale })}
@@ -473,13 +474,7 @@ export default function ReportsScreen(): React.JSX.Element {
               }}
               chartDescription={{ text: '' }}
               legend={{
-                enabled: true,
-                textSize: 12,
-                form: 'SQUARE',
-                formSize: 12,
-                xEntrySpace: 10,
-                yEntrySpace: 5,
-                wordWrapEnabled: true, // Ensures legend text wraps properly to prevent overflow
+                enabled: false, // Disable built-in legend, using custom legend below
               }}
               animation={{ durationX: 800, durationY: 800 }}
               drawValueAboveBar={true}
@@ -490,6 +485,17 @@ export default function ReportsScreen(): React.JSX.Element {
               scaleYEnabled={false}
               pinchZoom={false}
             />
+            {/* Custom centered legend */}
+            <View style={styles.chartLegend}>
+              <View style={[styles.legendItem, isRTL && styles.legendItemRTL]}>
+                <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
+                <Text style={styles.legendText(colors)}>{t('reports.income') || 'Income'}</Text>
+              </View>
+              <View style={[styles.legendItem, isRTL && styles.legendItemRTL]}>
+                <View style={[styles.legendDot, { backgroundColor: colors.expense }]} />
+                <Text style={styles.legendText(colors)}>{t('reports.expense') || 'Expense'}</Text>
+              </View>
+            </View>
           ) : (
             <View style={styles.chartEmptyContainer}>
               <Icon name="bar-chart" size={48} color={colors.textSecondary} />
@@ -546,6 +552,7 @@ const styles = {
     fontSize: 24,
     fontWeight: 'bold' as const,
     color: colors.text,
+    textAlign: 'left' as const,
   }),
   headerTitleRTL: {
     textAlign: 'right' as const,
@@ -644,10 +651,12 @@ const styles = {
     fontSize: 12,
     color: colors.textSecondary,
     marginBottom: 4,
+    textAlign: 'center' as const,
   }),
   summaryValue: {
     fontSize: 16,
     fontWeight: 'bold' as const,
+    textAlign: 'center' as const,
   },
   chartContainer: (colors: any) => ({
     backgroundColor: colors.surface,
@@ -698,14 +707,26 @@ const styles = {
     fontSize: 16,
     fontWeight: '500' as const,
     color: colors.text,
+    textAlign: 'left' as const,
   }),
+  transactionCategoryRTL: {
+    textAlign: 'right' as const,
+  },
   transactionDate: (colors: any) => ({
     fontSize: 12,
     color: colors.textSecondary,
+    textAlign: 'left' as const,
   }),
+  transactionDateRTL: {
+    textAlign: 'right' as const,
+  },
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold' as const,
+    textAlign: 'right' as const,
+  },
+  transactionAmountRTL: {
+    textAlign: 'left' as const,
   },
   emptyText: (colors: any) => ({
     textAlign: 'center' as const,
@@ -721,7 +742,32 @@ const styles = {
   barChart: {
     height: 240,
     width: screenWidth - 64, // Account for container margins (32px) and padding (32px)
-    marginVertical: 12,
+    marginBottom: 8,
     alignSelf: 'center' as const,
   },
+  chartLegend: {
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginTop: 16,
+    gap: 24,
+  },
+  legendItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
+  legendItemRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
+  },
+  legendText: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.text,
+  }),
 };

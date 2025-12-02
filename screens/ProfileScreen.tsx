@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useUser } from '../src/context/UserContext';
@@ -72,14 +74,23 @@ export default function ProfileScreen(): React.JSX.Element {
   }
 
   return (
-    <View style={styles.container(colors)}>
-      <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-        <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>
-          {t('profile.title')}
-        </Text>
-      </View>
+    <KeyboardAvoidingView 
+      style={styles.keyboardAvoid(colors)}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.container(colors)}>
+        <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
+          <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>
+            {t('profile.title')}
+          </Text>
+        </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
         {/* Personal Information */}
         <View style={styles.section(colors)}>
           <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
@@ -153,12 +164,17 @@ export default function ProfileScreen(): React.JSX.Element {
             <Text style={styles.saveButtonText}>{t('app.save')}</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = {
+  keyboardAvoid: (colors: any) => ({
+    flex: 1,
+    backgroundColor: colors.background,
+  }),
   container: (colors: any) => ({
     flex: 1,
     backgroundColor: colors.background,
@@ -166,6 +182,10 @@ const styles = {
   centerContent: {
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
   },
   appBar: (colors: any) => ({
     flexDirection: 'row' as const,
@@ -188,6 +208,7 @@ const styles = {
     fontSize: 24,
     fontWeight: 'bold' as const,
     color: '#fff',
+    textAlign: 'left' as const,
   },
   appBarTitleRTL: {
     textAlign: 'right' as const,

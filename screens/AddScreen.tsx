@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -516,20 +518,29 @@ export default function AddScreen(): React.JSX.Element {
   const expenseCategories = allCategories.filter(c => c.type === 'EXPENSE');
 
   return (
-    <ScrollView style={styles.container(colors)}>
-      <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
-        <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
-          {t('add.title') || 'Add Transaction'}
-        </Text>
-        {(!isNetworkOnline || settings?.offlineMode) && (
-          <View style={[styles.offlineBadge, isRTL && styles.offlineBadgeRTL]}>
-            <Icon name="cloud-off" size={16} color={colors.textInverse} />
-            <Text style={styles.offlineBadgeText}>
-              {t('settings.offline') || 'Offline'}
-            </Text>
-          </View>
-        )}
-      </View>
+    <KeyboardAvoidingView 
+      style={styles.keyboardAvoid(colors)}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        style={styles.container(colors)}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
+          <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
+            {t('add.title') || 'Add Transaction'}
+          </Text>
+          {(!isNetworkOnline || settings?.offlineMode) && (
+            <View style={[styles.offlineBadge, isRTL && styles.offlineBadgeRTL]}>
+              <Icon name="cloud-off" size={16} color={colors.textInverse} />
+              <Text style={styles.offlineBadgeText}>
+                {t('settings.offline') || 'Offline'}
+              </Text>
+            </View>
+          )}
+        </View>
 
       {/* Pending sync indicator */}
       {pendingCount > 0 && (
@@ -745,7 +756,7 @@ export default function AddScreen(): React.JSX.Element {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent(colors)}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <Text style={styles.modalTitle(colors)}>
+              <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
                 {managementMode === 'add' ? t('add.addCategory') : t('add.deleteCategory')}
               </Text>
               <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
@@ -927,15 +938,24 @@ export default function AddScreen(): React.JSX.Element {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = {
+  keyboardAvoid: (colors: any) => ({
+    flex: 1,
+    backgroundColor: colors.background,
+  }),
   container: (colors: any) => ({
     flex: 1,
     backgroundColor: colors.background,
   }),
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
   header: (colors: any) => ({
     backgroundColor: colors.primary,
     padding: 16,
@@ -948,6 +968,7 @@ const styles = {
     fontSize: 24,
     fontWeight: 'bold' as const,
     color: '#fff',
+    textAlign: 'left' as const,
   },
   headerTitleRTL: {
     textAlign: 'right' as const,
@@ -1100,11 +1121,13 @@ const styles = {
     marginTop: 8,
     color: colors.textSecondary,
     fontSize: 14,
+    textAlign: 'center' as const,
   }),
   noCategoriesHint: (colors: any) => ({
     marginTop: 4,
     color: colors.textSecondary,
     fontSize: 12,
+    textAlign: 'center' as const,
   }),
   addCategoryInlineButton: (colors: any) => ({
     flexDirection: 'row' as const,
@@ -1143,6 +1166,7 @@ const styles = {
     color: colors.primary,
     fontSize: 14,
     fontWeight: '500' as const,
+    textAlign: 'center' as const,
   }),
   categoryButtonTextActive: {
     color: '#fff',
@@ -1227,7 +1251,11 @@ const styles = {
     fontSize: 18,
     fontWeight: 'bold' as const,
     color: colors.text,
+    textAlign: 'left' as const,
   }),
+  modalTitleRTL: {
+    textAlign: 'right' as const,
+  },
   modalBody: {
     padding: 16,
     maxHeight: 400,
@@ -1244,6 +1272,7 @@ const styles = {
     fontWeight: '600' as const,
     color: colors.text,
     marginBottom: 8,
+    textAlign: 'left' as const,
   }),
   textRTL: {
     textAlign: 'right' as const,

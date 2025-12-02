@@ -469,8 +469,8 @@ export default function SettingsScreen(): React.JSX.Element {
           >
             <Icon name="person" size={24} color={colors.primary} />
             <View style={styles.profileButtonContent}>
-              <Text style={styles.profileButtonTitle(colors)}>{t('profile.title')}</Text>
-              <Text style={styles.profileButtonSubtitle(colors)}>
+              <Text style={[styles.profileButtonTitle(colors), isRTL && styles.profileButtonTitleRTL]}>{t('profile.title')}</Text>
+              <Text style={[styles.profileButtonSubtitle(colors), isRTL && styles.profileButtonSubtitleRTL]}>
                 {user?.companyName || user?.name || t('profile.viewProfile')}
               </Text>
             </View>
@@ -484,11 +484,11 @@ export default function SettingsScreen(): React.JSX.Element {
           
           {/* Set/Change PIN Button */}
           <TouchableOpacity
-            style={styles.setPinButton(colors)}
+            style={[styles.setPinButton(colors), isRTL && styles.setPinButtonRTL]}
             onPress={openPinModal}
           >
             <Icon name="dialpad" size={24} color={colors.primary} />
-            <Text style={styles.setPinButtonText(colors)}>
+            <Text style={[styles.setPinButtonText(colors), isRTL && styles.setPinButtonTextRTL]}>
               {hasSavedPin ? t('settings.changePin') : t('settings.savePin')}
             </Text>
             <Icon name={isRTL ? 'chevron-left' : 'chevron-right'} size={24} color={colors.textSecondary} />
@@ -736,6 +736,7 @@ const styles = {
     fontSize: 24,
     fontWeight: 'bold' as const,
     color: '#fff',
+    textAlign: 'left' as const,
   },
   appBarTitleRTL: {
     textAlign: 'right' as const,
@@ -1012,11 +1013,19 @@ const styles = {
     fontWeight: 'bold' as const,
     color: colors.text,
     marginBottom: 4,
+    textAlign: 'left' as const,
   }),
+  profileButtonTitleRTL: {
+    textAlign: 'right' as const,
+  },
   profileButtonSubtitle: (colors: any) => ({
     fontSize: 14,
     color: colors.textSecondary,
+    textAlign: 'left' as const,
   }),
+  profileButtonSubtitleRTL: {
+    textAlign: 'right' as const,
+  },
   // PIN Modal Styles
   setPinButton: (colors: any) => ({
     flexDirection: 'row' as const,
@@ -1027,12 +1036,21 @@ const styles = {
     borderRadius: 8,
     marginBottom: 16,
   }),
+  setPinButtonRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
   setPinButtonText: (colors: any) => ({
     flex: 1,
     fontSize: 16,
     color: colors.text,
     marginLeft: 12,
+    textAlign: 'left' as const,
   }),
+  setPinButtonTextRTL: {
+    textAlign: 'right' as const,
+    marginLeft: 0,
+    marginRight: 12,
+  },
   pinModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

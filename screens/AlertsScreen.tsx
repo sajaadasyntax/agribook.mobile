@@ -441,14 +441,14 @@ export default function AlertsScreen(): React.JSX.Element {
                         {t('alerts.thresholdReminderDesc')}
                       </Text>
                       {reminder.thresholdAmount && (
-                        <Text style={styles.reminderThreshold(colors)}>
+                        <Text style={[styles.reminderThreshold(colors), isRTL && styles.textRTL]}>
                           {t('alerts.thresholdAmount')}: ${reminder.thresholdAmount}
                         </Text>
                       )}
                       {reminder.categoryId && (() => {
                         const category = categories.find(c => c.id === reminder.categoryId);
                         return category ? (
-                          <Text style={styles.reminderCategory(colors)}>
+                          <Text style={[styles.reminderCategory(colors), isRTL && styles.textRTL]}>
                             {t('alerts.category')}: {category.name}
                           </Text>
                         ) : null;
@@ -457,18 +457,18 @@ export default function AlertsScreen(): React.JSX.Element {
                   )}
                   {reminder.reminderType === 'TRANSACTION' && (
                     <View style={styles.reminderDetailsContainer}>
-                      <Text style={styles.reminderTriggerDesc(colors)}>
+                      <Text style={[styles.reminderTriggerDesc(colors), isRTL && styles.textRTL]}>
                         {t('alerts.transactionReminderDesc')}
                       </Text>
                       {reminder.transactionAmount && (
-                        <Text style={styles.reminderThreshold(colors)}>
+                        <Text style={[styles.reminderThreshold(colors), isRTL && styles.textRTL]}>
                           {reminder.transactionType === 'INCOME' ? t('alerts.incomeTransaction') : t('alerts.expenseTransaction')}: ${reminder.transactionAmount}
                         </Text>
                       )}
                       {reminder.categoryId && (() => {
                         const category = categories.find(c => c.id === reminder.categoryId);
                         return category ? (
-                          <Text style={styles.reminderCategory(colors)}>
+                          <Text style={[styles.reminderCategory(colors), isRTL && styles.textRTL]}>
                             {t('alerts.category')}: {category.name}
                           </Text>
                         ) : null;
@@ -476,7 +476,7 @@ export default function AlertsScreen(): React.JSX.Element {
                     </View>
                   )}
                   {(!reminder.reminderType || reminder.reminderType === 'GENERAL') && (
-                    <Text style={styles.reminderTriggerDesc(colors)}>
+                    <Text style={[styles.reminderTriggerDesc(colors), isRTL && styles.textRTL]}>
                       {t('alerts.generalReminderDesc')}
                     </Text>
                   )}
@@ -565,7 +565,7 @@ export default function AlertsScreen(): React.JSX.Element {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent(colors)}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <Text style={styles.modalTitle(colors)}>
+              <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
                 {editingReminder ? t('alerts.editReminder') : t('alerts.addReminder')}
               </Text>
               <TouchableOpacity onPress={() => setShowAddReminderModal(false)}>
@@ -817,7 +817,7 @@ export default function AlertsScreen(): React.JSX.Element {
         <View style={styles.modalOverlay}>
           <View style={styles.datePickerModalContent(colors)}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <Text style={styles.modalTitle(colors)}>{t('alerts.selectDate')}</Text>
+              <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>{t('alerts.selectDate')}</Text>
               <TouchableOpacity onPress={() => setShowDatePickerModal(false)}>
                 <Icon name="close" size={24} color={colors.text} />
               </TouchableOpacity>
@@ -975,6 +975,7 @@ const styles = {
     fontSize: 24,
     fontWeight: 'bold' as const,
     color: colors.textInverse,
+    textAlign: 'left' as const,
   }),
   headerTitleRTL: {
     textAlign: 'right' as const,
@@ -1074,10 +1075,12 @@ const styles = {
     fontSize: 14,
     color: colors.text,
     marginBottom: 4,
+    textAlign: 'left' as const,
   }),
   alertTime: (colors: any) => ({
     fontSize: 12,
     color: colors.textSecondary,
+    textAlign: 'left' as const,
   }),
   textRTL: {
     textAlign: 'right' as const,
@@ -1110,11 +1113,13 @@ const styles = {
     fontWeight: 'bold' as const,
     color: colors.text,
     marginBottom: 4,
+    textAlign: 'left' as const,
   }),
   reminderDescription: (colors: any) => ({
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 4,
+    textAlign: 'left' as const,
   }),
   reminderMeta: {
     flexDirection: 'row' as const,
@@ -1142,6 +1147,7 @@ const styles = {
     color: colors.income,
     marginTop: 4,
     fontWeight: '600' as const,
+    textAlign: 'left' as const,
   }),
   reminderDetailsContainer: {
     marginTop: 8,
@@ -1154,11 +1160,13 @@ const styles = {
     color: colors.textSecondary,
     fontStyle: 'italic' as const,
     marginBottom: 4,
+    textAlign: 'left' as const,
   }),
   reminderCategory: (colors: any) => ({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 2,
+    textAlign: 'left' as const,
   }),
   reminderActions: {
     alignItems: 'center' as const,
@@ -1253,7 +1261,11 @@ const styles = {
     fontSize: 18,
     fontWeight: 'bold' as const,
     color: colors.text,
+    textAlign: 'left' as const,
   }),
+  modalTitleRTL: {
+    textAlign: 'right' as const,
+  },
   modalBody: {
     padding: 16,
     maxHeight: 450,
@@ -1271,6 +1283,7 @@ const styles = {
     color: colors.text,
     marginBottom: 8,
     marginTop: 12,
+    textAlign: 'left' as const,
   }),
   input: (colors: any) => ({
     borderWidth: 1,
