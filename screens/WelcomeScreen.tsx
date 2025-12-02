@@ -15,12 +15,6 @@ import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useI18n } from '../src/context/I18nContext';
 import { useUser } from '../src/context/UserContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { LogoImage } from '../src/components/LogoImage';
-import {
-  pickAndOptimizeImage,
-  getImageErrorMessage,
-  IMAGE_ERROR_MESSAGES,
-} from '../src/utils/imageUtils';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -37,13 +31,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState('');
-  // Simplified logo state - only track the optimized file URI for upload
-  const [logoFileUri, setLogoFileUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pickingImage, setPickingImage] = useState(false);
-  // Upload progress state
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
 
   // Reset loading when authentication succeeds
   useEffect(() => {
@@ -52,50 +40,20 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
     }
   }, [isAuthenticated]);
 
-  // Handle image picking with optimization
-  const handlePickImage = useCallback(async () => {
-    if (pickingImage) return;
-
-    try {
-      setPickingImage(true);
-      
-      const result = await pickAndOptimizeImage({
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        maxDimension: 1024,
-      });
-
-      if (result) {
-        // Use the optimized URI for both preview and upload
-        setLogoFileUri(result.optimizedUri);
-      }
-    } catch (error) {
-      const errorMessage = getImageErrorMessage(error);
-      
-      // Only show alert for actual errors, not for permission denied (user cancelled)
-      if (errorMessage !== IMAGE_ERROR_MESSAGES.PERMISSION_DENIED) {
-        Alert.alert(t('app.error'), errorMessage);
-      } else {
-        Alert.alert(t('app.error'), t('auth.permissionDenied'));
-      }
-    } finally {
-      setPickingImage(false);
-    }
-  }, [pickingImage, t]);
-
-  // Handle logo removal
-  const handleRemoveLogo = useCallback(() => {
-    setLogoFileUri(null);
-  }, []);
 
   const handleSubmit = async (): Promise<void> => {
     try {
       setLoading(true);
       
-      // For sign in, require email or phone
-      if (isSignIn && !email && !phone) {
-        Alert.alert(t('app.error'), t('auth.loginRequired'));
+      // For sign in, require phone and password
+      if (isSignIn && !phone) {
+        Alert.alert(t('app.error'), 'Phone number is required for login');
+        setLoading(false);
+        return;
+      }
+
+      if (isSignIn && !password) {
+        Alert.alert(t('app.error'), 'Password is required for login');
         setLoading(false);
         return;
       }
@@ -116,48 +74,35 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
       // Login or register based on mode
       if (isSignIn) {
-        // Login: email/phone and password required
-        await login(email || undefined, phone || undefined, password || undefined);
+        // Login: phone and password required (no email)
+        await login(undefined, phone || undefined, password || undefined);
       } else {
-        // Register: name is required, password recommended, other fields optional
-        // Set upload state if we have a logo
-        if (logoFileUri) {
-          setIsUploading(true);
-          setUploadProgress(0);
-        }
-        
+        // Register: name is required, password recommended, other fields optional (no logo)
         await register(
           email || undefined,
           name || undefined,
           phone || undefined,
           password || undefined,
           companyName || undefined,
-          logoFileUri || undefined,
-          logoFileUri ? (progress) => setUploadProgress(progress) : undefined
+          undefined, // No logo upload
+          undefined // No upload progress
         );
       }
       
       // Navigation will happen automatically when isAuthenticated becomes true
       // Keep loading state true until navigation happens
-    } catch (error) {
+      } catch (error) {
       console.error('Error authenticating:', error);
       // Provide more specific error message
       let errorMessage = t('auth.error');
       if (error instanceof Error) {
         const msg = error.message.toLowerCase();
-        if (msg.includes('logo') || msg.includes('upload') || msg.includes('file')) {
-          errorMessage = getImageErrorMessage(error);
-        } else if (msg.includes('network') || msg.includes('connection')) {
+        if (msg.includes('network') || msg.includes('connection')) {
           errorMessage = t('app.networkError') || 'Network error. Please check your connection.';
-        } else if (msg.includes('timeout')) {
-          errorMessage = IMAGE_ERROR_MESSAGES.TIMEOUT;
         }
       }
       Alert.alert(t('app.error'), errorMessage);
       setLoading(false);
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -224,26 +169,28 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             </View>
           )}
 
-          {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <View style={[styles.labelRow, isRTL && styles.labelRowRTL]}>
-              <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.email')}</Text>
-              {!isSignIn && <Text style={[styles.optional, isRTL && styles.textRTL]}>{t('auth.optional')}</Text>}
+          {/* Email Input - Only for Sign Up */}
+          {!isSignIn && (
+            <View style={styles.inputContainer}>
+              <View style={[styles.labelRow, isRTL && styles.labelRowRTL]}>
+                <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.email')}</Text>
+                <Text style={[styles.optional, isRTL && styles.textRTL]}>{t('auth.optional')}</Text>
+              </View>
+              <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
+                <Icon name="email" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, isRTL && styles.inputRTL]}
+                  placeholder={t('auth.emailPlaceholder')}
+                  value={email}
+                  onChangeText={setEmail}
+                  textAlign={isRTL ? 'right' : 'left'}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
             </View>
-            <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRTL]}>
-              <Icon name="email" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, isRTL && styles.inputRTL]}
-                placeholder={t('auth.emailPlaceholder')}
-                value={email}
-                onChangeText={setEmail}
-                textAlign={isRTL ? 'right' : 'left'}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          </View>
+          )}
 
           {/* Phone Input */}
           <View style={styles.inputContainer}>
@@ -314,50 +261,6 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             </View>
           )}
 
-          {/* Logo Upload - Only for Sign Up */}
-          {!isSignIn && (
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isRTL && styles.labelRTL]}>{t('auth.companyLogo')}</Text>
-              <TouchableOpacity
-                style={[styles.logoUploadButton, isRTL && styles.logoUploadButtonRTL, pickingImage && styles.logoUploadButtonDisabled]}
-                onPress={handlePickImage}
-                disabled={pickingImage}
-              >
-                {pickingImage ? (
-                  <ActivityIndicator size="large" color="#4CAF50" />
-                ) : logoFileUri ? (
-                  <LogoImage 
-                    uri={logoFileUri}
-                    isLocalFile={true}
-                    style={styles.logoPreview}
-                    containerStyle={styles.logoPreviewContainer}
-                    fallbackIconName="add-photo-alternate"
-                    fallbackIconSize={40}
-                    fallbackIconColor="#999"
-                    showLoading={true}
-                    onError={(error) => {
-                      // Only log for preview - don't show alert as LogoImage shows fallback
-                      console.warn('Logo preview load warning:', error);
-                    }}
-                  />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Icon name="add-photo-alternate" size={40} color="#999" />
-                    <Text style={styles.logoPlaceholderText}>{t('auth.uploadLogo')}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              {logoFileUri && (
-                <TouchableOpacity
-                  style={[styles.removeLogoButton, isRTL && styles.removeLogoButtonRTL]}
-                  onPress={handleRemoveLogo}
-                >
-                  <Icon name="delete" size={20} color="#F44336" />
-                  <Text style={[styles.removeLogoText, isRTL && styles.removeLogoTextRTL]}>{t('auth.removeLogo')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
 
           {/* Submit Button */}
           <TouchableOpacity
@@ -368,11 +271,6 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             {loading ? (
               <View style={styles.buttonContent}>
                 <ActivityIndicator color="#fff" />
-                {isUploading && uploadProgress > 0 && (
-                  <Text style={styles.uploadProgressText}>
-                    {uploadProgress}%
-                  </Text>
-                )}
               </View>
             ) : (
               <>

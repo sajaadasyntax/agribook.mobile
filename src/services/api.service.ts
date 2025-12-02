@@ -27,7 +27,8 @@ import { prepareImageForUpload } from '../utils/imageUtils';
 // User API
 export const userApi = {
   login: async (email?: string, phone?: string, password?: string): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/users/login', { email, phone, password });
+    // Login only uses phone and password (email is ignored)
+    const response = await apiClient.post<AuthResponse>('/users/login', { phone, password });
     
     // Store tokens
     if (response.tokens) {

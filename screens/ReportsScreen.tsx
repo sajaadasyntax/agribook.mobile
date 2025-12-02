@@ -121,7 +121,9 @@ export default function ReportsScreen(): React.JSX.Element {
     }));
     
     // Calculate responsive bar width and spacing based on number of data points
-    // Each column (day/week) should fit both income and expense bars clearly
+    // CRITICAL: For grouped bar charts, the formula must satisfy:
+    // (barWidth * numberOfDataSets) + (barSpace * numberOfDataSets) + groupSpace = 1.0
+    // We have 2 data sets (income & expense), so: barWidth*2 + barSpace*2 + groupSpace = 1.0
     const dataPointCount = incomeValues.length;
     let barWidth: number;
     let groupSpace: number;
@@ -129,24 +131,28 @@ export default function ReportsScreen(): React.JSX.Element {
     
     if (dataPointCount === 4) {
       // Month view: 4 weeks - larger bars to fit both income/expense clearly
-      barWidth = 0.5;
-      groupSpace = 0.15;
-      barSpace = 0.12;
+      // Formula: 0.35*2 + 0.05*2 + 0.2 = 0.7 + 0.1 + 0.2 = 1.0 ✓
+      barWidth = 0.35;
+      groupSpace = 0.2;
+      barSpace = 0.05;
     } else if (dataPointCount === 7) {
       // Week view: 7 days - balanced bars to fit both income/expense in each day column
-      barWidth = 0.45;
-      groupSpace = 0.12;
-      barSpace = 0.1;
+      // Formula: 0.3*2 + 0.05*2 + 0.3 = 0.6 + 0.1 + 0.3 = 1.0 ✓
+      barWidth = 0.3;
+      groupSpace = 0.3;
+      barSpace = 0.05;
     } else if (dataPointCount <= 4) {
       // Few data points: larger bars with more spacing
-      barWidth = 0.5;
-      groupSpace = 0.15;
-      barSpace = 0.1;
+      // Formula: 0.35*2 + 0.05*2 + 0.2 = 0.7 + 0.1 + 0.2 = 1.0 ✓
+      barWidth = 0.35;
+      groupSpace = 0.2;
+      barSpace = 0.05;
     } else {
       // Many data points: tighter spacing
-      barWidth = 0.35;
-      groupSpace = 0.08;
-      barSpace = 0.06;
+      // Formula: 0.25*2 + 0.05*2 + 0.4 = 0.5 + 0.1 + 0.4 = 1.0 ✓
+      barWidth = 0.25;
+      groupSpace = 0.4;
+      barSpace = 0.05;
     }
     
     // Use colors with fallbacks - ensure they're always defined
@@ -445,6 +451,11 @@ export default function ReportsScreen(): React.JSX.Element {
                 axisLineColor: colors.border,
                 gridColor: colors.border,
                 avoidFirstLastClipping: true,
+                centerAxisLabels: true, // Center labels under bar groups
+                axisMinimum: 0, // Start at 0 for proper alignment
+                axisMaximum: chartLabels.length, // End at number of groups
+                labelCount: chartLabels.length, // Ensure all labels are shown
+                drawGridLines: true, // Show grid lines for visual anchoring
               }}
               yAxis={{
                 left: {
