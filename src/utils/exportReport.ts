@@ -1,7 +1,6 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import XLSX from 'xlsx';
 import { formatCurrency } from './currency';
 import { formatDisplayDate, formatDate } from './date';
 import { Transaction, ReportPeriod } from '../types';
@@ -82,27 +81,24 @@ const safeDeleteFile = async (fileUri: string): Promise<void> => {
 };
 
 /**
- * Convert Uint8Array to base64 string (React Native compatible)
+ * Escape a value for CSV format
+ * Handles commas, quotes, and newlines
  */
-const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  let result = '';
-  let i = 0;
-  
-  while (i < bytes.length) {
-    const a = bytes[i++];
-    const b = i < bytes.length ? bytes[i++] : 0;
-    const c = i < bytes.length ? bytes[i++] : 0;
-    
-    const bitmap = (a << 16) | (b << 8) | c;
-    
-    result += chars.charAt((bitmap >> 18) & 63);
-    result += chars.charAt((bitmap >> 12) & 63);
-    result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
-    result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+const escapeCSVValue = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return '';
+  const stringValue = String(value);
+  // If the value contains comma, quote, or newline, wrap in quotes and escape existing quotes
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
   }
-  
-  return result;
+  return stringValue;
+};
+
+/**
+ * Convert array of rows to CSV string
+ */
+const arrayToCSV = (rows: (string | number | null | undefined)[][]): string => {
+  return rows.map(row => row.map(escapeCSVValue).join(',')).join('\n');
 };
 
 /**
@@ -133,7 +129,7 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
     const periodLabel = getPeriodTitleLabel(data.period, data.locale);
     const dateLabel = formatDisplayDate(data.date, data.period);
     const reportDate = formatDate(data.date);
-    const companyName = data.companyName || (isArabic ? 'أجري بوكس' : 'AgriBooks');
+    const companyName = data.companyName || (isArabic ? 'حساباتي' : 'AgriBooks');
     const dir = isArabic ? 'rtl' : 'ltr';
     const textAlign = isArabic ? 'right' : 'left';
     const fontFamily = isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Helvetica Neue', Arial, sans-serif";
@@ -475,8 +471,8 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
 };
 
 /**
- * Export report to Excel format
- * Uses xlsx (SheetJS) for Excel generation
+ * Export report to CSV format
+ * Uses native file system for reliable CSV generation
  */
 export const exportToExcel = async (data: ExportData): Promise<void> => {
   try {
@@ -505,128 +501,81 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
     const reportDate = formatDate(data.date);
     const companyName = data.companyName || translations.app.name;
     
-    // Create workbook
-    const workbook = XLSX.utils.book_new();
+    // Build CSV content with all data in a single file
+    const rows: (string | number | null | undefined)[][] = [];
     
-    // Summary sheet with company info
-    const summaryData = [
-      [companyName],
-      [`${periodLabel} ${t.financialReport}`],
-      [`${t.reportPeriod}: ${dateLabel}`],
-      [`${t.generated}: ${new Date().toLocaleString(data.locale || 'en-US')}`],
-      [''],
-      [t.financialSummary.toUpperCase()],
-      [''],
-      [t.category, t.amount],
-      [t.totalIncome, data.summary.income],
-      [t.totalExpenses, data.summary.expense],
-      [t.netBalance, data.summary.balance],
-      [''],
-      [t.statistics],
-      [t.totalTransactions, data.transactions.length],
-      [t.incomeTransactions, data.transactions.filter(tr => tr.type === 'INCOME').length],
-      [t.expenseTransactions, data.transactions.filter(tr => tr.type === 'EXPENSE').length],
-    ];
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    // Header section
+    rows.push([companyName]);
+    rows.push([`${periodLabel} ${t.financialReport}`]);
+    rows.push([`${t.reportPeriod}: ${dateLabel}`]);
+    rows.push([`${t.generated}: ${new Date().toLocaleString(data.locale || 'en-US')}`]);
+    rows.push([]);
     
-    // Set column widths for summary sheet
-    summarySheet['!cols'] = [
-      { wch: 25 },
-      { wch: 20 },
-    ];
+    // Summary section
+    rows.push([t.financialSummary.toUpperCase()]);
+    rows.push([]);
+    rows.push([t.category, t.amount]);
+    rows.push([t.totalIncome, data.summary.income]);
+    rows.push([t.totalExpenses, data.summary.expense]);
+    rows.push([t.netBalance, data.summary.balance]);
+    rows.push([]);
     
-    const summarySheetName = isArabic ? 'الملخص' : 'Summary';
-    XLSX.utils.book_append_sheet(workbook, summarySheet, summarySheetName);
+    // Statistics
+    rows.push([t.statistics]);
+    rows.push([t.totalTransactions, data.transactions.length]);
+    rows.push([t.incomeTransactions, data.transactions.filter(tr => tr.type === 'INCOME').length]);
+    rows.push([t.expenseTransactions, data.transactions.filter(tr => tr.type === 'EXPENSE').length]);
+    rows.push([]);
     
-    // Period Breakdown sheet
+    // Period Breakdown
     if (data.chartData.labels.length > 0) {
-      const breakdownHeaders = [
+      const breakdownTitle = data.period === 'week' ? t.dailyBreakdown : data.period === 'month' ? t.weeklyBreakdown : t.periodBreakdown;
+      rows.push([breakdownTitle]);
+      rows.push([
         data.period === 'week' ? t.day : data.period === 'month' ? t.week : t.period,
         t.income,
         t.expense,
         t.net,
-      ];
-      const breakdownRows = data.chartData.labels.map((label, index) => {
+      ]);
+      
+      data.chartData.labels.forEach((label, index) => {
         const income = data.chartData.incomeData[index] || 0;
         const expense = data.chartData.expenseData[index] || 0;
-        return [label, income, expense, income - expense];
+        rows.push([label, income, expense, income - expense]);
       });
       
       // Add totals row
       const totalIncome = data.chartData.incomeData.reduce((sum, val) => sum + (val || 0), 0);
       const totalExpense = data.chartData.expenseData.reduce((sum, val) => sum + (val || 0), 0);
       const totalLabel = isArabic ? 'الإجمالي' : 'TOTAL';
-      breakdownRows.push([totalLabel, totalIncome, totalExpense, totalIncome - totalExpense]);
-      
-      const breakdownData = [breakdownHeaders, ...breakdownRows];
-      const breakdownSheet = XLSX.utils.aoa_to_sheet(breakdownData);
-      
-      // Set column widths
-      breakdownSheet['!cols'] = [
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
-      ];
-      
-      const breakdownSheetName = isArabic ? 'التفصيل' : 'Breakdown';
-      XLSX.utils.book_append_sheet(workbook, breakdownSheet, breakdownSheetName);
+      rows.push([totalLabel, totalIncome, totalExpense, totalIncome - totalExpense]);
+      rows.push([]);
     }
     
-    // Transactions sheet
+    // Transactions section
     if (data.transactions.length > 0) {
-      const transactionHeaders = [t.date, t.type, t.category, t.description, t.amount];
-      const transactionRows = data.transactions.map(transaction => [
-        new Date(transaction.createdAt).toLocaleDateString(data.locale || 'en-US'),
-        transaction.type === 'INCOME' ? t.income : t.expense,
-        transaction.category?.name || t.uncategorized,
-        transaction.description || '',
-        transaction.type === 'INCOME' 
-          ? parseFloat(transaction.amount.toString())
-          : -parseFloat(transaction.amount.toString()),
-      ]);
-      const transactionData = [transactionHeaders, ...transactionRows];
-      const transactionSheet = XLSX.utils.aoa_to_sheet(transactionData);
+      rows.push([t.transactionDetails]);
+      rows.push([t.date, t.type, t.category, t.description, t.amount]);
       
-      // Set column widths
-      transactionSheet['!cols'] = [
-        { wch: 12 },
-        { wch: 10 },
-        { wch: 20 },
-        { wch: 30 },
-        { wch: 15 },
-      ];
-      
-      const transactionsSheetName = isArabic ? 'المعاملات' : 'Transactions';
-      XLSX.utils.book_append_sheet(workbook, transactionSheet, transactionsSheetName);
+      data.transactions.forEach(transaction => {
+        const amount = parseFloat(transaction.amount.toString());
+        rows.push([
+          new Date(transaction.createdAt).toLocaleDateString(data.locale || 'en-US'),
+          transaction.type === 'INCOME' ? t.income : t.expense,
+          transaction.category?.name || t.uncategorized,
+          transaction.description || '',
+          transaction.type === 'INCOME' ? amount : -amount,
+        ]);
+      });
     }
     
-    // Generate Excel file as base64
-    let base64Data: string;
-    try {
-      // Option 1: Try direct base64 output from XLSX (simplest)
-      try {
-        const wbout = XLSX.write(workbook, { 
-          type: 'base64', 
-          bookType: 'xlsx',
-        });
-        base64Data = wbout;
-      } catch (base64Error) {
-        // Fallback: Use array type and convert to base64 manually
-        console.warn('Direct base64 failed, using array conversion:', base64Error);
-        const wbout = XLSX.write(workbook, { 
-          type: 'array', 
-          bookType: 'xlsx',
-        });
-        base64Data = uint8ArrayToBase64(wbout);
-      }
-    } catch (writeError) {
-      console.error('Error writing Excel workbook:', writeError);
-      throw new Error(`Failed to generate Excel file: ${writeError instanceof Error ? writeError.message : 'Unknown error'}`);
-    }
+    // Convert to CSV string
+    // Add BOM for Excel to recognize UTF-8 encoding (important for Arabic)
+    const BOM = '\uFEFF';
+    const csvContent = BOM + arrayToCSV(rows);
     
     // Prepare file path
-    const filename = `${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${periodLabel}_Report_${reportDate.replace(/-/g, '_')}.xlsx`;
+    const filename = `${companyName.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_')}_${periodLabel.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_')}_Report_${reportDate.replace(/-/g, '_')}.csv`;
     const cacheDir = getCacheDirectory();
     const fileUri = `${cacheDir}${filename}`;
     
@@ -634,15 +583,13 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       // Clean up any existing file
       await safeDeleteFile(fileUri);
       
-      // Write file using base64 encoding
-      // expo-file-system v19: EncodingType enum doesn't exist
-      // Try with string 'base64' first, if that fails, the error will be caught below
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: 'base64' as any,
+      // Write CSV file as UTF-8 string
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8,
       });
     } catch (fileError) {
-      console.error('Error writing Excel file:', fileError);
-      throw new Error(`Failed to save Excel file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
+      console.error('Error writing CSV file:', fileError);
+      throw new Error(`Failed to save CSV file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
     }
     
     // Check if sharing is available
@@ -651,20 +598,20 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       throw new Error('Sharing is not available on this device');
     }
     
-      // Share the file
-      try {
-        const shareTitle = isArabic ? `مشاركة تقرير ${periodLabel}` : `Share ${periodLabel} Report`;
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          dialogTitle: shareTitle,
-          UTI: 'org.openxmlformats.spreadsheetml.sheet',
-        });
+    // Share the file
+    try {
+      const shareTitle = isArabic ? `مشاركة تقرير ${periodLabel}` : `Share ${periodLabel} Report`;
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: shareTitle,
+        UTI: 'public.comma-separated-values-text',
+      });
     } catch (shareError) {
-      console.error('Error sharing Excel file:', shareError);
-      throw new Error(`Failed to share Excel file: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
+      console.error('Error sharing CSV file:', shareError);
+      throw new Error(`Failed to share CSV file: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
     }
   } catch (error) {
-    console.error('Error exporting to Excel:', error);
+    console.error('Error exporting to CSV:', error);
     throw error;
   }
 };

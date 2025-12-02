@@ -43,7 +43,7 @@ export default function ReportsScreen(): React.JSX.Element {
     categoryData, 
     transactions, 
     refresh 
-  } = useReportData(period, date);
+  } = useReportData(period, date, locale);
 
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
@@ -302,11 +302,11 @@ export default function ReportsScreen(): React.JSX.Element {
       });
       Alert.alert(
         t('app.success') || 'Success',
-        t('reports.exportSuccess') || 'Report exported to Excel successfully'
+        t('reports.exportSuccess') || 'Report exported to CSV successfully'
       );
     } catch (error) {
-      console.error('Error exporting Excel:', error);
-      const errorMessage = error instanceof Error ? error.message : (t('reports.exportError') || 'Failed to export report to Excel');
+      console.error('Error exporting CSV:', error);
+      const errorMessage = error instanceof Error ? error.message : (t('reports.exportError') || 'Failed to export report to CSV');
       Alert.alert(
         t('app.error') || 'Error',
         errorMessage
@@ -328,7 +328,7 @@ export default function ReportsScreen(): React.JSX.Element {
         onPress={handleExportExcel}
       >
         <Icon name="table-chart" size={20} color="#fff" />
-        <Text style={styles.exportButtonText}>Excel</Text>
+        <Text style={styles.exportButtonText}>CSV</Text>
       </TouchableOpacity>
     </View>
   );

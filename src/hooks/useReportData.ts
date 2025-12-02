@@ -60,9 +60,20 @@ export const calculateYAxisMax = (income: number, expense: number): number => {
   return niceValue * magnitude;
 };
 
-// Get week days starting from Saturday
-const getWeekDays = (): string[] => {
+// Get week days starting from Saturday with locale support
+const getWeekDays = (locale?: string): string[] => {
+  if (locale === 'ar') {
+    return ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+  }
   return ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+};
+
+// Get week labels for monthly view with locale support
+const getWeekLabels = (locale?: string): string[] => {
+  if (locale === 'ar') {
+    return ['الأسبوع 1', 'الأسبوع 2', 'الأسبوع 3', 'الأسبوع 4'];
+  }
+  return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
 };
 
 // Get date for a specific day of week (0 = Saturday, 1 = Sunday, etc.)
@@ -123,7 +134,7 @@ const groupByWeek = (transactions: Transaction[], year: number, month: number): 
   return weeks;
 };
 
-export const useReportData = (period: ReportPeriod, date: Date): UseReportDataResult => {
+export const useReportData = (period: ReportPeriod, date: Date, locale?: string): UseReportDataResult => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -217,8 +228,8 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
         transactions = report.transactions;
         categoryData = processTransactionsForCategories(transactions);
 
-        // Week view: 7 days starting from Saturday
-        const weekDays = getWeekDays();
+        // Week view: 7 days starting from Saturday (with locale support)
+        const weekDays = getWeekDays(locale);
         const incomeData: number[] = [];
         const expenseData: number[] = [];
         
@@ -248,11 +259,11 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
         transactions = report.transactions;
         categoryData = processTransactionsForCategories(transactions);
 
-        // Month view: 4 weeks
+        // Month view: 4 weeks (with locale support)
         const weeks = groupByWeek(transactions, date.getFullYear(), date.getMonth());
         
         chartData = {
-          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+          labels: getWeekLabels(locale),
           incomeData: weeks.map(w => w[0]),
           expenseData: weeks.map(w => w[1]),
         };
@@ -266,7 +277,7 @@ export const useReportData = (period: ReportPeriod, date: Date): UseReportDataRe
       setLoading(false);
       setRefreshing(false);
     }
-  }, [period, date]);
+  }, [period, date, locale]);
 
   useEffect(() => {
     fetchData(false);

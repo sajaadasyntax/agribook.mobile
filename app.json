@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "أجري بوكس",
+    "name": "حساباتي",
     "slug": "agribooks-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,7 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.agribooks.mobile",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "السماح لأجري بوكس باستخدام Face ID للمصادقة الآمنة.",
+        "NSFaceIDUsageDescription": "السماح لحساباتي باستخدام Face ID للمصادقة الآمنة.",
         "CFBundleLocalizations": [
           "ar",
           "en"
@@ -47,15 +47,9 @@
     },
     "plugins": [
       [
-        "expo-image-picker",
-        {
-          "photosPermission": "يحتاج التطبيق للوصول إلى صورك لإرفاق الإيصالات والصور بالمعاملات."
-        }
-      ],
-      [
         "expo-local-authentication",
         {
-          "faceIDPermission": "السماح لأجري بوكس باستخدام Face ID للمصادقة الآمنة."
+          "faceIDPermission": "السماح لحساباتي باستخدام Face ID للمصادقة الآمنة."
         }
       ]
     ],
