@@ -85,7 +85,8 @@ const getDateForWeekDay = (weekStart: Date, dayIndex: number): Date => {
 };
 
 // Group transactions by week (1-4) for a month
-// Weeks are calculated based on actual calendar weeks (Saturday to Friday)
+// Uses a simple day-of-month based calculation:
+// Week 1: Days 1-7, Week 2: Days 8-14, Week 3: Days 15-21, Week 4: Days 22-31
 const groupByWeek = (transactions: Transaction[], year: number, month: number): number[][] => {
   const weeks: number[][] = [[0, 0], [0, 0], [0, 0], [0, 0]]; // [income, expense] for each week
   
@@ -93,32 +94,17 @@ const groupByWeek = (transactions: Transaction[], year: number, month: number): 
     return weeks;
   }
   
-  // Get the first day of the month
-  const firstDayOfMonth = new Date(year, month, 1);
-  firstDayOfMonth.setHours(0, 0, 0, 0);
-  
-  // Get the last day of the month
-  const lastDayOfMonth = new Date(year, month + 1, 0);
-  lastDayOfMonth.setHours(23, 59, 59, 999);
-  
-  // Find the Saturday that starts the week containing the first day of the month
-  const firstDayWeekStart = getStartOfWeek(firstDayOfMonth);
-  
   transactions.forEach(t => {
     const transactionDate = new Date(t.createdAt);
+    
     // Check if transaction is in the target month and year
-    // Use date comparison to handle edge cases properly
-    if (transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth) {
-      // Calculate which week of the month this transaction belongs to
-      // by finding the Saturday that starts its week
-      const transactionWeekStart = getStartOfWeek(transactionDate);
+    if (transactionDate.getFullYear() === year && transactionDate.getMonth() === month) {
+      // Get day of month (1-31)
+      const dayOfMonth = transactionDate.getDate();
       
-      // Calculate the difference in days between transaction week start and month week start
-      const daysDiff = Math.floor((transactionWeekStart.getTime() - firstDayWeekStart.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Calculate week index (0-3) based on which week of the month it falls in
-      // Each week is 7 days, so divide by 7 and clamp to 0-3
-      const weekIndex = Math.min(Math.max(0, Math.floor(daysDiff / 7)), 3);
+      // Calculate week index based on day of month
+      // Days 1-7 = Week 0, Days 8-14 = Week 1, Days 15-21 = Week 2, Days 22-31 = Week 3
+      const weekIndex = Math.min(Math.floor((dayOfMonth - 1) / 7), 3);
       
       const amount = parseFloat(t.amount.toString());
       if (!isNaN(amount)) {

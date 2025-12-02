@@ -1,11 +1,14 @@
 import * as Print from 'expo-print';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { formatCurrency } from './currency';
 import { formatDisplayDate, formatDate } from './date';
-import { Transaction, ReportPeriod } from '../types';
+import { Transaction } from '../types';
 import enTranslations from '../locales/en.json';
 import arTranslations from '../locales/ar.json';
+
+// Report period type
+export type ReportPeriod = 'day' | 'week' | 'month';
 
 // Type for translations
 type Translations = typeof enTranslations;
@@ -584,9 +587,8 @@ export const exportToExcel = async (data: ExportData): Promise<void> => {
       await safeDeleteFile(fileUri);
       
       // Write CSV file as UTF-8 string
-      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      // Note: writeAsStringAsync defaults to UTF-8 encoding
+      await FileSystem.writeAsStringAsync(fileUri, csvContent);
     } catch (fileError) {
       console.error('Error writing CSV file:', fileError);
       throw new Error(`Failed to save CSV file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);

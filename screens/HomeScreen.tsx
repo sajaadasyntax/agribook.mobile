@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,24 +9,16 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Platform,
-  processColor,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import { Dimensions } from 'react-native';
-import { BarChart } from 'react-native-charts-wrapper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { reportApi, transactionApi, categoryApi, alertApi, reminderApi } from '../src/services/api.service';
 import syncService from '../src/services/sync.service';
-import { FinancialSummary, MonthlyReport, Category, CreateTransactionDto } from '../src/types';
-import { calculateYAxisMax } from '../src/hooks/useReportData';
+import { FinancialSummary, Category, CreateTransactionDto } from '../src/types';
 import { formatCurrency } from '../src/utils/currency';
-import { LogoImage } from '../src/components/LogoImage';
-
-const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen(): React.JSX.Element {
   const navigation = useNavigation<any>();
@@ -36,7 +28,6 @@ export default function HomeScreen(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
-  const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
   const [unreadAlertCount, setUnreadAlertCount] = useState<number>(0);
@@ -124,15 +115,13 @@ export default function HomeScreen(): React.JSX.Element {
       const { income: incomeCats, expense: expenseCats } = await loadCategoriesWithFallback();
 
       // Load other data in parallel
-      const [summaryData, monthlyData, alertCountData, remindersData] = await Promise.all([
+      const [summaryData, alertCountData, remindersData] = await Promise.all([
         reportApi.getSummary(),
-        reportApi.getMonthly(),
         alertApi.getUnreadCount(),
         reminderApi.getAll(false), // Get incomplete reminders
       ]);
 
       setSummary(summaryData);
-      setMonthlyReport(monthlyData);
       setIncomeCategories(incomeCats);
       setExpenseCategories(expenseCats);
       setUnreadAlertCount(alertCountData.count);
@@ -275,77 +264,6 @@ export default function HomeScreen(): React.JSX.Element {
     );
   }
 
-  // Transform chartData for react-native-charts-wrapper BarChart (grouped bars)
-  const transformBarChartData = () => {
-    if (!monthlyReport?.monthlyTrend || monthlyReport.monthlyTrend.length === 0) {
-      return null;
-    }
-    
-    const incomeValues = monthlyReport.monthlyTrend.map((m, index) => ({
-      x: index,
-      y: m.income,
-    }));
-    
-    const expenseValues = monthlyReport.monthlyTrend.map((m, index) => ({
-      x: index,
-      y: m.expense,
-    }));
-    
-    // Use colors with fallbacks - ensure they're always defined
-    const incomeColor = colors.income || '#4CAF50';
-    const expenseColor = colors.expense || '#F44336';
-    
-    // Define shadow colors (lighter variants)
-    const incomeShadow = '#66BB6A'; // Lighter green
-    const expenseShadow = '#EF5350'; // Lighter red
-    
-    // For react-native-charts-wrapper, Android needs processColor, iOS can use strings
-    const getChartColor = (color: string) => {
-      if (Platform.OS === 'android') {
-        try {
-          return processColor(color);
-        } catch (e) {
-          console.warn('Failed to process color:', color, e);
-          return color;
-        }
-      }
-      return color;
-    };
-    
-    return {
-      dataSets: [
-        {
-          label: 'Income',
-          values: incomeValues,
-          config: {
-            color: getChartColor(incomeColor) as any,
-            barShadowColor: getChartColor(incomeShadow) as any,
-            highlightAlpha: 90,
-            highlightColor: getChartColor(incomeShadow) as any,
-          },
-        },
-        {
-          label: 'Expense',
-          values: expenseValues,
-          config: {
-            color: getChartColor(expenseColor) as any,
-            barShadowColor: getChartColor(expenseShadow) as any,
-            highlightAlpha: 90,
-            highlightColor: getChartColor(expenseShadow) as any,
-          },
-        },
-      ],
-      config: {
-        barWidth: 0.4,
-        group: {
-          fromX: 0,
-          groupSpace: 0.1,
-          barSpace: 0.1,
-        },
-      },
-    };
-  };
-
   const totalIncome = summary?.totalIncome || 0;
   const totalExpense = summary?.totalExpense || 0;
   const balance = summary?.balance || 0;
@@ -353,23 +271,7 @@ export default function HomeScreen(): React.JSX.Element {
   return (
     <View style={styles.container(colors)}>
       <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-        {user?.logoUrl ? (
-          <LogoImage 
-            uri={user.logoUrl}
-            style={styles.logoImage}
-            containerStyle={styles.logoContainer}
-            resizeMode="contain"
-            showLoading={false}
-            fallbackText={user.companyName || t('app.name')}
-            fallbackIconSize={24}
-            fallbackIconColor={colors.textInverse}
-            onError={(error) => {
-              console.error('Logo load error in HomeScreen:', error);
-            }}
-          />
-        ) : (
-          <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
-        )}
+        <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
         <TouchableOpacity 
           style={styles.notificationButton}
           onPress={() => navigation.navigate('Alerts')}
@@ -434,83 +336,6 @@ export default function HomeScreen(): React.JSX.Element {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Monthly Trend - Grouped Column Chart */}
-        {monthlyReport && (() => {
-          const barChartData = transformBarChartData();
-          if (!barChartData) return null;
-          
-          // Calculate Y-axis maximum using the same function as ReportsScreen
-          const maxIncome = Math.max(...monthlyReport.monthlyTrend.map(m => m.income), 0);
-          const maxExpense = Math.max(...monthlyReport.monthlyTrend.map(m => m.expense), 0);
-          const yAxisMax = calculateYAxisMax(maxIncome, maxExpense);
-          
-          const labels = monthlyReport.monthlyTrend.map(m => m.month);
-          
-          return (
-            <View style={styles.section(colors)}>
-              <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('home.monthlyTrend')}</Text>
-              <View style={styles.chartContainer(colors)}>
-                <BarChart
-                  style={styles.barChart}
-                  data={barChartData}
-                  xAxis={{
-                    valueFormatter: labels,
-                    granularity: 1,
-                    granularityEnabled: true,
-                    position: 'BOTTOM',
-                    textSize: 10,
-                    textColor: colors.textSecondary,
-                    axisLineColor: colors.border,
-                    gridColor: colors.border,
-                    avoidFirstLastClipping: true,
-                  }}
-                  yAxis={{
-                    left: {
-                      axisMinimum: 0,
-                      axisMaximum: yAxisMax,
-                      textSize: 10,
-                      textColor: colors.textSecondary,
-                      axisLineColor: colors.border,
-                      gridColor: colors.border + '40',
-                      valueFormatter: 'SDG #',
-                    },
-                    right: {
-                      enabled: false,
-                    },
-                  }}
-                  chartDescription={{ text: '' }}
-                  legend={{
-                    enabled: true,
-                    textSize: 12,
-                    form: 'SQUARE',
-                    formSize: 12,
-                    xEntrySpace: 10,
-                    yEntrySpace: 5,
-                    wordWrapEnabled: true,
-                  }}
-                  animation={{ durationX: 800, durationY: 800 }}
-                  drawValueAboveBar={true}
-                  highlightEnabled={true}
-                  dragEnabled={false}
-                  scaleEnabled={false}
-                  scaleXEnabled={false}
-                  scaleYEnabled={false}
-                  pinchZoom={false}
-                />
-              </View>
-              <View style={[styles.chartInfo, isRTL && styles.chartInfoRTL]}>
-                <Text style={styles.chartLabel(colors)}>
-                  {t('home.profit')} {monthlyReport.balance >= 0 ? '+' : ''}
-                  {formatCurrency(monthlyReport.balance, { locale })}
-                </Text>
-                <Text style={styles.chartLabel(colors)}>
-                  {t('home.month')}: {new Date(monthlyReport.year, monthlyReport.month - 1).toLocaleString('default', { month: 'short' })}
-                </Text>
-              </View>
-            </View>
-          );
-        })()}
 
         {/* Income Entry */}
         <View 
@@ -666,15 +491,6 @@ const styles = {
   appBarTitleRTL: {
     textAlign: 'right' as const,
   },
-  logoImage: {
-    width: 120,
-    height: 40,
-  },
-  logoContainer: {
-    width: 120,
-    height: 40,
-    backgroundColor: 'transparent',
-  },
   appBarRTL: {
     flexDirection: 'row-reverse' as const,
   },
@@ -777,30 +593,6 @@ const styles = {
     fontSize: 16,
     fontWeight: 'bold' as const,
   },
-  chartContainer: (colors: any) => ({
-    backgroundColor: colors.surface,
-    marginHorizontal: 0,
-    marginBottom: 0,
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
-  }),
-  chart: {
-    marginVertical: 4,
-    borderRadius: 16,
-  },
-  chartInfo: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    marginTop: 8,
-  },
-  chartInfoRTL: {
-    flexDirection: 'row-reverse' as const,
-  },
-  chartLabel: (colors: any) => ({
-    fontSize: 14,
-    color: colors.textSecondary,
-  }),
   categoryButtons: {
     flexDirection: 'row' as const,
     flexWrap: 'wrap' as const,
@@ -866,11 +658,6 @@ const styles = {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold' as const,
-  },
-  barChart: {
-    height: 240,
-    width: screenWidth - 64, // Account for container margins (32px) and padding (32px)
-    marginVertical: 12,
   },
 };
 
