@@ -168,20 +168,20 @@ export default function ReportsScreen(): React.JSX.Element {
           label: t('reports.income') || 'Income',
           values: incomeValues,
           config: {
-            color: getChartColor(incomeColor),
-            barShadowColor: getChartColor(incomeShadow),
+            color: getChartColor(incomeColor) as any,
+            barShadowColor: getChartColor(incomeShadow) as any,
             highlightAlpha: 90,
-            highlightColor: getChartColor(incomeShadow),
+            highlightColor: getChartColor(incomeShadow) as any,
           },
         },
         {
           label: t('reports.expense') || 'Expense',
           values: expenseValues,
           config: {
-            color: getChartColor(expenseColor),
-            barShadowColor: getChartColor(expenseShadow),
+            color: getChartColor(expenseColor) as any,
+            barShadowColor: getChartColor(expenseShadow) as any,
             highlightAlpha: 90,
-            highlightColor: getChartColor(expenseShadow),
+            highlightColor: getChartColor(expenseShadow) as any,
           },
         },
       ],
@@ -434,7 +434,6 @@ export default function ReportsScreen(): React.JSX.Element {
                 axisLineColor: colors.border,
                 gridColor: colors.border,
                 avoidFirstLastClipping: true,
-                yOffset: 5,
               }}
               yAxis={{
                 left: {
@@ -445,8 +444,6 @@ export default function ReportsScreen(): React.JSX.Element {
                   axisLineColor: colors.border,
                   gridColor: colors.border + '40',
                   valueFormatter: 'SDG #',
-                  spaceTop: 0,
-                  spaceBottom: 0,
                 },
                 right: {
                   enabled: false,

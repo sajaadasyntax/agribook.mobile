@@ -19,7 +19,10 @@
       "bundleIdentifier": "com.agribooks.mobile",
       "infoPlist": {
         "NSFaceIDUsageDescription": "السماح لأجري بوكس باستخدام Face ID للمصادقة الآمنة.",
-        "CFBundleLocalizations": ["ar", "en"],
+        "CFBundleLocalizations": [
+          "ar",
+          "en"
+        ],
         "CFBundleDevelopmentRegion": "ar"
       }
     },
@@ -58,9 +61,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "0a0fb314-6f64-493d-89bc-96669c53a22f"
+        "projectId": "acd78c3a-9c9d-4869-9132-547116873f5f"
       }
     },
-    "owner": "nt1995"
+    "owner": "sajaadammar"
   }
 }
