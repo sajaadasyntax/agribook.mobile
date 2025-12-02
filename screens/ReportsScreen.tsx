@@ -102,6 +102,14 @@ export default function ReportsScreen(): React.JSX.Element {
       return null;
     }
     
+    // Reverse data arrays for RTL to match reading direction
+    // Chart library renders left-to-right, but RTL users read right-to-left
+    // Note: Labels will be reversed separately in xAxis valueFormatter
+    if (isRTL) {
+      incomeData = incomeData.reverse();
+      expenseData = expenseData.reverse();
+    }
+    
     const incomeValues = incomeData.map((value, index) => ({
       x: index,
       y: value || 0,
@@ -396,6 +404,9 @@ export default function ReportsScreen(): React.JSX.Element {
   }
 
   const barChartData = transformBarChartData();
+  
+  // Get labels for xAxis - reverse for RTL to match reversed data
+  const chartLabels = isRTL && chartData?.labels ? [...chartData.labels].reverse() : (chartData?.labels || []);
 
   return (
     <SafeAreaView style={styles.safeArea(colors)}>
@@ -425,7 +436,7 @@ export default function ReportsScreen(): React.JSX.Element {
               style={styles.barChart}
               data={barChartData}
               xAxis={{
-                valueFormatter: chartData.labels,
+                valueFormatter: chartLabels,
                 granularity: 1,
                 granularityEnabled: true,
                 position: 'BOTTOM',
@@ -643,6 +654,7 @@ const styles = {
     fontWeight: 'bold' as const,
     marginBottom: 12,
     color: colors.text,
+    textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
     textAlign: 'right' as const,

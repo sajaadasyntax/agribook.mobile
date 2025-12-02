@@ -538,6 +538,7 @@ const styles = {
     fontWeight: 'bold' as const,
     color: colors.text,
     marginBottom: 12,
+    textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
     textAlign: 'right' as const,

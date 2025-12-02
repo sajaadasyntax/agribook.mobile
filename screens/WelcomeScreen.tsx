@@ -464,6 +464,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
+    textAlign: 'left',
   },
   labelRTL: {
     textAlign: 'right',

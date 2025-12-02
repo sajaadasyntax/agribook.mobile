@@ -770,6 +770,7 @@ const styles = {
     fontSize: 18,
     fontWeight: 'bold' as const,
     color: colors.text,
+    textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
     textAlign: 'right' as const,
@@ -874,6 +875,7 @@ const styles = {
     fontWeight: '600' as const,
     color: colors.text,
     marginBottom: 4,
+    textAlign: 'left' as const,
   }),
   settingLabelRTL: {
     textAlign: 'right' as const,
@@ -881,6 +883,7 @@ const styles = {
   settingDescription: (colors: any) => ({
     fontSize: 12,
     color: colors.textSecondary,
+    textAlign: 'left' as const,
   }),
   settingDescriptionRTL: {
     textAlign: 'right' as const,
@@ -980,6 +983,7 @@ const styles = {
   aboutLabel: (colors: any) => ({
     fontSize: 14,
     color: colors.textSecondary,
+    textAlign: 'left' as const,
   }),
   aboutLabelRTL: {
     textAlign: 'right' as const,
