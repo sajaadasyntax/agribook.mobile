@@ -166,52 +166,21 @@ export interface CreateAlertDto {
   message: string;
 }
 
-// Reminder Types - Real-world problem-solving types
-export type ReminderType = 
-  | 'TASK'           // Simple task/to-do reminder
-  | 'PAYMENT_DUE'    // Reminder to pay a bill (rent, utilities, suppliers)
-  | 'INCOME_DUE'     // Reminder to collect payment from customers
-  | 'BUDGET_ALERT'   // Alert when category spending exceeds threshold
-  | 'GENERAL'        // Legacy
-  | 'TRANSACTION'    // Legacy  
-  | 'THRESHOLD';     // Legacy
-
-export type ReminderPriority = 'LOW' | 'MEDIUM' | 'HIGH';
-
-export type Recurrence = 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'YEARLY';
+// Reminder Types
+export type ReminderType = 'GENERAL' | 'TRANSACTION' | 'THRESHOLD';
 
 export interface Reminder {
   id: string;
   title: string;
   description?: string | null;
   dueDate: string;
-  dueTime?: string | null;
   completed: boolean;
   userId: string;
-  reminderType: ReminderType;
-  priority: ReminderPriority;
-  
-  // For payment/income reminders
-  amount?: number | null;
+  reminderType?: ReminderType;
   categoryId?: string | null;
-  
-  // For budget alerts
   thresholdAmount?: number | null;
-  currentSpent?: number | null;
-  
-  // Recurrence
-  recurrence: Recurrence;
-  recurrenceEndDate?: string | null;
-  lastTriggered?: string | null;
-  
-  // Notification settings
-  notifyDaysBefore: number;
-  snoozedUntil?: string | null;
-  
-  // Legacy fields
   transactionType?: TransactionType | null;
   transactionAmount?: number | null;
-  
   category?: Category | null;
   createdAt: string;
   updatedAt: string;
@@ -221,19 +190,9 @@ export interface CreateReminderDto {
   title: string;
   description?: string;
   dueDate: string;
-  dueTime?: string;
   reminderType?: ReminderType;
-  priority?: ReminderPriority;
-  
-  amount?: number;
   categoryId?: string;
   thresholdAmount?: number;
-  
-  recurrence?: Recurrence;
-  recurrenceEndDate?: string;
-  notifyDaysBefore?: number;
-  
-  // Legacy
   transactionType?: TransactionType;
   transactionAmount?: number;
 }
@@ -242,21 +201,10 @@ export interface UpdateReminderDto {
   title?: string;
   description?: string;
   dueDate?: string;
-  dueTime?: string;
   completed?: boolean;
   reminderType?: ReminderType;
-  priority?: ReminderPriority;
-  
-  amount?: number;
   categoryId?: string;
   thresholdAmount?: number;
-  
-  recurrence?: Recurrence;
-  recurrenceEndDate?: string;
-  notifyDaysBefore?: number;
-  snoozedUntil?: string;
-  
-  // Legacy
   transactionType?: TransactionType;
   transactionAmount?: number;
 }
