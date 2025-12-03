@@ -414,14 +414,12 @@ const styles = StyleSheet.create({
   numberPad: {
     width: '100%',
     maxWidth: 300,
-    // Always LTR for PIN entry
   },
   numberRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 20,
     marginBottom: 16,
-    // Always LTR for PIN entry
   },
   numberButton: {
     width: 70,
