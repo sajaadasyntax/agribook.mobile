@@ -9,6 +9,8 @@ import {
   Alert,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -562,8 +564,12 @@ export default function AlertsScreen(): React.JSX.Element {
         transparent={true}
         onRequestClose={() => setShowAddReminderModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent(colors)}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent(colors)}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
               <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
                 {editingReminder ? t('alerts.editReminder') : t('alerts.addReminder')}
@@ -803,8 +809,9 @@ export default function AlertsScreen(): React.JSX.Element {
                 )}
               </TouchableOpacity>
             </View>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Date Picker Modal */}
@@ -978,6 +985,7 @@ const styles = {
     textAlign: 'left' as const,
   }),
   headerTitleRTL: {
+    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   headerRTL: {
@@ -1018,6 +1026,7 @@ const styles = {
     textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
+    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   markAllText: (colors: any) => ({
@@ -1083,6 +1092,7 @@ const styles = {
     textAlign: 'left' as const,
   }),
   textRTL: {
+    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   reminderItem: (colors: any) => ({
@@ -1264,6 +1274,7 @@ const styles = {
     textAlign: 'left' as const,
   }),
   modalTitleRTL: {
+    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   modalBody: {
@@ -1295,6 +1306,7 @@ const styles = {
     color: colors.text,
   }),
   inputRTL: {
+    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   textArea: {
