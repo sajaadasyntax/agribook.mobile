@@ -631,8 +631,8 @@ export default function SettingsScreen(): React.JSX.Element {
               </TouchableOpacity>
             </View>
 
-            {/* PIN Display */}
-            <View style={[styles.pinDisplayContainer, isRTL && styles.pinDisplayContainerRTL]}>
+            {/* PIN Display - always LTR regardless of language */}
+            <View style={styles.pinDisplayContainer}>
               {pin.map((digit, index) => (
                 <View
                   key={index}
@@ -648,10 +648,10 @@ export default function SettingsScreen(): React.JSX.Element {
               ))}
             </View>
 
-            {/* Number Pad */}
-            <View style={[styles.numberPad, isRTL && styles.numberPadRTL]}>
+            {/* Number Pad - always LTR regardless of language */}
+            <View style={styles.numberPad}>
               {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['clear', '0', 'back']].map((row, rowIndex) => (
-                <View key={rowIndex} style={[styles.numberPadRow, isRTL && styles.numberPadRowRTL]}>
+                <View key={rowIndex} style={styles.numberPadRow}>
                   {row.map((item) => (
                     <TouchableOpacity
                       key={item}
@@ -1083,9 +1083,7 @@ const styles = {
     alignItems: 'center' as const,
     marginBottom: 32,
     gap: 20,
-  },
-  pinDisplayContainerRTL: {
-    flexDirection: 'row' as const,
+    // Always LTR for PIN entry
   },
   pinDot: (colors: any) => ({
     width: 20,
@@ -1108,17 +1106,13 @@ const styles = {
   }),
   numberPad: {
     marginBottom: 24,
-  },
-  numberPadRTL: {
-    // RTL support handled at row level
+    // Always LTR for PIN entry
   },
   numberPadRow: {
     flexDirection: 'row' as const,
     justifyContent: 'center' as const,
     marginBottom: 12,
-  },
-  numberPadRowRTL: {
-    flexDirection: 'row' as const,
+    // Always LTR for PIN entry
   },
   numberPadButton: (colors: any) => ({
     width: 70,

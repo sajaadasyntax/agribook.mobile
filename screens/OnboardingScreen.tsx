@@ -89,11 +89,14 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
     setCurrentPage(e.nativeEvent.position);
   };
 
+  // Dynamic text direction style for Android compatibility
+  const textAlign = isRTL ? 'right' as const : 'left' as const;
+
   return (
     <View style={styles.container}>
       {/* Skip Button */}
-      <TouchableOpacity style={[styles.skipButton, isRTL && styles.skipButtonRTL]} onPress={handleSkip}>
-        <Text style={[styles.skipButtonText, isRTL && styles.textRTL]}>{t('onboarding.skip')}</Text>
+      <TouchableOpacity style={[styles.skipButton, { right: isRTL ? undefined : 20, left: isRTL ? 20 : undefined }]} onPress={handleSkip}>
+        <Text style={[styles.skipButtonText, { textAlign }]}>{t('onboarding.skip')}</Text>
       </TouchableOpacity>
 
       {/* Pager View */}
@@ -109,8 +112,8 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
             <View style={styles.iconContainer}>
               <Icon name={page.icon as any} size={120} color="#4CAF50" />
             </View>
-            <Text style={[styles.title, isRTL && styles.textRTL]}>{page.title}</Text>
-            <Text style={[styles.description, isRTL && styles.textRTL]}>
+            <Text style={[styles.title, { textAlign: 'center' }]}>{page.title}</Text>
+            <Text style={[styles.description, { textAlign: 'center' }]}>
               {page.description}
             </Text>
           </View>
@@ -118,7 +121,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
       </PagerView>
 
       {/* Pagination Dots */}
-      <View style={[styles.pagination, isRTL && styles.paginationRTL]}>
+      <View style={[styles.pagination, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {pages.map((_, index) => (
           <View
             key={index}
@@ -131,16 +134,16 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
       </View>
 
       {/* Navigation Buttons */}
-      <View style={[styles.navigation, isRTL && styles.navigationRTL]}>
+      <View style={[styles.navigation, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {currentPage > 0 && (
-          <TouchableOpacity style={[styles.navButton, isRTL && styles.navButtonRTL]} onPress={handlePrevious}>
+          <TouchableOpacity style={[styles.navButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={handlePrevious}>
             <Icon name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#4CAF50" />
-            <Text style={[styles.navButtonText, isRTL && styles.textRTL]}>{t('onboarding.previous')}</Text>
+            <Text style={styles.navButtonText}>{t('onboarding.previous')}</Text>
           </TouchableOpacity>
         )}
         <View style={styles.spacer} />
-        <TouchableOpacity style={[styles.primaryButton, isRTL && styles.primaryButtonRTL]} onPress={handleNext}>
-          <Text style={[styles.primaryButtonText, isRTL && styles.textRTL]}>
+        <TouchableOpacity style={[styles.primaryButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={handleNext}>
+          <Text style={styles.primaryButtonText}>
             {currentPage === pages.length - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
           </Text>
           <Icon

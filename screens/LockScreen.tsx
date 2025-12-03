@@ -240,12 +240,15 @@ export default function LockScreen({
     return `${seconds}s`;
   };
 
+  // Dynamic text direction style for Android compatibility
+  const textAlign = isRTL ? 'right' : 'left';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Icon name="lock" size={60} color="#4CAF50" />
-        <Text style={[styles.title, isRTL && styles.titleRTL]}>{t('lock.title') || 'AgriBooks'}</Text>
-        <Text style={[styles.subtitle, isRTL && styles.subtitleRTL]}>
+        <Text style={[styles.title, { textAlign: 'center' }]}>{t('lock.title') || 'AgriBooks'}</Text>
+        <Text style={[styles.subtitle, { textAlign: 'center' }]}>
           {lockedOut 
             ? (t('lock.lockedOut', { time: formatLockoutTime(lockoutRemaining) }) || 
                `Locked. Try again in ${formatLockoutTime(lockoutRemaining)}`)
@@ -254,10 +257,10 @@ export default function LockScreen({
         </Text>
       </View>
 
+      {/* PIN dots - always LTR regardless of language */}
       <Animated.View 
         style={[
           styles.pinContainer,
-          isRTL && styles.pinContainerRTL,
           { transform: [{ translateX: shakeAnimation }] }
         ]}
       >
@@ -279,10 +282,10 @@ export default function LockScreen({
         <ActivityIndicator size="large" color="#4CAF50" style={styles.loader} />
       )}
 
-      {/* Number pad */}
-      <View style={[styles.numberPad, isRTL && styles.numberPadRTL]}>
+      {/* Number pad - always LTR regardless of language */}
+      <View style={styles.numberPad}>
         {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'back']].map((row, rowIndex) => (
-          <View key={rowIndex} style={[styles.numberRow, isRTL && styles.numberRowRTL]}>
+          <View key={rowIndex} style={styles.numberRow}>
             {row.map((num, colIndex) => {
               if (num === '') {
                 return <View key={colIndex} style={styles.numberButtonEmpty} />;
@@ -325,19 +328,19 @@ export default function LockScreen({
       {/* Biometric button */}
       {showBiometricOption && !lockedOut && (
         <TouchableOpacity
-          style={[styles.biometricButton, isRTL && styles.biometricButtonRTL]}
+          style={[styles.biometricButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
           onPress={handleBiometricAuth}
           disabled={loading}
         >
           <Icon name="fingerprint" size={32} color="#4CAF50" />
-          <Text style={[styles.biometricText, isRTL && styles.biometricTextRTL]}>
+          <Text style={[styles.biometricText, { textAlign }]}>
             {t('lock.useBiometric', { type: biometricType }) || `Use ${biometricType}`}
           </Text>
         </TouchableOpacity>
       )}
 
       {attempts > 0 && !lockedOut && (
-        <Text style={[styles.attemptsText, isRTL && styles.attemptsTextRTL]}>
+        <Text style={[styles.attemptsText, { textAlign: 'center' }]}>
           {t('lock.attemptsCount', { current: attempts, max: MAX_ATTEMPTS }) ||
             `Attempt ${attempts} of ${MAX_ATTEMPTS}`}
         </Text>
@@ -381,9 +384,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 20,
     marginBottom: 40,
-  },
-  pinContainerRTL: {
-    flexDirection: 'row',
+    // Always LTR for PIN entry
   },
   pinDot: {
     width: 20,
@@ -413,18 +414,14 @@ const styles = StyleSheet.create({
   numberPad: {
     width: '100%',
     maxWidth: 300,
-  },
-  numberPadRTL: {
-    // RTL support handled at row level
+    // Always LTR for PIN entry
   },
   numberRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 20,
     marginBottom: 16,
-  },
-  numberRowRTL: {
-    flexDirection: 'row',
+    // Always LTR for PIN entry
   },
   numberButton: {
     width: 70,
