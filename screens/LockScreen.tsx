@@ -473,6 +473,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   biometricTextRTL: {
+    writingDirection: 'rtl',
     textAlign: 'right',
   },
   attemptsText: {

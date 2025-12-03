@@ -180,6 +180,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   textRTL: {
+    writingDirection: 'rtl',
     textAlign: 'right',
   },
   pagerView: {
