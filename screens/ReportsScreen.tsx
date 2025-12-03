@@ -439,63 +439,65 @@ export default function ReportsScreen(): React.JSX.Element {
             {t('reports.overview') || 'Overview'}
           </Text>
           {barChartData ? (
-            <BarChart
-              style={styles.barChart}
-              data={barChartData}
-              xAxis={{
-                valueFormatter: chartLabels,
-                granularity: 1,
-                granularityEnabled: true,
-                position: 'BOTTOM',
-                textSize: 10,
-                textColor: colors.textSecondary,
-                axisLineColor: colors.border,
-                gridColor: colors.border,
-                avoidFirstLastClipping: true,
-                centerAxisLabels: true, // Center labels under bar groups
-                axisMinimum: 0, // Start at 0 for proper alignment
-                axisMaximum: chartLabels.length, // End at number of groups
-                labelCount: chartLabels.length, // Ensure all labels are shown
-                drawGridLines: true, // Show grid lines for visual anchoring
-              }}
-              yAxis={{
-                left: {
-                  axisMinimum: 0,
-                  axisMaximum: yAxisMax,
+            <>
+              <BarChart
+                style={styles.barChart}
+                data={barChartData}
+                xAxis={{
+                  valueFormatter: chartLabels,
+                  granularity: 1,
+                  granularityEnabled: true,
+                  position: 'BOTTOM',
                   textSize: 10,
                   textColor: colors.textSecondary,
                   axisLineColor: colors.border,
-                  gridColor: colors.border + '40',
-                  valueFormatter: 'SDG #',
-                },
-                right: {
-                  enabled: false,
-                },
-              }}
-              chartDescription={{ text: '' }}
-              legend={{
-                enabled: false, // Disable built-in legend, using custom legend below
-              }}
-              animation={{ durationX: 800, durationY: 800 }}
-              drawValueAboveBar={true}
-              highlightEnabled={true}
-              dragEnabled={false}
-              scaleEnabled={false}
-              scaleXEnabled={false}
-              scaleYEnabled={false}
-              pinchZoom={false}
-            />
-            {/* Custom centered legend */}
-            <View style={styles.chartLegend}>
-              <View style={[styles.legendItem, isRTL && styles.legendItemRTL]}>
-                <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
-                <Text style={styles.legendText(colors)}>{t('reports.income') || 'Income'}</Text>
+                  gridColor: colors.border,
+                  avoidFirstLastClipping: true,
+                  centerAxisLabels: true, // Center labels under bar groups
+                  axisMinimum: 0, // Start at 0 for proper alignment
+                  axisMaximum: chartLabels.length, // End at number of groups
+                  labelCount: chartLabels.length, // Ensure all labels are shown
+                  drawGridLines: true, // Show grid lines for visual anchoring
+                }}
+                yAxis={{
+                  left: {
+                    axisMinimum: 0,
+                    axisMaximum: yAxisMax,
+                    textSize: 10,
+                    textColor: colors.textSecondary,
+                    axisLineColor: colors.border,
+                    gridColor: colors.border + '40',
+                    valueFormatter: 'SDG #',
+                  },
+                  right: {
+                    enabled: false,
+                  },
+                }}
+                chartDescription={{ text: '' }}
+                legend={{
+                  enabled: false, // Disable built-in legend, using custom legend below
+                }}
+                animation={{ durationX: 800, durationY: 800 }}
+                drawValueAboveBar={true}
+                highlightEnabled={true}
+                dragEnabled={false}
+                scaleEnabled={false}
+                scaleXEnabled={false}
+                scaleYEnabled={false}
+                pinchZoom={false}
+              />
+              {/* Custom centered legend */}
+              <View style={styles.chartLegend}>
+                <View style={[styles.legendItem, isRTL && styles.legendItemRTL]}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
+                  <Text style={styles.legendText(colors)}>{t('reports.income') || 'Income'}</Text>
+                </View>
+                <View style={[styles.legendItem, isRTL && styles.legendItemRTL]}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.expense }]} />
+                  <Text style={styles.legendText(colors)}>{t('reports.expense') || 'Expense'}</Text>
+                </View>
               </View>
-              <View style={[styles.legendItem, isRTL && styles.legendItemRTL]}>
-                <View style={[styles.legendDot, { backgroundColor: colors.expense }]} />
-                <Text style={styles.legendText(colors)}>{t('reports.expense') || 'Expense'}</Text>
-              </View>
-            </View>
+            </>
           ) : (
             <View style={styles.chartEmptyContainer}>
               <Icon name="bar-chart" size={48} color={colors.textSecondary} />
