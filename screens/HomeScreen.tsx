@@ -508,7 +508,6 @@ const styles = {
     textAlign: 'left' as const,
   },
   appBarTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   appBarRTL: {
@@ -561,7 +560,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   summaryContainer: {
@@ -654,7 +652,6 @@ const styles = {
     color: colors.text,
   }),
   fullInputRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   saveButtons: {

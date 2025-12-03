@@ -212,7 +212,6 @@ const styles = {
     textAlign: 'left' as const,
   },
   appBarTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   scrollView: {
@@ -237,7 +236,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   label: (colors: any) => ({
@@ -248,7 +246,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   labelRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   input: (colors: any) => ({
@@ -261,7 +258,6 @@ const styles = {
     borderColor: colors.border,
   }),
   inputRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   inputDisabled: (colors: any) => ({

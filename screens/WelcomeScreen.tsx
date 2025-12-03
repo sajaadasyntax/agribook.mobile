@@ -380,7 +380,6 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   textRTL: {
-    writingDirection: 'rtl',
     textAlign: 'right',
   },
   inputWrapper: {

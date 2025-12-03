@@ -739,7 +739,6 @@ const styles = {
     textAlign: 'left' as const,
   },
   appBarTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   appBarRTL: {
@@ -775,7 +774,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   statusBadge: {
@@ -881,7 +879,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   settingLabelRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   settingDescription: (colors: any) => ({
@@ -890,7 +887,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   settingDescriptionRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   pinContainer: {
@@ -991,7 +987,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   aboutLabelRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   aboutValue: (colors: any) => ({
@@ -1021,7 +1016,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   profileButtonTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   profileButtonSubtitle: (colors: any) => ({
@@ -1030,7 +1024,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   profileButtonSubtitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   // PIN Modal Styles
@@ -1054,7 +1047,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   setPinButtonTextRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
     marginLeft: 0,
     marginRight: 12,

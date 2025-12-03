@@ -985,7 +985,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   headerTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   headerRTL: {
@@ -1026,7 +1025,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   markAllText: (colors: any) => ({
@@ -1092,7 +1090,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   textRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   reminderItem: (colors: any) => ({
@@ -1274,7 +1271,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   modalTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   modalBody: {
@@ -1306,7 +1302,6 @@ const styles = {
     color: colors.text,
   }),
   inputRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   textArea: {

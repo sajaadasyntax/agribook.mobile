@@ -981,7 +981,6 @@ const styles = {
     textAlign: 'left' as const,
   },
   headerTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   headerRTL: {
@@ -1046,7 +1045,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   categoryManagementButtons: {
@@ -1120,7 +1118,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   labelRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   loader: {
@@ -1195,7 +1192,6 @@ const styles = {
     marginBottom: 8,
   }),
   inputRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   textArea: {
@@ -1268,7 +1264,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   modalTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   modalBody: {
@@ -1290,7 +1285,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   textRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   categoryTypeSelector: {
@@ -1340,7 +1334,6 @@ const styles = {
     marginBottom: 12,
   }),
   modalInputRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   modalTextArea: {
