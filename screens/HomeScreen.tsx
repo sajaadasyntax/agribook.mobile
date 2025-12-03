@@ -273,7 +273,7 @@ export default function HomeScreen(): React.JSX.Element {
   return (
     <KeyboardAvoidingView 
       style={styles.keyboardAvoid(colors)}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container(colors)}>
         <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
@@ -298,7 +298,8 @@ export default function HomeScreen(): React.JSX.Element {
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode="interactive"
+          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
         {/* Financial Summary - Using Reports Summary Cards Style */}

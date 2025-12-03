@@ -76,7 +76,7 @@ export default function ProfileScreen(): React.JSX.Element {
   return (
     <KeyboardAvoidingView 
       style={styles.keyboardAvoid(colors)}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container(colors)}>
         <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
@@ -89,7 +89,8 @@ export default function ProfileScreen(): React.JSX.Element {
           style={styles.scrollView} 
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode="interactive"
+          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
         >
         {/* Personal Information */}
         <View style={styles.section(colors)}>

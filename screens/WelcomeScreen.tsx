@@ -47,27 +47,27 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       
       // For sign in, require phone and password
       if (isSignIn && !phone) {
-        Alert.alert(t('app.error'), 'Phone number is required for login');
+        Alert.alert(t('app.error'), t('auth.phoneRequired'));
         setLoading(false);
         return;
       }
 
       if (isSignIn && !password) {
-        Alert.alert(t('app.error'), 'Password is required for login');
+        Alert.alert(t('app.error'), t('auth.passwordRequired'));
         setLoading(false);
         return;
       }
 
       // For registration, require name
       if (!isSignIn && !name) {
-        Alert.alert(t('app.error'), 'Name is required for registration');
+        Alert.alert(t('app.error'), t('auth.nameRequired'));
         setLoading(false);
         return;
       }
 
       // Validate email if provided
       if (email && !email.includes('@')) {
-        Alert.alert(t('app.error'), 'Please enter a valid email address');
+        Alert.alert(t('app.error'), t('auth.invalidEmail'));
         setLoading(false);
         return;
       }
@@ -113,12 +113,13 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { direction: textDirection }]}
+        contentContainerStyle={[styles.scrollContent, { direction: textDirection, flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* Header */}
         <View style={styles.header}>
@@ -139,7 +140,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             style={[styles.toggleButton, !isSignIn && styles.toggleButtonActive]}
             onPress={() => setIsSignIn(false)}
           >
-            <Text style={[styles.toggleText, !isSignIn && styles.toggleTextActive]}>
+            <Text style={[styles.toggleText, !isSignIn && styles.toggleTextActive, isRTL && styles.textRTL]}>
               {t('auth.signUp')}
             </Text>
           </TouchableOpacity>
@@ -147,7 +148,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             style={[styles.toggleButton, isSignIn && styles.toggleButtonActive]}
             onPress={() => setIsSignIn(true)}
           >
-            <Text style={[styles.toggleText, isSignIn && styles.toggleTextActive]}>
+            <Text style={[styles.toggleText, isSignIn && styles.toggleTextActive, isRTL && styles.textRTL]}>
               {t('auth.signIn')}
             </Text>
           </TouchableOpacity>
@@ -278,7 +279,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
               </View>
             ) : (
               <>
-                <Text style={styles.buttonText}>
+                <Text style={[styles.buttonText, isRTL && styles.textRTL]}>
                   {isSignIn ? t('auth.signIn') : t('auth.createAccount')}
                 </Text>
                 <Icon name={isRTL ? 'arrow-back' : 'arrow-forward'} size={24} color="#fff" />

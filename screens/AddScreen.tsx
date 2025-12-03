@@ -520,13 +520,16 @@ export default function AddScreen(): React.JSX.Element {
   return (
     <KeyboardAvoidingView 
       style={styles.keyboardAvoid(colors)}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <ScrollView 
         style={styles.container(colors)}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="interactive"
+        contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
           <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
@@ -753,23 +756,29 @@ export default function AddScreen(): React.JSX.Element {
         transparent={true}
         onRequestClose={() => setShowCategoryModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent(colors)}>
-            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
-                {managementMode === 'add' ? t('add.addCategory') : t('add.deleteCategory')}
-              </Text>
-              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                <Icon name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent(colors)}>
+              <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
+                <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
+                  {managementMode === 'add' ? t('add.addCategory') : t('add.deleteCategory')}
+                </Text>
+                <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                  <Icon name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView 
-              style={styles.modalBody} 
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={true}
-            >
+              <ScrollView 
+                style={styles.modalBody} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                nestedScrollEnabled={true}
+                contentContainerStyle={{ flexGrow: 1 }}
+              >
               {managementMode === 'add' ? (
                 <>
                   {/* Category Type Selection */}
@@ -935,8 +944,9 @@ export default function AddScreen(): React.JSX.Element {
                 </TouchableOpacity>
               </View>
             )}
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
       </ScrollView>
     </KeyboardAvoidingView>

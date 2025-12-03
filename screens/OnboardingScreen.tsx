@@ -138,12 +138,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
         {currentPage > 0 && (
           <TouchableOpacity style={[styles.navButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={handlePrevious}>
             <Icon name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#4CAF50" />
-            <Text style={styles.navButtonText}>{t('onboarding.previous')}</Text>
+            <Text style={[styles.navButtonText, isRTL && styles.textRTL]}>{t('onboarding.previous')}</Text>
           </TouchableOpacity>
         )}
         <View style={styles.spacer} />
         <TouchableOpacity style={[styles.primaryButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={handleNext}>
-          <Text style={styles.primaryButtonText}>
+          <Text style={[styles.primaryButtonText, isRTL && styles.textRTL]}>
             {currentPage === pages.length - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
           </Text>
           <Icon

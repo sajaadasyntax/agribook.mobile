@@ -9,6 +9,8 @@ import {
   Alert,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,7 +18,7 @@ import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { alertApi, reminderApi, categoryApi } from '../src/services/api.service';
-import { Alert as AlertType, Reminder, Category, CreateReminderDto, ReminderType } from '../src/types';
+import { Alert as AlertType, Reminder, Category, CreateReminderDto, ReminderType, ReminderPriority, Recurrence } from '../src/types';
 
 export default function AlertsScreen(): React.JSX.Element {
   const { isAuthenticated, settings, updateSettings } = useUser();
@@ -34,13 +36,17 @@ export default function AlertsScreen(): React.JSX.Element {
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [tempDate, setTempDate] = useState(new Date());
   
-  // Form states
+  // Form states - Updated for new reminder structure
   const [reminderTitle, setReminderTitle] = useState('');
   const [reminderDescription, setReminderDescription] = useState('');
   const [reminderDueDate, setReminderDueDate] = useState(new Date());
-  const [reminderType, setReminderType] = useState<ReminderType>('GENERAL');
+  const [reminderType, setReminderType] = useState<ReminderType>('TASK');
+  const [reminderPriority, setReminderPriority] = useState<ReminderPriority>('MEDIUM');
+  const [recurrence, setRecurrence] = useState<Recurrence>('NONE');
+  const [amount, setAmount] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [thresholdAmount, setThresholdAmount] = useState('');
+  // Legacy fields kept for backward compatibility
   const [transactionAmount, setTransactionAmount] = useState('');
   const [transactionType, setTransactionType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
@@ -228,7 +234,10 @@ export default function AlertsScreen(): React.JSX.Element {
     setReminderTitle('');
     setReminderDescription('');
     setReminderDueDate(new Date());
-    setReminderType('GENERAL');
+    setReminderType('TASK');
+    setReminderPriority('MEDIUM');
+    setRecurrence('NONE');
+    setAmount('');
     setSelectedCategoryId('');
     setThresholdAmount('');
     setTransactionAmount('');
@@ -246,7 +255,15 @@ export default function AlertsScreen(): React.JSX.Element {
     setReminderTitle(reminder.title);
     setReminderDescription(reminder.description || '');
     setReminderDueDate(new Date(reminder.dueDate));
-    setReminderType(reminder.reminderType || 'GENERAL');
+    // Map legacy types to new types
+    let type = reminder.reminderType || 'TASK';
+    if (type === 'GENERAL') type = 'TASK';
+    if (type === 'TRANSACTION') type = 'PAYMENT_DUE';
+    if (type === 'THRESHOLD') type = 'BUDGET_ALERT';
+    setReminderType(type);
+    setReminderPriority(reminder.priority || 'MEDIUM');
+    setRecurrence(reminder.recurrence || 'NONE');
+    setAmount(reminder.amount?.toString() || reminder.transactionAmount?.toString() || '');
     setSelectedCategoryId(reminder.categoryId || '');
     setThresholdAmount(reminder.thresholdAmount?.toString() || '');
     setTransactionAmount(reminder.transactionAmount?.toString() || '');
@@ -254,9 +271,72 @@ export default function AlertsScreen(): React.JSX.Element {
     setShowAddReminderModal(true);
   };
 
+  // Get reminder type icon
+  const getReminderTypeIcon = (type: ReminderType): keyof typeof Icon.glyphMap => {
+    switch (type) {
+      case 'TASK':
+      case 'GENERAL':
+        return 'check-circle';
+      case 'PAYMENT_DUE':
+      case 'TRANSACTION':
+        return 'payment';
+      case 'INCOME_DUE':
+        return 'attach-money';
+      case 'BUDGET_ALERT':
+      case 'THRESHOLD':
+        return 'warning';
+      default:
+        return 'notifications';
+    }
+  };
+
+  // Get priority color
+  const getPriorityColor = (priority: ReminderPriority): string => {
+    switch (priority) {
+      case 'HIGH':
+        return colors.expense;
+      case 'MEDIUM':
+        return colors.warning || '#FFC107';
+      case 'LOW':
+        return colors.textSecondary;
+      default:
+        return colors.text;
+    }
+  };
+
+  // Get recurrence label
+  const getRecurrenceLabel = (rec: Recurrence): string => {
+    switch (rec) {
+      case 'DAILY':
+        return t('alerts.daily') || 'Daily';
+      case 'WEEKLY':
+        return t('alerts.weekly') || 'Weekly';
+      case 'BIWEEKLY':
+        return t('alerts.biweekly') || 'Every 2 Weeks';
+      case 'MONTHLY':
+        return t('alerts.monthly') || 'Monthly';
+      case 'YEARLY':
+        return t('alerts.yearly') || 'Yearly';
+      default:
+        return t('alerts.once') || 'Once';
+    }
+  };
+
   const handleSaveReminder = async () => {
     if (!reminderTitle.trim()) {
       Alert.alert(t('app.error'), t('alerts.reminderTitlePlaceholder'));
+      return;
+    }
+
+    // Validate amount for payment/income reminders
+    if ((reminderType === 'PAYMENT_DUE' || reminderType === 'INCOME_DUE') && amount && isNaN(parseFloat(amount))) {
+      Alert.alert(t('app.error'), t('alerts.invalidAmount') || 'Please enter a valid amount');
+      return;
+    }
+
+    // Validate threshold for budget alerts
+    if (reminderType === 'BUDGET_ALERT' && (!thresholdAmount || isNaN(parseFloat(thresholdAmount)))) {
+      Alert.alert(t('app.error'), t('alerts.thresholdRequired') || 'Please enter a threshold amount');
       return;
     }
 
@@ -268,19 +348,32 @@ export default function AlertsScreen(): React.JSX.Element {
         description: reminderDescription.trim() || undefined,
         dueDate: reminderDueDate.toISOString(),
         reminderType,
+        priority: reminderPriority,
+        recurrence,
       };
 
-      if (reminderType === 'THRESHOLD' && selectedCategoryId) {
-        reminderData.categoryId = selectedCategoryId;
-        reminderData.thresholdAmount = parseFloat(thresholdAmount) || undefined;
-      }
-
-      if (reminderType === 'TRANSACTION') {
-        reminderData.transactionType = transactionType;
-        reminderData.transactionAmount = parseFloat(transactionAmount) || undefined;
+      // Add amount for payment/income reminders
+      if (reminderType === 'PAYMENT_DUE' || reminderType === 'INCOME_DUE') {
+        reminderData.amount = parseFloat(amount) || undefined;
         if (selectedCategoryId) {
           reminderData.categoryId = selectedCategoryId;
         }
+        // Set transaction type for legacy compatibility
+        reminderData.transactionType = reminderType === 'PAYMENT_DUE' ? 'EXPENSE' : 'INCOME';
+        reminderData.transactionAmount = parseFloat(amount) || undefined;
+      }
+
+      // Add threshold for budget alerts
+      if (reminderType === 'BUDGET_ALERT') {
+        reminderData.thresholdAmount = parseFloat(thresholdAmount) || undefined;
+        if (selectedCategoryId) {
+          reminderData.categoryId = selectedCategoryId;
+        }
+      }
+
+      // Add category for task reminders if selected
+      if (reminderType === 'TASK' && selectedCategoryId) {
+        reminderData.categoryId = selectedCategoryId;
       }
 
       if (editingReminder) {
@@ -302,25 +395,23 @@ export default function AlertsScreen(): React.JSX.Element {
     }
   };
 
+  // Get reminder type label for display in list
   const getReminderTypeLabel = (type: ReminderType): string => {
     switch (type) {
+      case 'TASK':
+        return t('alerts.taskReminder') || 'Task';
+      case 'PAYMENT_DUE':
+        return t('alerts.paymentDue') || 'Payment Due';
+      case 'INCOME_DUE':
+        return t('alerts.incomeDue') || 'Income Due';
+      case 'BUDGET_ALERT':
+        return t('alerts.budgetAlert') || 'Budget Alert';
       case 'TRANSACTION':
-        return t('alerts.transactionReminder');
+        return t('alerts.transactionReminder') || 'Transaction';
       case 'THRESHOLD':
-        return t('alerts.thresholdReminder');
+        return t('alerts.thresholdReminder') || 'Threshold';
       default:
-        return t('alerts.generalReminder');
-    }
-  };
-
-  const getReminderTypeIcon = (type: ReminderType): keyof typeof Icon.glyphMap => {
-    switch (type) {
-      case 'TRANSACTION':
-        return 'schedule';
-      case 'THRESHOLD':
-        return 'trending-up';
-      default:
-        return 'notifications';
+        return t('alerts.taskReminder') || 'Task';
     }
   };
 
@@ -562,52 +653,143 @@ export default function AlertsScreen(): React.JSX.Element {
         transparent={true}
         onRequestClose={() => setShowAddReminderModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent(colors)}>
-            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
-                {editingReminder ? t('alerts.editReminder') : t('alerts.addReminder')}
-              </Text>
-              <TouchableOpacity onPress={() => setShowAddReminderModal(false)}>
-                <Icon name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent(colors)}>
+              <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
+                <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
+                  {editingReminder ? t('alerts.editReminder') : t('alerts.addReminder')}
+                </Text>
+                <TouchableOpacity onPress={() => setShowAddReminderModal(false)}>
+                  <Icon name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView 
-              style={styles.modalBody} 
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={true}
-            >
-              {/* Reminder Type Selection */}
+              <ScrollView 
+                style={styles.modalBody} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                nestedScrollEnabled={true}
+                contentContainerStyle={{ flexGrow: 1 }}
+              >
+              {/* Reminder Type Selection - New intuitive types */}
               <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
                 {t('alerts.reminderType')}
               </Text>
-              <View style={[styles.typeSelector, isRTL && styles.typeSelectorRTL]}>
-                {(['GENERAL', 'TRANSACTION', 'THRESHOLD'] as ReminderType[]).map((type) => (
+              <View style={styles.reminderTypeGrid}>
+                {/* Row 1: Task and Payment Due */}
+                <View style={[styles.typeRow, isRTL && styles.typeRowRTL]}>
                   <TouchableOpacity
-                    key={type}
                     style={[
-                      styles.typeOption(colors),
-                      reminderType === type && styles.typeOptionActive(colors),
+                      styles.typeCard(colors),
+                      reminderType === 'TASK' && styles.typeCardActive(colors),
                     ]}
-                    onPress={() => setReminderType(type)}
+                    onPress={() => setReminderType('TASK')}
                   >
                     <Icon
-                      name={getReminderTypeIcon(type)}
-                      size={20}
-                      color={reminderType === type ? colors.textInverse : colors.primary}
+                      name="check-circle"
+                      size={28}
+                      color={reminderType === 'TASK' ? colors.textInverse : colors.primary}
                     />
-                    <Text
-                      style={[
-                        styles.typeOptionText(colors),
-                        reminderType === type && styles.typeOptionTextActive,
-                      ]}
-                    >
-                      {getReminderTypeLabel(type)}
+                    <Text style={[
+                      styles.typeCardText(colors),
+                      reminderType === 'TASK' && styles.typeCardTextActive,
+                    ]}>
+                      {t('alerts.taskReminder') || 'Task'}
+                    </Text>
+                    <Text style={[
+                      styles.typeCardDesc(colors),
+                      reminderType === 'TASK' && styles.typeCardDescActive,
+                    ]}>
+                      {t('alerts.taskDesc') || 'Simple to-do'}
                     </Text>
                   </TouchableOpacity>
-                ))}
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.typeCard(colors),
+                      reminderType === 'PAYMENT_DUE' && styles.typeCardActiveExpense(colors),
+                    ]}
+                    onPress={() => setReminderType('PAYMENT_DUE')}
+                  >
+                    <Icon
+                      name="payment"
+                      size={28}
+                      color={reminderType === 'PAYMENT_DUE' ? colors.textInverse : colors.expense}
+                    />
+                    <Text style={[
+                      styles.typeCardText(colors),
+                      reminderType === 'PAYMENT_DUE' && styles.typeCardTextActive,
+                    ]}>
+                      {t('alerts.paymentDue') || 'Payment Due'}
+                    </Text>
+                    <Text style={[
+                      styles.typeCardDesc(colors),
+                      reminderType === 'PAYMENT_DUE' && styles.typeCardDescActive,
+                    ]}>
+                      {t('alerts.paymentDueDesc') || 'Bills & expenses'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Row 2: Income Due and Budget Alert */}
+                <View style={[styles.typeRow, isRTL && styles.typeRowRTL]}>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeCard(colors),
+                      reminderType === 'INCOME_DUE' && styles.typeCardActiveIncome(colors),
+                    ]}
+                    onPress={() => setReminderType('INCOME_DUE')}
+                  >
+                    <Icon
+                      name="attach-money"
+                      size={28}
+                      color={reminderType === 'INCOME_DUE' ? colors.textInverse : colors.income}
+                    />
+                    <Text style={[
+                      styles.typeCardText(colors),
+                      reminderType === 'INCOME_DUE' && styles.typeCardTextActive,
+                    ]}>
+                      {t('alerts.incomeDue') || 'Income Due'}
+                    </Text>
+                    <Text style={[
+                      styles.typeCardDesc(colors),
+                      reminderType === 'INCOME_DUE' && styles.typeCardDescActive,
+                    ]}>
+                      {t('alerts.incomeDueDesc') || 'Collect payments'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.typeCard(colors),
+                      reminderType === 'BUDGET_ALERT' && styles.typeCardActiveWarning(colors),
+                    ]}
+                    onPress={() => setReminderType('BUDGET_ALERT')}
+                  >
+                    <Icon
+                      name="warning"
+                      size={28}
+                      color={reminderType === 'BUDGET_ALERT' ? colors.textInverse : '#FFC107'}
+                    />
+                    <Text style={[
+                      styles.typeCardText(colors),
+                      reminderType === 'BUDGET_ALERT' && styles.typeCardTextActive,
+                    ]}>
+                      {t('alerts.budgetAlert') || 'Budget Alert'}
+                    </Text>
+                    <Text style={[
+                      styles.typeCardDesc(colors),
+                      reminderType === 'BUDGET_ALERT' && styles.typeCardDescActive,
+                    ]}>
+                      {t('alerts.budgetAlertDesc') || 'Spending limit'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Title */}
@@ -638,6 +820,32 @@ export default function AlertsScreen(): React.JSX.Element {
                 textAlign={isRTL ? 'right' : 'left'}
               />
 
+              {/* Priority Selection */}
+              <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                {t('alerts.priority') || 'Priority'}
+              </Text>
+              <View style={[styles.prioritySelector, isRTL && styles.prioritySelectorRTL]}>
+                {(['LOW', 'MEDIUM', 'HIGH'] as ReminderPriority[]).map((p) => (
+                  <TouchableOpacity
+                    key={p}
+                    style={[
+                      styles.priorityOption(colors),
+                      reminderPriority === p && styles.priorityOptionActive(getPriorityColor(p)),
+                    ]}
+                    onPress={() => setReminderPriority(p)}
+                  >
+                    <Text style={[
+                      styles.priorityText(colors),
+                      reminderPriority === p && styles.priorityTextActive,
+                    ]}>
+                      {p === 'LOW' ? (t('alerts.lowPriority') || 'Low') : 
+                       p === 'MEDIUM' ? (t('alerts.mediumPriority') || 'Medium') : 
+                       (t('alerts.highPriority') || 'High')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               {/* Due Date */}
               <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
                 {t('alerts.dueDate')}
@@ -655,66 +863,58 @@ export default function AlertsScreen(): React.JSX.Element {
                 </Text>
               </TouchableOpacity>
 
-              {/* Transaction Type Fields */}
-              {reminderType === 'TRANSACTION' && (
+              {/* Recurrence Selection */}
+              <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                {t('alerts.recurrence') || 'Repeat'}
+              </Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.recurrenceScroll}
+              >
+                {(['NONE', 'DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'YEARLY'] as Recurrence[]).map((rec) => (
+                  <TouchableOpacity
+                    key={rec}
+                    style={[
+                      styles.recurrenceChip(colors),
+                      recurrence === rec && styles.recurrenceChipActive(colors),
+                    ]}
+                    onPress={() => setRecurrence(rec)}
+                  >
+                    <Text style={[
+                      styles.recurrenceChipText(colors),
+                      recurrence === rec && styles.recurrenceChipTextActive,
+                    ]}>
+                      {getRecurrenceLabel(rec)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Amount Field - For Payment/Income Due */}
+              {(reminderType === 'PAYMENT_DUE' || reminderType === 'INCOME_DUE') && (
                 <>
                   <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
-                    {t('add.categoryType')}
-                  </Text>
-                  <View style={[styles.transactionTypeSelector, isRTL && styles.transactionTypeSelectorRTL]}>
-                    <TouchableOpacity
-                      style={[
-                        styles.transactionTypeOption(colors),
-                        transactionType === 'INCOME' && styles.transactionTypeOptionActiveIncome(colors),
-                      ]}
-                      onPress={() => setTransactionType('INCOME')}
-                    >
-                      <Text
-                        style={[
-                          styles.transactionTypeText(colors),
-                          transactionType === 'INCOME' && styles.transactionTypeTextActive,
-                        ]}
-                      >
-                        {t('alerts.incomeTransaction')}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.transactionTypeOption(colors),
-                        transactionType === 'EXPENSE' && styles.transactionTypeOptionActiveExpense(colors),
-                      ]}
-                      onPress={() => setTransactionType('EXPENSE')}
-                    >
-                      <Text
-                        style={[
-                          styles.transactionTypeText(colors),
-                          transactionType === 'EXPENSE' && styles.transactionTypeTextActive,
-                        ]}
-                      >
-                        {t('alerts.expenseTransaction')}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
-                    {t('alerts.transactionAmount')}
+                    {reminderType === 'PAYMENT_DUE' 
+                      ? (t('alerts.paymentAmount') || 'Payment Amount')
+                      : (t('alerts.expectedAmount') || 'Expected Amount')}
                   </Text>
                   <TextInput
                     style={[styles.input(colors), isRTL && styles.inputRTL]}
-                    placeholder={t('alerts.transactionAmountPlaceholder')}
+                    placeholder={t('alerts.amountPlaceholder') || 'e.g., 500'}
                     placeholderTextColor={colors.textSecondary}
-                    value={transactionAmount}
-                    onChangeText={setTransactionAmount}
+                    value={amount}
+                    onChangeText={setAmount}
                     keyboardType="numeric"
                     textAlign={isRTL ? 'right' : 'left'}
                   />
 
                   <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
-                    {t('alerts.selectCategory')}
+                    {t('alerts.selectCategory') || 'Category (Optional)'}
                   </Text>
                   <View style={styles.categoryGrid}>
                     {categories
-                      .filter((c) => c.type === transactionType)
+                      .filter((c) => reminderType === 'PAYMENT_DUE' ? c.type === 'EXPENSE' : c.type === 'INCOME')
                       .map((cat) => (
                         <TouchableOpacity
                           key={cat.id}
@@ -722,7 +922,7 @@ export default function AlertsScreen(): React.JSX.Element {
                             styles.categoryChip(colors),
                             selectedCategoryId === cat.id && styles.categoryChipActive(colors),
                           ]}
-                          onPress={() => setSelectedCategoryId(cat.id)}
+                          onPress={() => setSelectedCategoryId(selectedCategoryId === cat.id ? '' : cat.id)}
                         >
                           <Text
                             style={[
@@ -738,11 +938,11 @@ export default function AlertsScreen(): React.JSX.Element {
                 </>
               )}
 
-              {/* Threshold Fields */}
-              {reminderType === 'THRESHOLD' && (
+              {/* Budget Alert Fields */}
+              {reminderType === 'BUDGET_ALERT' && (
                 <>
                   <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
-                    {t('alerts.selectCategory')}
+                    {t('alerts.selectExpenseCategory') || 'Select Expense Category'}
                   </Text>
                   <View style={styles.categoryGrid}>
                     {expenseCategories.map((cat) => (
@@ -767,44 +967,48 @@ export default function AlertsScreen(): React.JSX.Element {
                   </View>
 
                   <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
-                    {t('alerts.thresholdAmount')}
+                    {t('alerts.budgetLimit') || 'Budget Limit'}
                   </Text>
                   <TextInput
                     style={[styles.input(colors), isRTL && styles.inputRTL]}
-                    placeholder={t('alerts.thresholdAmountPlaceholder')}
+                    placeholder={t('alerts.budgetLimitPlaceholder') || 'e.g., 1000'}
                     placeholderTextColor={colors.textSecondary}
                     value={thresholdAmount}
                     onChangeText={setThresholdAmount}
                     keyboardType="numeric"
                     textAlign={isRTL ? 'right' : 'left'}
                   />
+                  <Text style={[styles.inputHint(colors), isRTL && styles.textRTL]}>
+                    {t('alerts.budgetLimitHint') || 'You will be alerted when spending in this category exceeds this amount'}
+                  </Text>
                 </>
               )}
             </ScrollView>
 
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.cancelButton(colors)]}
-                onPress={() => setShowAddReminderModal(false)}
-              >
-                <Text style={styles.cancelButtonText(colors)}>{t('app.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveButton(colors), saving && styles.saveButtonDisabled]}
-                onPress={handleSaveReminder}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color={colors.textInverse} />
-                ) : (
-                  <Text style={styles.saveButtonText}>
-                    {editingReminder ? t('alerts.updateReminder') : t('alerts.createReminder')}
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.cancelButton(colors)]}
+                  onPress={() => setShowAddReminderModal(false)}
+                >
+                  <Text style={styles.cancelButtonText(colors)}>{t('app.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveButton(colors), saving && styles.saveButtonDisabled]}
+                  onPress={handleSaveReminder}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={colors.textInverse} />
+                  ) : (
+                    <Text style={styles.saveButtonText}>
+                      {editingReminder ? t('alerts.updateReminder') : t('alerts.createReminder')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Date Picker Modal */}
@@ -1301,6 +1505,122 @@ const styles = {
     height: 80,
     textAlignVertical: 'top' as const,
   },
+  // Reminder Type Grid - New card-based layout
+  reminderTypeGrid: {
+    marginBottom: 8,
+  },
+  typeRow: {
+    flexDirection: 'row' as const,
+    gap: 12,
+    marginBottom: 12,
+  },
+  typeRowRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  typeCard: (colors: any) => ({
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBackground,
+    alignItems: 'center' as const,
+  }),
+  typeCardActive: (colors: any) => ({
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  }),
+  typeCardActiveExpense: (colors: any) => ({
+    borderColor: colors.expense,
+    backgroundColor: colors.expense,
+  }),
+  typeCardActiveIncome: (colors: any) => ({
+    borderColor: colors.income,
+    backgroundColor: colors.income,
+  }),
+  typeCardActiveWarning: (colors: any) => ({
+    borderColor: '#FFC107',
+    backgroundColor: '#FFC107',
+  }),
+  typeCardText: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: 'bold' as const,
+    color: colors.text,
+    marginTop: 8,
+    textAlign: 'center' as const,
+  }),
+  typeCardTextActive: {
+    color: '#fff',
+  },
+  typeCardDesc: (colors: any) => ({
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center' as const,
+  }),
+  typeCardDescActive: {
+    color: 'rgba(255,255,255,0.8)',
+  },
+  // Priority Selector
+  prioritySelector: {
+    flexDirection: 'row' as const,
+    gap: 10,
+  },
+  prioritySelectorRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  priorityOption: (colors: any) => ({
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center' as const,
+  }),
+  priorityOptionActive: (color: string) => ({
+    borderColor: color,
+    backgroundColor: color,
+  }),
+  priorityText: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.text,
+  }),
+  priorityTextActive: {
+    color: '#fff',
+  },
+  // Recurrence Selector
+  recurrenceScroll: {
+    marginBottom: 8,
+  },
+  recurrenceChip: (colors: any) => ({
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 8,
+    backgroundColor: colors.inputBackground,
+  }),
+  recurrenceChipActive: (colors: any) => ({
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  }),
+  recurrenceChipText: (colors: any) => ({
+    fontSize: 14,
+    color: colors.text,
+  }),
+  recurrenceChipTextActive: {
+    color: '#fff',
+  },
+  // Input Hint
+  inputHint: (colors: any) => ({
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontStyle: 'italic' as const,
+  }),
+  // Legacy styles kept for backward compatibility
   typeSelector: {
     flexDirection: 'row' as const,
     gap: 8,
