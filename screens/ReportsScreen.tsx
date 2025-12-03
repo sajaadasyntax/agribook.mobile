@@ -557,7 +557,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   headerTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   headerRTL: {
@@ -680,7 +679,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   sectionTitleRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   transactionItem: (colors: any) => ({
@@ -714,7 +712,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   transactionCategoryRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   transactionDate: (colors: any) => ({
@@ -723,7 +720,6 @@ const styles = {
     textAlign: 'left' as const,
   }),
   transactionDateRTL: {
-    writingDirection: 'rtl' as const,
     textAlign: 'right' as const,
   },
   transactionAmount: {

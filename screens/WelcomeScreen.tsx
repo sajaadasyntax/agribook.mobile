@@ -370,7 +370,6 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   labelRTL: {
-    writingDirection: 'rtl',
     textAlign: 'right',
   },
   labelRowRTL: {
@@ -381,7 +380,6 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   textRTL: {
-    writingDirection: 'rtl',
     textAlign: 'right',
   },
   inputWrapper: {
