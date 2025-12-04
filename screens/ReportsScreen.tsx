@@ -452,8 +452,11 @@ export default function ReportsScreen(): React.JSX.Element {
                   axisLineColor: colors.border,
                   gridColor: colors.border,
                   avoidFirstLastClipping: true,
+                  centerAxisLabels: true, // Center labels under bar groups
                   axisMinimum: 0, // Start at 0 for proper alignment
                   axisMaximum: chartLabels.length, // End at number of groups
+                  labelCount: chartLabels.length, // Ensure all labels are shown
+                  drawGridLines: true, // Show grid lines for visual anchoring
                 }}
                 yAxis={{
                   left: {
