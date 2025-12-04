@@ -328,7 +328,7 @@ export default function LockScreen({
       {/* Biometric button */}
       {showBiometricOption && !lockedOut && (
         <TouchableOpacity
-          style={[styles.biometricButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+          style={[styles.biometricButton]}
           onPress={handleBiometricAuth}
           disabled={loading}
         >
@@ -464,7 +464,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   biometricButtonRTL: {
-    flexDirection: 'row-reverse',
   },
   biometricText: {
     fontSize: 16,

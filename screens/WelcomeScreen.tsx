@@ -135,7 +135,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         </View>
 
         {/* Toggle between Sign In and Sign Up */}
-        <View style={[styles.toggleContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.toggleContainer]}>
           <TouchableOpacity
             style={[styles.toggleButton, !isSignIn && styles.toggleButtonActive]}
             onPress={() => setIsSignIn(false)}
@@ -160,7 +160,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
           {!isSignIn && (
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { textAlign }]}>{t('auth.name')}</Text>
-              <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={styles.inputWrapper}>
                 <Icon name="person" size={20} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, { textAlign }]}
@@ -177,11 +177,11 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
           {/* Email Input - Only for Sign Up */}
           {!isSignIn && (
             <View style={styles.inputContainer}>
-              <View style={[styles.labelRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={styles.labelRow}>
                 <Text style={[styles.label, { textAlign }]}>{t('auth.email')}</Text>
                 <Text style={[styles.optional, { textAlign }]}>{t('auth.optional')}</Text>
               </View>
-              <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={styles.inputWrapper}>
                 <Icon name="email" size={20} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, { textAlign }]}
@@ -199,11 +199,11 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Phone Input */}
           <View style={styles.inputContainer}>
-            <View style={[styles.labelRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={styles.labelRow}>
               <Text style={[styles.label, { textAlign }]}>{t('auth.phone')}</Text>
               {!isSignIn && <Text style={[styles.optional, { textAlign }]}>{t('auth.optional')}</Text>}
             </View>
-            <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={styles.inputWrapper}>
               <Icon name="phone" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { textAlign }]}
@@ -218,11 +218,11 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <View style={[styles.labelRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={styles.labelRow}>
               <Text style={[styles.label, { textAlign }]}>{t('auth.password') || 'Password'}</Text>
               {!isSignIn && <Text style={[styles.optional, { textAlign }]}>{t('auth.optional')}</Text>}
             </View>
-            <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={styles.inputWrapper}>
               <Icon name="lock" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { textAlign, flex: 1 }]}
@@ -248,11 +248,11 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
           {/* Company Name - Only for Sign Up */}
           {!isSignIn && (
             <View style={styles.inputContainer}>
-              <View style={[styles.labelRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={styles.labelRow}>
                 <Text style={[styles.label, { textAlign }]}>{t('auth.companyName')}</Text>
                 <Text style={[styles.optional, { textAlign }]}>{t('auth.optional')}</Text>
               </View>
-              <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={styles.inputWrapper}>
                 <Icon name="business" size={20} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, { textAlign }]}
@@ -269,7 +269,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.button, { flexDirection: isRTL ? 'row-reverse' : 'row' }, loading && styles.buttonDisabled]}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -373,7 +373,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   labelRowRTL: {
-    flexDirection: 'row-reverse',
   },
   optional: {
     fontSize: 12,
@@ -393,7 +392,6 @@ const styles = StyleSheet.create({
     height: 56,
   },
   inputWrapperRTL: {
-    flexDirection: 'row-reverse',
   },
   inputIcon: {
     marginHorizontal: 12,
@@ -438,7 +436,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   buttonRTL: {
-    flexDirection: 'row-reverse',
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -482,7 +479,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   toggleContainerRTL: {
-    flexDirection: 'row-reverse',
   },
   toggleButton: {
     flex: 1,

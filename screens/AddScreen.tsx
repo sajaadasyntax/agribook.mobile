@@ -984,7 +984,6 @@ const styles = {
     textAlign: 'right' as const,
   },
   headerRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   offlineBadge: {
     flexDirection: 'row' as const,
@@ -996,7 +995,6 @@ const styles = {
     gap: 4,
   },
   offlineBadgeRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   offlineBadgeText: {
     color: '#fff',
@@ -1035,7 +1033,6 @@ const styles = {
     marginBottom: 12,
   },
   sectionHeaderRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   sectionTitle: (colors: any) => ({
     fontSize: 18,
@@ -1052,7 +1049,6 @@ const styles = {
     gap: 12,
   },
   categoryManagementButtonsRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   manageCategoryButton: (colors: any) => ({
     flex: 1,
@@ -1076,7 +1072,6 @@ const styles = {
     gap: 12,
   },
   typeSelectorRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   typeButton: (colors: any) => ({
     flex: 1,
@@ -1205,7 +1200,6 @@ const styles = {
     marginTop: 16,
   },
   saveButtonsRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   saveButton: {
     flex: 1,
@@ -1256,7 +1250,6 @@ const styles = {
     borderBottomColor: '#e0e0e0',
   },
   modalHeaderRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   modalTitle: (colors: any) => ({
     fontSize: 18,
@@ -1294,7 +1287,6 @@ const styles = {
     marginBottom: 16,
   },
   categoryTypeSelectorRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   categoryTypeOption: (colors: any) => ({
     flex: 1,
@@ -1360,7 +1352,6 @@ const styles = {
     borderRadius: 8,
   }),
   deleteCategoryItemRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   deleteCategoryName: (colors: any) => ({
     fontSize: 16,

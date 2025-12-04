@@ -203,7 +203,6 @@ const styles = {
     shadowRadius: 3.84,
   }),
   appBarRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   appBarTitle: {
     fontSize: 24,

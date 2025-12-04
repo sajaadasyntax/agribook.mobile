@@ -595,7 +595,6 @@ const styles = {
     marginBottom: 16,
   },
   dateNavigatorRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   navButton: (colors: any) => ({
     padding: 8,
@@ -617,7 +616,6 @@ const styles = {
     gap: 12,
   },
   exportContainerRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   exportButton: (colors: any) => ({
     flexDirection: 'row' as const,
@@ -641,7 +639,6 @@ const styles = {
     marginBottom: 20,
   },
   summaryContainerRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   summaryCard: (colors: any) => ({
     flex: 1,
@@ -691,7 +688,6 @@ const styles = {
     marginBottom: 8,
   }),
   transactionItemRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   transactionLeft: {
     flexDirection: 'row' as const,
@@ -760,7 +756,6 @@ const styles = {
     gap: 8,
   },
   legendItemRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   legendDot: {
     width: 12,

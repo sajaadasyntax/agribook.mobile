@@ -512,7 +512,6 @@ const styles = {
     textAlign: 'right' as const,
   },
   appBarRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   notificationButton: {
     position: 'relative' as const,
@@ -571,7 +570,6 @@ const styles = {
     marginBottom: 0,
   },
   summaryContainerRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   summaryCard: (colors: any) => ({
     flex: 1,
@@ -595,7 +593,6 @@ const styles = {
     gap: 12,
   },
   actionButtonsRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   actionButton: {
     flex: 1,
@@ -662,7 +659,6 @@ const styles = {
     gap: 12,
   },
   saveButtonsRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   saveButton: {
     flex: 1,

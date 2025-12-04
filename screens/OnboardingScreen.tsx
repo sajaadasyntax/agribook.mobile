@@ -121,7 +121,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
       </PagerView>
 
       {/* Pagination Dots */}
-      <View style={[styles.pagination, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={styles.pagination}>
         {pages.map((_, index) => (
           <View
             key={index}
@@ -134,15 +134,15 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
       </View>
 
       {/* Navigation Buttons */}
-      <View style={[styles.navigation, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={styles.navigation}>
         {currentPage > 0 && (
-          <TouchableOpacity style={[styles.navButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={handlePrevious}>
+          <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
             <Icon name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#4CAF50" />
             <Text style={[styles.navButtonText, isRTL && styles.textRTL]}>{t('onboarding.previous')}</Text>
           </TouchableOpacity>
         )}
         <View style={styles.spacer} />
-        <TouchableOpacity style={[styles.primaryButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={handleNext}>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleNext}>
           <Text style={[styles.primaryButtonText, isRTL && styles.textRTL]}>
             {currentPage === pages.length - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
           </Text>
@@ -223,7 +223,6 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   paginationRTL: {
-    flexDirection: 'row-reverse',
   },
   dot: {
     width: 8,
@@ -244,7 +243,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   navigationRTL: {
-    flexDirection: 'row-reverse',
   },
   navButton: {
     flexDirection: 'row',
@@ -253,7 +251,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   navButtonRTL: {
-    flexDirection: 'row-reverse',
   },
   navButtonText: {
     color: '#4CAF50',
@@ -278,7 +275,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   primaryButtonRTL: {
-    flexDirection: 'row-reverse',
   },
   primaryButtonText: {
     color: '#fff',

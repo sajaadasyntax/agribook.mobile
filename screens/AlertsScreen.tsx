@@ -988,7 +988,6 @@ const styles = {
     textAlign: 'right' as const,
   },
   headerRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   addButton: (colors: any) => ({
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -1016,7 +1015,6 @@ const styles = {
     marginBottom: 16,
   },
   sectionHeaderRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   sectionTitle: (colors: any) => ({
     fontSize: 18,
@@ -1068,7 +1066,6 @@ const styles = {
     gap: 12,
   }),
   alertItemRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   alertDot: {
     width: 12,
@@ -1102,7 +1099,6 @@ const styles = {
     gap: 12,
   }),
   reminderItemRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   reminderIconContainer: (colors: any) => ({
     width: 40,
@@ -1135,7 +1131,6 @@ const styles = {
     marginTop: 4,
   },
   reminderMetaRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   reminderType: (colors: any) => ({
     fontSize: 12,
@@ -1204,7 +1199,6 @@ const styles = {
     marginBottom: 8,
   }),
   settingItemRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   settingContent: {
     flex: 1,
@@ -1262,7 +1256,6 @@ const styles = {
     borderBottomColor: '#e0e0e0',
   },
   modalHeaderRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   modalTitle: (colors: any) => ({
     fontSize: 18,
@@ -1315,7 +1308,6 @@ const styles = {
     flexWrap: 'wrap' as const,
   },
   typeSelectorRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   typeOption: (colors: any) => ({
     flex: 1,
@@ -1346,7 +1338,6 @@ const styles = {
     gap: 12,
   },
   transactionTypeSelectorRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   transactionTypeOption: (colors: any) => ({
     flex: 1,
@@ -1383,7 +1374,6 @@ const styles = {
     gap: 8,
   }),
   dateButtonRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   dateButtonText: (colors: any) => ({
     fontSize: 16,

@@ -742,7 +742,6 @@ const styles = {
     textAlign: 'right' as const,
   },
   appBarRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   scrollView: {
     flex: 1,
@@ -765,7 +764,6 @@ const styles = {
     marginBottom: 16,
   },
   sectionHeaderRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   sectionTitle: (colors: any) => ({
     fontSize: 18,
@@ -866,7 +864,6 @@ const styles = {
     marginBottom: 8,
   }),
   settingRowRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   settingContent: {
     flex: 1,
@@ -979,7 +976,6 @@ const styles = {
     marginBottom: 8,
   }),
   aboutItemRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   aboutLabel: (colors: any) => ({
     fontSize: 14,
@@ -1003,7 +999,6 @@ const styles = {
     gap: 12,
   }),
   profileButtonRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   profileButtonContent: {
     flex: 1,
@@ -1037,7 +1032,6 @@ const styles = {
     marginBottom: 16,
   }),
   setPinButtonRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   setPinButtonText: (colors: any) => ({
     flex: 1,
@@ -1070,7 +1064,6 @@ const styles = {
     marginBottom: 24,
   },
   pinModalHeaderRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   pinModalTitle: (colors: any) => ({
     fontSize: 20,
@@ -1162,7 +1155,6 @@ const styles = {
     gap: 12,
   }),
   logoutButtonRTL: {
-    flexDirection: 'row-reverse' as const,
   },
   logoutButtonText: (colors: any) => ({
     fontSize: 16,
