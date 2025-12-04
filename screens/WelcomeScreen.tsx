@@ -561,7 +561,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   removeLogoButtonRTL: {
-    flexDirection: 'row-reverse',
   },
   removeLogoText: {
     marginLeft: 4,
