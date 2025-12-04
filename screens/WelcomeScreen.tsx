@@ -113,13 +113,15 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { direction: textDirection, flexGrow: 1 }]}
+        contentContainerStyle={[styles.scrollContent, { direction: textDirection, flexGrow: 1, paddingBottom: 50 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets={true}
       >
         {/* Header */}
         <View style={styles.header}>

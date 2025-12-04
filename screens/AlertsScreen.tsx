@@ -566,7 +566,7 @@ export default function AlertsScreen(): React.JSX.Element {
       >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent(colors)}>
@@ -584,7 +584,8 @@ export default function AlertsScreen(): React.JSX.Element {
               showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled={true}
-              contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 50 }}
+              automaticallyAdjustKeyboardInsets={true}
               bounces={true}
             >
               {/* Reminder Type Selection */}

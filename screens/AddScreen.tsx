@@ -521,16 +521,16 @@ export default function AddScreen(): React.JSX.Element {
   return (
     <KeyboardAvoidingView 
       style={styles.keyboardAvoid(colors)}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ScrollView 
         style={styles.container(colors)}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
-        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        contentContainerStyle={[styles.scrollContent, { flexGrow: 1, paddingBottom: 100 }]}
+        automaticallyAdjustKeyboardInsets={true}
       >
         <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
           <Text style={styles.headerTitle}>
@@ -759,7 +759,7 @@ export default function AddScreen(): React.JSX.Element {
       >
         <KeyboardAvoidingView 
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent(colors)}>

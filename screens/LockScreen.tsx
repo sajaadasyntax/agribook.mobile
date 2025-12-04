@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
 import { settingsApi } from '../src/services/api.service';
+import syncService from '../src/services/sync.service';
 import { useI18n } from '../src/context/I18nContext';
 
 interface LockScreenProps {
@@ -174,18 +176,49 @@ export default function LockScreen({
     try {
       setLoading(true);
       
-      const result = await settingsApi.verifyPin({ pin: pinString });
+      // Check if we're online or offline
+      const isOnline = await syncService.checkNetworkStatus();
       
-      if (result.valid) {
-        onUnlock();
+      if (isOnline) {
+        // Online: verify with server
+        try {
+          const result = await settingsApi.verifyPin({ pin: pinString });
+          
+          if (result.valid) {
+            onUnlock();
+          } else {
+            handleFailedAttempt();
+          }
+        } catch (apiError) {
+          // API call failed - fall back to local verification
+          console.warn('API verification failed, falling back to local:', apiError);
+          await verifyPinLocally(pinString);
+        }
       } else {
-        handleFailedAttempt();
+        // Offline: verify locally
+        await verifyPinLocally(pinString);
       }
     } catch (error) {
       console.error('Error verifying PIN:', error);
       handleFailedAttempt();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const verifyPinLocally = async (pinString: string): Promise<void> => {
+    try {
+      // Get the stored PIN from SecureStore
+      const storedPin = await SecureStore.getItemAsync('user_pin');
+      
+      if (storedPin && storedPin === pinString) {
+        onUnlock();
+      } else {
+        handleFailedAttempt();
+      }
+    } catch (error) {
+      console.error('Error verifying PIN locally:', error);
+      handleFailedAttempt();
     }
   };
 

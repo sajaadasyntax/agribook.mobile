@@ -23,7 +23,6 @@ import AddScreen from './screens/AddScreen';
 import ReportsScreen from './screens/ReportsScreen';
 import AlertsScreen from './screens/AlertsScreen';
 import SettingsScreen from './screens/SettingsScreen';
-import ProfileScreen from './screens/ProfileScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
 import LockScreen from './screens/LockScreen';
@@ -51,8 +50,6 @@ function MainTabs(): JSX.Element {
             iconName = 'assessment';
           } else if (route.name === 'Alerts') {
             iconName = 'notifications';
-          } else if (route.name === 'Profile') {
-            iconName = 'person';
           } else if (route.name === 'Settings') {
             iconName = 'settings';
           } else {
@@ -67,7 +64,6 @@ function MainTabs(): JSX.Element {
             'Add': t('navigation.add'),
             'Reports': t('navigation.reports'),
             'Alerts': t('navigation.alerts'),
-            'Profile': t('navigation.profile'),
             'Settings': t('navigation.settings'),
           };
           return labels[route.name] || route.name;
@@ -85,7 +81,6 @@ function MainTabs(): JSX.Element {
       <Tab.Screen name="Add" component={AddScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
       <Tab.Screen name="Alerts" component={AlertsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
