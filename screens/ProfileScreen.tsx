@@ -80,7 +80,7 @@ export default function ProfileScreen(): React.JSX.Element {
     >
       <View style={styles.container(colors)}>
         <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-          <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>
+          <Text style={styles.appBarTitle}>
             {t('profile.title')}
           </Text>
         </View>
@@ -94,11 +94,11 @@ export default function ProfileScreen(): React.JSX.Element {
         >
         {/* Personal Information */}
         <View style={styles.section(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+          <Text style={styles.sectionTitle(colors)}>
             {t('profile.personalInfo')}
           </Text>
 
-          <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
+          <Text style={styles.label(colors)}>
             {t('auth.name')}
           </Text>
           <TextInput
@@ -110,7 +110,7 @@ export default function ProfileScreen(): React.JSX.Element {
             textAlign={isRTL ? 'right' : 'left'}
           />
 
-          <Text style={[styles.label(colors), isRTL && styles.labelRTL, { marginTop: 16 }]}>
+          <Text style={[styles.label(colors), { marginTop: 16 }]}>
             {t('auth.email')}
           </Text>
           <TextInput
@@ -120,7 +120,7 @@ export default function ProfileScreen(): React.JSX.Element {
             textAlign={isRTL ? 'right' : 'left'}
           />
 
-          <Text style={[styles.label(colors), isRTL && styles.labelRTL, { marginTop: 16 }]}>
+          <Text style={[styles.label(colors), { marginTop: 16 }]}>
             {t('auth.phone')}
           </Text>
           <TextInput
@@ -136,11 +136,11 @@ export default function ProfileScreen(): React.JSX.Element {
 
         {/* Company Information */}
         <View style={styles.section(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+          <Text style={styles.sectionTitle(colors)}>
             {t('profile.companyInfo')}
           </Text>
 
-          <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
+          <Text style={styles.label(colors)}>
             {t('auth.companyName')}
           </Text>
           <TextInput

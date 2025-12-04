@@ -277,7 +277,7 @@ export default function HomeScreen(): React.JSX.Element {
     >
       <View style={styles.container(colors)}>
         <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-          <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('app.name')}</Text>
+          <Text style={styles.appBarTitle}>{t('app.name')}</Text>
           <TouchableOpacity 
             style={styles.notificationButton}
             onPress={() => navigation.navigate('Alerts')}
@@ -353,7 +353,7 @@ export default function HomeScreen(): React.JSX.Element {
             incomeYPosition.current = event.nativeEvent.layout.y;
           }}
         >
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('home.incomeEntry')}</Text>
+          <Text style={styles.sectionTitle(colors)}>{t('home.incomeEntry')}</Text>
           <View style={styles.categoryButtons}>
             {incomeCategories.map((cat) => (
               <TouchableOpacity
@@ -410,7 +410,7 @@ export default function HomeScreen(): React.JSX.Element {
             expenseYPosition.current = event.nativeEvent.layout.y;
           }}
         >
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('home.expenseEntry')}</Text>
+          <Text style={styles.sectionTitle(colors)}>{t('home.expenseEntry')}</Text>
           <View style={styles.categoryButtons}>
             {expenseCategories.map((cat) => (
               <TouchableOpacity

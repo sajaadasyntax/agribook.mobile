@@ -338,7 +338,7 @@ export default function AlertsScreen(): React.JSX.Element {
   return (
     <View style={styles.container(colors)}>
       <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
-        <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>
+        <Text style={styles.headerTitle(colors)}>
           {t('alerts.title')}
         </Text>
         <TouchableOpacity style={styles.addButton(colors)} onPress={openAddModal}>
@@ -353,7 +353,7 @@ export default function AlertsScreen(): React.JSX.Element {
         {/* Active Alerts */}
         <View style={styles.section(colors)}>
           <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
-            <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+            <Text style={styles.sectionTitle(colors)}>
               {t('alerts.activeAlerts')}
             </Text>
             {alerts.length > 0 && (
@@ -378,10 +378,10 @@ export default function AlertsScreen(): React.JSX.Element {
                 >
                   <View style={[styles.alertDot, { backgroundColor: alertColor }]} />
                   <View style={styles.alertContent}>
-                    <Text style={[styles.alertMessage(colors), isRTL && styles.textRTL]}>
+                    <Text style={styles.alertMessage(colors)}>
                       {alert.message}
                     </Text>
-                    <Text style={[styles.alertTime(colors), isRTL && styles.textRTL]}>
+                    <Text style={styles.alertTime(colors)}>
                       {formatTimeAgo(alert.createdAt)}
                     </Text>
                   </View>
@@ -394,7 +394,7 @@ export default function AlertsScreen(): React.JSX.Element {
 
         {/* Reminders */}
         <View style={styles.section(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+          <Text style={styles.sectionTitle(colors)}>
             {t('alerts.reminders')}
           </Text>
           {reminders.length === 0 ? (
@@ -421,11 +421,11 @@ export default function AlertsScreen(): React.JSX.Element {
                   />
                 </View>
                 <View style={styles.reminderContent}>
-                  <Text style={[styles.reminderTitle(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.reminderTitle(colors)}>
                     {reminder.title}
                   </Text>
                   {reminder.description && (
-                    <Text style={[styles.reminderDescription(colors), isRTL && styles.textRTL]}>
+                    <Text style={styles.reminderDescription(colors)}>
                       {reminder.description}
                     </Text>
                   )}
@@ -443,14 +443,14 @@ export default function AlertsScreen(): React.JSX.Element {
                         {t('alerts.thresholdReminderDesc')}
                       </Text>
                       {reminder.thresholdAmount && (
-                        <Text style={[styles.reminderThreshold(colors), isRTL && styles.textRTL]}>
+                        <Text style={styles.reminderThreshold(colors)}>
                           {t('alerts.thresholdAmount')}: ${reminder.thresholdAmount}
                         </Text>
                       )}
                       {reminder.categoryId && (() => {
                         const category = categories.find(c => c.id === reminder.categoryId);
                         return category ? (
-                          <Text style={[styles.reminderCategory(colors), isRTL && styles.textRTL]}>
+                          <Text style={styles.reminderCategory(colors)}>
                             {t('alerts.category')}: {category.name}
                           </Text>
                         ) : null;
@@ -459,18 +459,18 @@ export default function AlertsScreen(): React.JSX.Element {
                   )}
                   {reminder.reminderType === 'TRANSACTION' && (
                     <View style={styles.reminderDetailsContainer}>
-                      <Text style={[styles.reminderTriggerDesc(colors), isRTL && styles.textRTL]}>
+                      <Text style={styles.reminderTriggerDesc(colors)}>
                         {t('alerts.transactionReminderDesc')}
                       </Text>
                       {reminder.transactionAmount && (
-                        <Text style={[styles.reminderThreshold(colors), isRTL && styles.textRTL]}>
+                        <Text style={styles.reminderThreshold(colors)}>
                           {reminder.transactionType === 'INCOME' ? t('alerts.incomeTransaction') : t('alerts.expenseTransaction')}: ${reminder.transactionAmount}
                         </Text>
                       )}
                       {reminder.categoryId && (() => {
                         const category = categories.find(c => c.id === reminder.categoryId);
                         return category ? (
-                          <Text style={[styles.reminderCategory(colors), isRTL && styles.textRTL]}>
+                          <Text style={styles.reminderCategory(colors)}>
                             {t('alerts.category')}: {category.name}
                           </Text>
                         ) : null;
@@ -478,7 +478,7 @@ export default function AlertsScreen(): React.JSX.Element {
                     </View>
                   )}
                   {(!reminder.reminderType || reminder.reminderType === 'GENERAL') && (
-                    <Text style={[styles.reminderTriggerDesc(colors), isRTL && styles.textRTL]}>
+                    <Text style={styles.reminderTriggerDesc(colors)}>
                       {t('alerts.generalReminderDesc')}
                     </Text>
                   )}
@@ -508,15 +508,15 @@ export default function AlertsScreen(): React.JSX.Element {
         {/* Alert Settings */}
         {settings && (
           <View style={styles.section(colors)}>
-            <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+            <Text style={styles.sectionTitle(colors)}>
               {t('alerts.alertSettings')}
             </Text>
             <View style={[styles.settingItem(colors), isRTL && styles.settingItemRTL]}>
               <View style={styles.settingContent}>
-                <Text style={[styles.settingLabel(colors), isRTL && styles.textRTL]}>
+                <Text style={styles.settingLabel(colors)}>
                   {t('alerts.pushNotifications')}
                 </Text>
-                <Text style={[styles.settingDescription(colors), isRTL && styles.textRTL]}>
+                <Text style={styles.settingDescription(colors)}>
                   {t('alerts.pushNotificationsDesc')}
                 </Text>
               </View>
@@ -534,10 +534,10 @@ export default function AlertsScreen(): React.JSX.Element {
             </View>
             <View style={[styles.settingItem(colors), isRTL && styles.settingItemRTL]}>
               <View style={styles.settingContent}>
-                <Text style={[styles.settingLabel(colors), isRTL && styles.textRTL]}>
+                <Text style={styles.settingLabel(colors)}>
                   {t('alerts.expenseThresholdAlert')}
                 </Text>
-                <Text style={[styles.settingDescription(colors), isRTL && styles.textRTL]}>
+                <Text style={styles.settingDescription(colors)}>
                   {t('alerts.expenseThresholdAlertDesc')}
                 </Text>
               </View>
@@ -571,7 +571,7 @@ export default function AlertsScreen(): React.JSX.Element {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent(colors)}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
+              <Text style={styles.modalTitle(colors)}>
                 {editingReminder ? t('alerts.editReminder') : t('alerts.addReminder')}
               </Text>
               <TouchableOpacity onPress={() => setShowAddReminderModal(false)}>
@@ -586,7 +586,7 @@ export default function AlertsScreen(): React.JSX.Element {
               nestedScrollEnabled={true}
             >
               {/* Reminder Type Selection */}
-              <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+              <Text style={styles.inputLabel(colors)}>
                 {t('alerts.reminderType')}
               </Text>
               <View style={[styles.typeSelector, isRTL && styles.typeSelectorRTL]}>
@@ -617,7 +617,7 @@ export default function AlertsScreen(): React.JSX.Element {
               </View>
 
               {/* Title */}
-              <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+              <Text style={styles.inputLabel(colors)}>
                 {t('alerts.reminderTitle')}
               </Text>
               <TextInput
@@ -630,7 +630,7 @@ export default function AlertsScreen(): React.JSX.Element {
               />
 
               {/* Description */}
-              <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+              <Text style={styles.inputLabel(colors)}>
                 {t('alerts.reminderDescription')}
               </Text>
               <TextInput
@@ -645,7 +645,7 @@ export default function AlertsScreen(): React.JSX.Element {
               />
 
               {/* Due Date */}
-              <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+              <Text style={styles.inputLabel(colors)}>
                 {t('alerts.dueDate')}
               </Text>
               <TouchableOpacity
@@ -664,7 +664,7 @@ export default function AlertsScreen(): React.JSX.Element {
               {/* Transaction Type Fields */}
               {reminderType === 'TRANSACTION' && (
                 <>
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('add.categoryType')}
                   </Text>
                   <View style={[styles.transactionTypeSelector, isRTL && styles.transactionTypeSelectorRTL]}>
@@ -702,7 +702,7 @@ export default function AlertsScreen(): React.JSX.Element {
                     </TouchableOpacity>
                   </View>
 
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('alerts.transactionAmount')}
                   </Text>
                   <TextInput
@@ -715,7 +715,7 @@ export default function AlertsScreen(): React.JSX.Element {
                     textAlign={isRTL ? 'right' : 'left'}
                   />
 
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('alerts.selectCategory')}
                   </Text>
                   <View style={styles.categoryGrid}>
@@ -747,7 +747,7 @@ export default function AlertsScreen(): React.JSX.Element {
               {/* Threshold Fields */}
               {reminderType === 'THRESHOLD' && (
                 <>
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('alerts.selectCategory')}
                   </Text>
                   <View style={styles.categoryGrid}>
@@ -772,7 +772,7 @@ export default function AlertsScreen(): React.JSX.Element {
                     ))}
                   </View>
 
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('alerts.thresholdAmount')}
                   </Text>
                   <TextInput
@@ -824,7 +824,7 @@ export default function AlertsScreen(): React.JSX.Element {
         <View style={styles.modalOverlay}>
           <View style={styles.datePickerModalContent(colors)}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>{t('alerts.selectDate')}</Text>
+              <Text style={styles.modalTitle(colors)}>{t('alerts.selectDate')}</Text>
               <TouchableOpacity onPress={() => setShowDatePickerModal(false)}>
                 <Icon name="close" size={24} color={colors.text} />
               </TouchableOpacity>

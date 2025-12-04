@@ -140,7 +140,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             style={[styles.toggleButton, !isSignIn && styles.toggleButtonActive]}
             onPress={() => setIsSignIn(false)}
           >
-            <Text style={[styles.toggleText, !isSignIn && styles.toggleTextActive, isRTL && styles.textRTL]}>
+            <Text style={[styles.toggleText, !isSignIn && styles.toggleTextActive]}>
               {t('auth.signUp')}
             </Text>
           </TouchableOpacity>
@@ -148,7 +148,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
             style={[styles.toggleButton, isSignIn && styles.toggleButtonActive]}
             onPress={() => setIsSignIn(true)}
           >
-            <Text style={[styles.toggleText, isSignIn && styles.toggleTextActive, isRTL && styles.textRTL]}>
+            <Text style={[styles.toggleText, isSignIn && styles.toggleTextActive]}>
               {t('auth.signIn')}
             </Text>
           </TouchableOpacity>
@@ -279,7 +279,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
               </View>
             ) : (
               <>
-                <Text style={[styles.buttonText, isRTL && styles.textRTL]}>
+                <Text style={styles.buttonText}>
                   {isSignIn ? t('auth.signIn') : t('auth.createAccount')}
                 </Text>
                 <Icon name={isRTL ? 'arrow-back' : 'arrow-forward'} size={24} color="#fff" />

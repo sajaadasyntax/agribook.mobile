@@ -384,15 +384,14 @@ export default function ReportsScreen(): React.JSX.Element {
           />
         </View>
         <View>
-          <Text style={[styles.transactionCategory(colors), isRTL && styles.transactionCategoryRTL]}>{item.category?.name || 'Uncategorized'}</Text>
-          <Text style={[styles.transactionDate(colors), isRTL && styles.transactionDateRTL]}>
+          <Text style={styles.transactionCategory(colors)}>{item.category?.name || 'Uncategorized'}</Text>
+          <Text style={styles.transactionDate(colors)}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
       </View>
       <Text style={[
         styles.transactionAmount,
-        isRTL && styles.transactionAmountRTL,
         { color: item.type === 'INCOME' ? colors.income : colors.expense }
       ]}>
         {item.type === 'INCOME' ? '+' : '-'}{formatCurrency(parseFloat(item.amount.toString()), { locale })}
@@ -422,7 +421,7 @@ export default function ReportsScreen(): React.JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       >
         <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
-          <Text style={[styles.headerTitle(colors), isRTL && styles.headerTitleRTL]}>
+          <Text style={styles.headerTitle(colors)}>
             {t('reports.title')}
           </Text>
         </View>
@@ -435,7 +434,7 @@ export default function ReportsScreen(): React.JSX.Element {
       {/* Main Chart - Grouped Bar Chart */}
       {period !== 'day' && (
         <View style={styles.chartContainer(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+          <Text style={styles.sectionTitle(colors)}>
             {t('reports.overview') || 'Overview'}
           </Text>
           {barChartData ? (
@@ -453,11 +452,8 @@ export default function ReportsScreen(): React.JSX.Element {
                   axisLineColor: colors.border,
                   gridColor: colors.border,
                   avoidFirstLastClipping: true,
-                  centerAxisLabels: true, // Center labels under bar groups
                   axisMinimum: 0, // Start at 0 for proper alignment
                   axisMaximum: chartLabels.length, // End at number of groups
-                  labelCount: chartLabels.length, // Ensure all labels are shown
-                  drawGridLines: true, // Show grid lines for visual anchoring
                 }}
                 yAxis={{
                   left: {
@@ -511,7 +507,7 @@ export default function ReportsScreen(): React.JSX.Element {
 
       {/* Recent Transactions */}
       <View style={styles.section(colors)}>
-        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+        <Text style={styles.sectionTitle(colors)}>
           {t('reports.recentTransactions') || 'Recent Transactions'}
         </Text>
         {transactions.length > 0 ? (

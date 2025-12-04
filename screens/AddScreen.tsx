@@ -10,6 +10,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  DimensionValue,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -532,7 +533,7 @@ export default function AddScreen(): React.JSX.Element {
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <View style={[styles.header(colors), isRTL && styles.headerRTL]}>
-          <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
+          <Text style={styles.headerTitle}>
             {t('add.title') || 'Add Transaction'}
           </Text>
           {(!isNetworkOnline || settings?.offlineMode) && (
@@ -600,7 +601,7 @@ export default function AddScreen(): React.JSX.Element {
       {/* Category Management Card */}
       <View style={styles.section(colors)}>
         <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+          <Text style={styles.sectionTitle(colors)}>
             {t('add.manageCategories')}
           </Text>
         </View>
@@ -629,7 +630,7 @@ export default function AddScreen(): React.JSX.Element {
 
       {/* Entry Form */}
       <View style={styles.section(colors)}>
-        <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>
+        <Text style={styles.sectionTitle(colors)}>
           {entryType === 'income' 
             ? (t('add.incomeEntry') || 'Income Entry')
             : (t('add.expenseEntry') || 'Expense Entry')
@@ -637,7 +638,7 @@ export default function AddScreen(): React.JSX.Element {
         </Text>
 
         {/* Category Selection */}
-        <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
+        <Text style={styles.label(colors)}>
           {t('add.category') || 'Category'}
         </Text>
         {loadingCategories ? (
@@ -688,7 +689,7 @@ export default function AddScreen(): React.JSX.Element {
         )}
 
         {/* Amount Input */}
-        <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
+        <Text style={styles.label(colors)}>
           {t('add.amount') || 'Amount'}
         </Text>
         <TextInput
@@ -705,7 +706,7 @@ export default function AddScreen(): React.JSX.Element {
         />
 
         {/* Notes Input */}
-        <Text style={[styles.label(colors), isRTL && styles.labelRTL]}>
+        <Text style={styles.label(colors)}>
           {t('add.notes') || 'Notes'}
         </Text>
         <TextInput
@@ -763,7 +764,7 @@ export default function AddScreen(): React.JSX.Element {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent(colors)}>
               <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-                <Text style={[styles.modalTitle(colors), isRTL && styles.modalTitleRTL]}>
+                <Text style={styles.modalTitle(colors)}>
                   {managementMode === 'add' ? t('add.addCategory') : t('add.deleteCategory')}
                 </Text>
                 <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
@@ -782,7 +783,7 @@ export default function AddScreen(): React.JSX.Element {
               {managementMode === 'add' ? (
                 <>
                   {/* Category Type Selection */}
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('add.categoryType')}
                   </Text>
                   <View style={[styles.categoryTypeSelector, isRTL && styles.categoryTypeSelectorRTL]}>
@@ -831,7 +832,7 @@ export default function AddScreen(): React.JSX.Element {
                   </View>
 
                   {/* Category Name */}
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('add.categoryName')}
                   </Text>
                   <TextInput
@@ -844,7 +845,7 @@ export default function AddScreen(): React.JSX.Element {
                   />
 
                   {/* Category Description */}
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('add.categoryDescription')}
                   </Text>
                   <TextInput
@@ -861,7 +862,7 @@ export default function AddScreen(): React.JSX.Element {
               ) : (
                 <>
                   {/* Income Categories */}
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL]}>
+                  <Text style={styles.inputLabel(colors)}>
                     {t('add.incomeCategories')}
                   </Text>
                   {incomeCategories.length === 0 ? (
@@ -875,7 +876,7 @@ export default function AddScreen(): React.JSX.Element {
                           key={cat.id}
                           style={[styles.deleteCategoryItem(colors), isRTL && styles.deleteCategoryItemRTL]}
                         >
-                          <Text style={[styles.deleteCategoryName(colors), isRTL && styles.textRTL]}>
+                          <Text style={styles.deleteCategoryName(colors)}>
                             {cat.name}
                           </Text>
                           <TouchableOpacity
@@ -890,7 +891,7 @@ export default function AddScreen(): React.JSX.Element {
                   )}
 
                   {/* Expense Categories */}
-                  <Text style={[styles.inputLabel(colors), isRTL && styles.textRTL, { marginTop: 16 }]}>
+                  <Text style={[styles.inputLabel(colors), { marginTop: 16 }]}>
                     {t('add.expenseCategories')}
                   </Text>
                   {expenseCategories.length === 0 ? (
@@ -904,7 +905,7 @@ export default function AddScreen(): React.JSX.Element {
                           key={cat.id}
                           style={[styles.deleteCategoryItem(colors), isRTL && styles.deleteCategoryItemRTL]}
                         >
-                          <Text style={[styles.deleteCategoryName(colors), isRTL && styles.textRTL]}>
+                          <Text style={styles.deleteCategoryName(colors)}>
                             {cat.name}
                           </Text>
                           <TouchableOpacity
@@ -1239,7 +1240,7 @@ const styles = {
     backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '80%' as DimensionValue,
   }),
   modalHeader: {
     flexDirection: 'row' as const,

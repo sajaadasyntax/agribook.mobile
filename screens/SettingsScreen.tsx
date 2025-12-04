@@ -457,7 +457,7 @@ export default function SettingsScreen(): React.JSX.Element {
   return (
     <View style={styles.container(colors)}>
       <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-        <Text style={[styles.appBarTitle, isRTL && styles.appBarTitleRTL]}>{t('settings.title')}</Text>
+        <Text style={styles.appBarTitle}>{t('settings.title')}</Text>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -469,8 +469,8 @@ export default function SettingsScreen(): React.JSX.Element {
           >
             <Icon name="person" size={24} color={colors.primary} />
             <View style={styles.profileButtonContent}>
-              <Text style={[styles.profileButtonTitle(colors), isRTL && styles.profileButtonTitleRTL]}>{t('profile.title')}</Text>
-              <Text style={[styles.profileButtonSubtitle(colors), isRTL && styles.profileButtonSubtitleRTL]}>
+              <Text style={styles.profileButtonTitle(colors)}>{t('profile.title')}</Text>
+              <Text style={styles.profileButtonSubtitle(colors)}>
                 {user?.companyName || user?.name || t('profile.viewProfile')}
               </Text>
             </View>
@@ -480,7 +480,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
         {/* PIN / Biometric Section */}
         <View style={styles.section(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.pinBiometric')}</Text>
+          <Text style={styles.sectionTitle(colors)}>{t('settings.pinBiometric')}</Text>
           
           {/* Set/Change PIN Button */}
           <TouchableOpacity
@@ -488,7 +488,7 @@ export default function SettingsScreen(): React.JSX.Element {
             onPress={openPinModal}
           >
             <Icon name="dialpad" size={24} color={colors.primary} />
-            <Text style={[styles.setPinButtonText(colors), isRTL && styles.setPinButtonTextRTL]}>
+            <Text style={styles.setPinButtonText(colors)}>
               {hasSavedPin ? t('settings.changePin') : t('settings.savePin')}
             </Text>
             <Icon name={isRTL ? 'chevron-left' : 'chevron-right'} size={24} color={colors.textSecondary} />
@@ -515,7 +515,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
         {/* Language Settings */}
         <View style={styles.section(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.language')}</Text>
+          <Text style={styles.sectionTitle(colors)}>{t('settings.language')}</Text>
           <View style={styles.languageOptions}>
             <TouchableOpacity
               style={[styles.languageOption(colors), language === 'en' && styles.languageOptionActive(colors)]}
@@ -540,11 +540,11 @@ export default function SettingsScreen(): React.JSX.Element {
 
         {/* App Settings */}
         <View style={styles.section(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.appSettings')}</Text>
+          <Text style={styles.sectionTitle(colors)}>{t('settings.appSettings')}</Text>
           <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.darkMode')}</Text>
-              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.darkModeDesc')}</Text>
+              <Text style={styles.settingLabel(colors)}>{t('settings.darkMode')}</Text>
+              <Text style={styles.settingDescription(colors)}>{t('settings.darkModeDesc')}</Text>
             </View>
             <Switch
               value={settings.darkMode}
@@ -555,8 +555,8 @@ export default function SettingsScreen(): React.JSX.Element {
           </View>
           <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel(colors), isRTL && styles.settingLabelRTL]}>{t('settings.autoBackup')}</Text>
-              <Text style={[styles.settingDescription(colors), isRTL && styles.settingDescriptionRTL]}>{t('settings.autoBackupDesc')}</Text>
+              <Text style={styles.settingLabel(colors)}>{t('settings.autoBackup')}</Text>
+              <Text style={styles.settingDescription(colors)}>{t('settings.autoBackupDesc')}</Text>
             </View>
             <Switch
               value={settings.autoBackup}
@@ -582,7 +582,7 @@ export default function SettingsScreen(): React.JSX.Element {
           </TouchableOpacity>
           
           {lastBackupTime && (
-            <Text style={[styles.lastSyncText(colors), isRTL && styles.lastSyncTextRTL]}>
+            <Text style={styles.lastSyncText(colors)}>
               {t('settings.lastBackup')}: {formatLastTime(lastBackupTime)}
             </Text>
           )}
@@ -590,13 +590,13 @@ export default function SettingsScreen(): React.JSX.Element {
 
         {/* About Section */}
         <View style={styles.section(colors)}>
-          <Text style={[styles.sectionTitle(colors), isRTL && styles.sectionTitleRTL]}>{t('settings.about')}</Text>
+          <Text style={styles.sectionTitle(colors)}>{t('settings.about')}</Text>
           <View style={[styles.aboutItem(colors), isRTL && styles.aboutItemRTL]}>
-            <Text style={[styles.aboutLabel(colors), isRTL && styles.aboutLabelRTL]}>{t('settings.appVersion')}</Text>
+            <Text style={styles.aboutLabel(colors)}>{t('settings.appVersion')}</Text>
             <Text style={styles.aboutValue(colors)}>1.0.0</Text>
           </View>
           <View style={[styles.aboutItem(colors), isRTL && styles.aboutItemRTL]}>
-            <Text style={[styles.aboutLabel(colors), isRTL && styles.aboutLabelRTL]}>{t('settings.userId')}</Text>
+            <Text style={styles.aboutLabel(colors)}>{t('settings.userId')}</Text>
             <Text style={styles.aboutValue(colors)}>{user?.id.substring(0, 8)}...</Text>
           </View>
         </View>
