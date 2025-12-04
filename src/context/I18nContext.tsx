@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { I18n } from 'i18n-js';
-import { I18nManager } from 'react-native';
+import { I18nManager, Alert } from 'react-native';
+import * as Updates from 'expo-updates';
 import { useUser } from './UserContext';
 import enTranslations from '../locales/en.json';
 import arTranslations from '../locales/ar.json';
@@ -80,13 +81,14 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
   const setLocale = async (newLocale: 'en' | 'ar'): Promise<void> => {
     try {
       const shouldBeRTL = newLocale === 'ar';
+      const needsRestart = I18nManager.isRTL !== shouldBeRTL;
       
       setLocaleState(newLocale);
       setIsRTL(shouldBeRTL);
       i18n.locale = newLocale;
       
       // Update RTL layout when language changes
-      if (I18nManager.isRTL !== shouldBeRTL) {
+      if (needsRestart) {
         I18nManager.allowRTL(shouldBeRTL);
         I18nManager.forceRTL(shouldBeRTL);
       }
@@ -94,6 +96,30 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
       // Save to user settings
       if (updateSettings) {
         await updateSettings({ language: newLocale });
+      }
+      
+      // Restart app if RTL direction changed (required for proper layout)
+      if (needsRestart) {
+        Alert.alert(
+          newLocale === 'ar' ? 'تم تغيير اللغة' : 'Language Changed',
+          newLocale === 'ar' 
+            ? 'سيتم إعادة تشغيل التطبيق لتطبيق التغييرات'
+            : 'The app will restart to apply changes',
+          [
+            {
+              text: newLocale === 'ar' ? 'حسناً' : 'OK',
+              onPress: async () => {
+                try {
+                  await Updates.reloadAsync();
+                } catch (e) {
+                  // Fallback for development mode
+                  console.log('Please restart the app manually to apply language changes');
+                }
+              },
+            },
+          ],
+          { cancelable: false }
+        );
       }
     } catch (error) {
       console.error('Error updating locale:', error);

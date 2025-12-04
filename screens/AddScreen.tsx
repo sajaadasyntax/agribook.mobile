@@ -774,11 +774,12 @@ export default function AddScreen(): React.JSX.Element {
 
               <ScrollView 
                 style={styles.modalBody} 
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
                 nestedScrollEnabled={true}
-                contentContainerStyle={{ flexGrow: 1 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+                bounces={true}
               >
               {managementMode === 'add' ? (
                 <>
@@ -1263,7 +1264,7 @@ const styles = {
   },
   modalBody: {
     padding: 16,
-    maxHeight: 400,
+    flexGrow: 1,
   },
   modalFooter: {
     flexDirection: 'row' as const,

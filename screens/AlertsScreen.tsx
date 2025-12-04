@@ -581,9 +581,11 @@ export default function AlertsScreen(): React.JSX.Element {
 
             <ScrollView 
               style={styles.modalBody} 
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled={true}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+              bounces={true}
             >
               {/* Reminder Type Selection */}
               <Text style={styles.inputLabel(colors)}>
@@ -1268,7 +1270,7 @@ const styles = {
   },
   modalBody: {
     padding: 16,
-    maxHeight: 450,
+    flexGrow: 1,
   },
   modalFooter: {
     flexDirection: 'row' as const,

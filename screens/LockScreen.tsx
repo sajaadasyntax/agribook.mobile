@@ -27,7 +27,7 @@ export default function LockScreen({
   onUnlock, 
   fingerprintEnabled = false,
   onError 
-}: LockScreenProps): JSX.Element {
+}: LockScreenProps): React.ReactElement {
   const { t, isRTL } = useI18n();
   const [pin, setPin] = useState<string[]>(['', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 20,
     marginBottom: 40,
-    // Always LTR for PIN entry
+    direction: 'ltr', // Always LTR for PIN entry
   },
   pinDot: {
     width: 20,
@@ -414,12 +414,14 @@ const styles = StyleSheet.create({
   numberPad: {
     width: '100%',
     maxWidth: 300,
+    direction: 'ltr', // Always LTR for number pad
   },
   numberRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 20,
     marginBottom: 16,
+    direction: 'ltr', // Always LTR for number row
   },
   numberButton: {
     width: 70,

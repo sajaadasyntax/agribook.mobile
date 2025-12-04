@@ -1076,7 +1076,7 @@ const styles = {
     alignItems: 'center' as const,
     marginBottom: 32,
     gap: 20,
-    // Always LTR for PIN entry
+    direction: 'ltr' as const, // Always LTR for PIN entry
   },
   pinDot: (colors: any) => ({
     width: 20,
@@ -1099,13 +1099,13 @@ const styles = {
   }),
   numberPad: {
     marginBottom: 24,
-    // Always LTR for PIN entry
+    direction: 'ltr' as const, // Always LTR for PIN entry
   },
   numberPadRow: {
     flexDirection: 'row' as const,
     justifyContent: 'center' as const,
     marginBottom: 12,
-    // Always LTR for PIN entry
+    direction: 'ltr' as const, // Always LTR for PIN entry
   },
   numberPadButton: (colors: any) => ({
     width: 70,
