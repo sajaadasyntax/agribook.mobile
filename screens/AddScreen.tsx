@@ -649,7 +649,9 @@ export default function AddScreen(): React.JSX.Element {
             <Text style={styles.noCategoriesText(colors)}>
               {t('add.noCategories') || 'No categories available'}
             </Text>
-            {(!isNetworkOnline || settings?.offlineMode) && (
+            {/* Only show "connect to internet" message if we're online but have no categories */}
+            {/* If offline, we should have cached categories, so this shouldn't show */}
+            {isNetworkOnline && !settings?.offlineMode && (
               <Text style={styles.noCategoriesHint(colors)}>
                 {t('add.connectToLoadCategories') || 'Connect to internet to load categories'}
               </Text>

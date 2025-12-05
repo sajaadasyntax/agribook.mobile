@@ -32,6 +32,8 @@
     "addDescription": "Add description",
     "incomeSaved": "Income transaction saved successfully",
     "expenseSaved": "Expense transaction saved successfully",
+    "incomeSavedOffline": "Income saved offline. Will sync when online.",
+    "expenseSavedOffline": "Expense saved offline. Will sync when online.",
     "errorSaving": "Failed to save transaction",
     "errorLoading": "Failed to load data. Please try again."
   },
@@ -206,6 +208,11 @@
     "reminderCreated": "Reminder created successfully",
     "reminderUpdated": "Reminder updated successfully",
     "reminderDeleted": "Reminder deleted successfully",
+    "reminderCreatedOffline": "Reminder created offline. Will sync when online.",
+    "reminderUpdatedOffline": "Reminder updated offline. Will sync when online.",
+    "reminderDeletedOffline": "Reminder deleted offline. Will sync when online.",
+    "reminderSavedOffline": "Reminder saved offline. Will sync when online.",
+    "allMarkedReadOffline": "All marked as read offline. Will sync when online.",
     "errorCreating": "Failed to create reminder",
     "errorDeleting": "Failed to delete reminder",
     "categoryThresholds": "Category Thresholds",
@@ -374,6 +381,7 @@
     "companyInfo": "Company Information",
     "companyLogo": "Company Logo",
     "updated": "Profile updated successfully",
+    "updatedOffline": "Profile saved offline. Will sync when online.",
     "errorUpdating": "Failed to update profile",
     "logoLoadError": "Failed to load logo",
     "logoWillBeDeleted": "Logo will be deleted when you save"
