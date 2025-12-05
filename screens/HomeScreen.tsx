@@ -126,6 +126,17 @@ export default function HomeScreen(): React.JSX.Element {
       let summaryData: FinancialSummary | null = null;
       if (shouldUseOffline) {
         summaryData = await syncService.getCachedSummary();
+        // Include pending transactions in the summary when offline
+        const pendingSummary = await syncService.getPendingTransactionsSummary();
+        if (summaryData && (pendingSummary.income > 0 || pendingSummary.expense > 0)) {
+          summaryData = {
+            ...summaryData,
+            totalIncome: (summaryData.totalIncome || 0) + pendingSummary.income,
+            totalExpense: (summaryData.totalExpense || 0) + pendingSummary.expense,
+            balance: ((summaryData.totalIncome || 0) + pendingSummary.income) - 
+                     ((summaryData.totalExpense || 0) + pendingSummary.expense),
+          };
+        }
       } else {
         try {
           summaryData = await reportApi.getSummary();
@@ -136,6 +147,17 @@ export default function HomeScreen(): React.JSX.Element {
         } catch (apiError) {
           console.warn('Failed to load summary from API, using cache:', apiError);
           summaryData = await syncService.getCachedSummary();
+          // Include pending transactions in the summary when API fails
+          const pendingSummary = await syncService.getPendingTransactionsSummary();
+          if (summaryData && (pendingSummary.income > 0 || pendingSummary.expense > 0)) {
+            summaryData = {
+              ...summaryData,
+              totalIncome: (summaryData.totalIncome || 0) + pendingSummary.income,
+              totalExpense: (summaryData.totalExpense || 0) + pendingSummary.expense,
+              balance: ((summaryData.totalIncome || 0) + pendingSummary.income) - 
+                       ((summaryData.totalExpense || 0) + pendingSummary.expense),
+            };
+          }
         }
       }
       setSummary(summaryData);

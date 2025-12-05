@@ -79,6 +79,7 @@
     "deleteCategory": "حذف الفئة",
     "confirmDeleteCategory": "هل أنت متأكد أنك تريد حذف هذه الفئة؟",
     "categoryCreated": "تم إنشاء الفئة بنجاح",
+    "categoryCreatedOffline": "تم إنشاء الفئة في وضع عدم الاتصال. ستتم مزامنتها عند الاتصال بالإنترنت.",
     "categoryDeleted": "تم حذف الفئة بنجاح",
     "errorCreatingCategory": "فشل في إنشاء الفئة",
     "errorDeletingCategory": "فشل في حذف الفئة",

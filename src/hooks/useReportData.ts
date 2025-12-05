@@ -354,27 +354,30 @@ export const useReportData = (period: ReportPeriod, date: Date, locale?: string)
   }, [period, date, locale]);
 
   // Helper function to get offline transactions for a specific day
+  // Includes pending transactions so they appear in reports while offline
   const getOfflineTransactionsForDay = async (dateStr: string): Promise<Transaction[]> => {
-    const cachedTransactions = await syncService.getCachedTransactions();
-    return cachedTransactions.filter(t => {
+    const allTransactions = await syncService.getAllTransactionsIncludingPending();
+    return allTransactions.filter(t => {
       const transactionDate = formatDate(new Date(t.createdAt));
       return transactionDate === dateStr;
     });
   };
 
   // Helper function to get offline transactions for a date range
+  // Includes pending transactions so they appear in reports while offline
   const getOfflineTransactionsForRange = async (startDate: Date, endDate: Date): Promise<Transaction[]> => {
-    const cachedTransactions = await syncService.getCachedTransactions();
-    return cachedTransactions.filter(t => {
+    const allTransactions = await syncService.getAllTransactionsIncludingPending();
+    return allTransactions.filter(t => {
       const transactionDate = new Date(t.createdAt);
       return transactionDate >= startDate && transactionDate <= endDate;
     });
   };
 
   // Helper function to get offline transactions for a specific month
+  // Includes pending transactions so they appear in reports while offline
   const getOfflineTransactionsForMonth = async (year: number, month: number): Promise<Transaction[]> => {
-    const cachedTransactions = await syncService.getCachedTransactions();
-    return cachedTransactions.filter(t => {
+    const allTransactions = await syncService.getAllTransactionsIncludingPending();
+    return allTransactions.filter(t => {
       const transactionDate = new Date(t.createdAt);
       return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
     });

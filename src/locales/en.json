@@ -79,6 +79,7 @@
     "deleteCategory": "Delete Category",
     "confirmDeleteCategory": "Are you sure you want to delete this category?",
     "categoryCreated": "Category created successfully",
+    "categoryCreatedOffline": "Category created offline. Will sync when online.",
     "categoryDeleted": "Category deleted successfully",
     "errorCreatingCategory": "Failed to create category",
     "errorDeletingCategory": "Failed to delete category",

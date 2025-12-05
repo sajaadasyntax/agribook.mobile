@@ -478,6 +478,74 @@ export default function SettingsScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
 
+        {/* Offline & Sync Section */}
+        <View style={styles.section(colors)}>
+          <Text style={styles.sectionTitle(colors)}>{t('settings.offlineSync')}</Text>
+          
+          {/* Connection Status */}
+          <View style={[styles.statusRow(colors), isRTL && styles.statusRowRTL]}>
+            <View style={[styles.statusIndicator, isOnline ? styles.statusOnline : styles.statusOffline]} />
+            <Text style={styles.statusText(colors)}>
+              {isOnline ? t('settings.online') : t('settings.offline')}
+            </Text>
+            {pendingCount > 0 && (
+              <Text style={styles.pendingText(colors)}>
+                {t('settings.pendingItems', { count: pendingCount })}
+              </Text>
+            )}
+          </View>
+
+          {/* Offline Mode Toggle */}
+          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel(colors)}>{t('settings.offlineMode')}</Text>
+              <Text style={styles.settingDescription(colors)}>{t('settings.offlineModeDesc')}</Text>
+            </View>
+            <Switch
+              value={settings.offlineMode}
+              onValueChange={handleToggleOfflineMode}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={settings.offlineMode ? colors.primary : colors.inputBackground}
+            />
+          </View>
+
+          {/* Auto Sync Toggle */}
+          <View style={[styles.settingRow(colors), isRTL && styles.settingRowRTL]}>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel(colors)}>{t('settings.autoSync')}</Text>
+              <Text style={styles.settingDescription(colors)}>{t('settings.autoSyncDesc')}</Text>
+            </View>
+            <Switch
+              value={settings.autoSync}
+              onValueChange={handleToggleAutoSync}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={settings.autoSync ? colors.primary : colors.inputBackground}
+            />
+          </View>
+
+          {/* Sync Now Button */}
+          <TouchableOpacity
+            style={[styles.syncButton(colors), (syncing || !isOnline) && styles.syncButtonDisabled(colors)]}
+            onPress={() => handleManualSync()}
+            disabled={syncing || !isOnline}
+          >
+            {syncing ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Icon name="sync" size={20} color="#fff" />
+            )}
+            <Text style={styles.syncButtonText}>
+              {syncing ? t('settings.syncing') : t('settings.syncNow')}
+            </Text>
+          </TouchableOpacity>
+
+          {lastSyncTime && (
+            <Text style={styles.lastSyncText(colors)}>
+              {t('settings.lastSync')}: {formatLastTime(lastSyncTime)}
+            </Text>
+          )}
+        </View>
+
         {/* PIN / Biometric Section */}
         <View style={styles.section(colors)}>
           <Text style={styles.sectionTitle(colors)}>{t('settings.pinBiometric')}</Text>
@@ -854,6 +922,34 @@ const styles = {
   lastSyncTextRTL: {
     textAlign: 'center' as const,
   },
+  statusRow: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: 12,
+    backgroundColor: colors.inputBackground,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  }),
+  statusRowRTL: {
+    flexDirection: 'row-reverse' as const,
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  statusOnline: {
+    backgroundColor: '#4CAF50',
+  },
+  statusOffline: {
+    backgroundColor: '#F44336',
+  },
+  statusText: (colors: any) => ({
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.text,
+  }),
   settingRow: (colors: any) => ({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,

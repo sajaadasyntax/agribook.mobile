@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { User, UserSettings } from '../types';
-import { userApi, settingsApi, transactionApi, alertApi, reminderApi } from '../services/api.service';
+import { userApi, settingsApi, transactionApi, alertApi, reminderApi, categoryApi } from '../services/api.service';
 import { tokenManager } from '../config/api';
 import syncService from '../services/sync.service';
 
@@ -337,6 +337,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
               break;
             case 'DELETE_REMINDER':
               await reminderApi.delete(operation.data.id);
+              break;
+            case 'CREATE_CATEGORY':
+              // Create category on server, then remove from local pending cache
+              await categoryApi.create(operation.data);
+              // Remove the temporary offline category from cache (it will be replaced by server version on next refresh)
+              await syncService.removeCategoryFromCache(operation.id);
+              break;
+            case 'DELETE_CATEGORY':
+              await categoryApi.delete(operation.data.id);
               break;
             default:
               console.warn(`Unknown operation type: ${operation.type}`);

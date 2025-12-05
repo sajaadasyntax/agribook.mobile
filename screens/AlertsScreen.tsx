@@ -426,6 +426,20 @@ export default function AlertsScreen(): React.JSX.Element {
           dueDate: reminderDueDate.toISOString(),
           reminderType,
         };
+
+        // Include conditional fields for THRESHOLD and TRANSACTION types (same as success path)
+        if (reminderType === 'THRESHOLD' && selectedCategoryId) {
+          reminderData.categoryId = selectedCategoryId;
+          reminderData.thresholdAmount = parseFloat(thresholdAmount) || undefined;
+        }
+
+        if (reminderType === 'TRANSACTION') {
+          reminderData.transactionType = transactionType;
+          reminderData.transactionAmount = parseFloat(transactionAmount) || undefined;
+          if (selectedCategoryId) {
+            reminderData.categoryId = selectedCategoryId;
+          }
+        }
         
         if (editingReminder) {
           await syncService.addPendingOperation({

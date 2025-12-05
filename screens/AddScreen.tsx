@@ -425,12 +425,46 @@ export default function AddScreen(): React.JSX.Element {
         description: newCategoryDescription.trim() || undefined,
       };
 
-      await categoryApi.create(data);
-      Alert.alert(t('app.success'), t('add.categoryCreated'));
-      setShowCategoryModal(false);
-      setNewCategoryName('');
-      setNewCategoryDescription('');
-      await loadCategories();
+      // Check network status
+      const isOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isOnline || settings?.offlineMode;
+
+      if (shouldUseOffline) {
+        // Create category locally for offline use
+        const tempId = `pending_cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const offlineCategory = {
+          id: tempId,
+          name: data.name,
+          type: data.type,
+          description: data.description || null,
+          userId: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        // Add to local cache so it appears immediately
+        await syncService.addCategoryToCache(offlineCategory);
+        
+        // Queue for sync when online
+        await syncService.addPendingOperation({
+          id: tempId,
+          type: 'CREATE_CATEGORY',
+          data: data,
+        });
+        
+        Alert.alert(t('app.success'), t('add.categoryCreatedOffline') || 'Category created offline. Will sync when online.');
+        setShowCategoryModal(false);
+        setNewCategoryName('');
+        setNewCategoryDescription('');
+        await loadCategories();
+      } else {
+        await categoryApi.create(data);
+        Alert.alert(t('app.success'), t('add.categoryCreated'));
+        setShowCategoryModal(false);
+        setNewCategoryName('');
+        setNewCategoryDescription('');
+        await loadCategories();
+      }
     } catch (error: any) {
       console.error('Error creating category:', error);
       
@@ -440,11 +474,45 @@ export default function AddScreen(): React.JSX.Element {
       // Check network status in error handler
       const networkStillOnline = await syncService.checkNetworkStatus();
       
+      // If API failed, try to save offline as fallback
+      if (!networkStillOnline || errorInfo.isNetworkError) {
+        try {
+          const tempId = `pending_cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const offlineCategory = {
+            id: tempId,
+            name: newCategoryName.trim(),
+            type: newCategoryType,
+            description: newCategoryDescription.trim() || null,
+            userId: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+          await syncService.addCategoryToCache(offlineCategory);
+          await syncService.addPendingOperation({
+            id: tempId,
+            type: 'CREATE_CATEGORY',
+            data: {
+              name: newCategoryName.trim(),
+              type: newCategoryType,
+              description: newCategoryDescription.trim() || undefined,
+            },
+          });
+          
+          Alert.alert(t('app.success'), t('add.categoryCreatedOffline') || 'Category created offline. Will sync when online.');
+          setShowCategoryModal(false);
+          setNewCategoryName('');
+          setNewCategoryDescription('');
+          await loadCategories();
+          return;
+        } catch (offlineError) {
+          console.error('Failed to save category offline:', offlineError);
+        }
+      }
+      
       let errorMessage = t('add.errorCreatingCategory') || 'Failed to create category';
       
-      if (!networkStillOnline || errorInfo.isNetworkError) {
-        errorMessage = t('add.connectToLoadCategories') || 'No internet connection. Please check your network and try again.';
-      } else if (errorInfo.isDuplicateError) {
+      if (errorInfo.isDuplicateError) {
         errorMessage = t('add.categoryExists') || 'A category with this name already exists.';
       } else if (errorInfo.isValidationError) {
         errorMessage = errorInfo.errorMessage || t('add.validationErrorCategory') || 'Invalid category data. Please check your inputs.';
@@ -649,9 +717,8 @@ export default function AddScreen(): React.JSX.Element {
             <Text style={styles.noCategoriesText(colors)}>
               {t('add.noCategories') || 'No categories available'}
             </Text>
-            {/* Only show "connect to internet" message if we're online but have no categories */}
-            {/* If offline, we should have cached categories, so this shouldn't show */}
-            {isNetworkOnline && !settings?.offlineMode && (
+            {/* Show "connect to internet" message when offline and no cached categories available */}
+            {(!isNetworkOnline || settings?.offlineMode) && (
               <Text style={styles.noCategoriesHint(colors)}>
                 {t('add.connectToLoadCategories') || 'Connect to internet to load categories'}
               </Text>

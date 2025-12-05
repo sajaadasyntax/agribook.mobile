@@ -37,6 +37,7 @@ export interface PendingOperation {
   type: 'CREATE_TRANSACTION' | 'UPDATE_TRANSACTION' | 'DELETE_TRANSACTION' | 
         'CREATE_ALERT' | 'UPDATE_ALERT' | 'DELETE_ALERT' |
         'CREATE_REMINDER' | 'UPDATE_REMINDER' | 'DELETE_REMINDER' |
+        'CREATE_CATEGORY' | 'DELETE_CATEGORY' |
         'UPDATE_SETTINGS';
   data: any;
   createdAt: string;
@@ -245,6 +246,66 @@ class SyncService {
     }
   }
 
+  // Get all transactions including pending (for offline display)
+  // This combines cached transactions with pending transactions so they appear in reports/charts
+  async getAllTransactionsIncludingPending(): Promise<Transaction[]> {
+    try {
+      const [cachedTransactions, pendingTransactions, cachedCategories] = await Promise.all([
+        this.getCachedTransactions(),
+        this.getPendingTransactions(),
+        this.getCachedCategories(),
+      ]);
+
+      // Create a map of categories for quick lookup
+      const categoryMap = new Map(cachedCategories.map(c => [c.id, c]));
+
+      // Convert pending transactions to Transaction format for display
+      const pendingAsTransactions: Transaction[] = pendingTransactions.map(pt => {
+        const category = categoryMap.get(pt.categoryId);
+        return {
+          id: pt.id,
+          type: pt.type,
+          amount: pt.amount.toString(), // Convert number to string to match Transaction type
+          categoryId: pt.categoryId,
+          description: pt.description || null,
+          createdAt: pt.createdAt,
+          updatedAt: pt.createdAt,
+          userId: 'pending', // Mark as pending
+          receiptUrl: null,
+          category: category || { id: pt.categoryId, name: 'Pending', type: pt.type, userId: 'pending', createdAt: pt.createdAt, updatedAt: pt.createdAt },
+        } as Transaction;
+      });
+
+      // Combine and return all transactions
+      return [...cachedTransactions, ...pendingAsTransactions];
+    } catch (error) {
+      console.error('Error getting all transactions including pending:', error);
+      return [];
+    }
+  }
+
+  // Calculate pending transactions summary (to adjust cached summary)
+  async getPendingTransactionsSummary(): Promise<{ income: number; expense: number }> {
+    try {
+      const pendingTransactions = await this.getPendingTransactions();
+      let income = 0;
+      let expense = 0;
+
+      pendingTransactions.forEach(t => {
+        if (t.type === 'INCOME') {
+          income += t.amount;
+        } else if (t.type === 'EXPENSE') {
+          expense += t.amount;
+        }
+      });
+
+      return { income, expense };
+    } catch (error) {
+      console.error('Error calculating pending transactions summary:', error);
+      return { income: 0, expense: 0 };
+    }
+  }
+
   // Cache financial summary
   async cacheSummary(summary: FinancialSummary): Promise<void> {
     try {
@@ -288,6 +349,31 @@ class SyncService {
     } catch (error) {
       console.error('Error getting cached categories:', error);
       return [];
+    }
+  }
+
+  // Add a category to local cache (for offline-created categories)
+  async addCategoryToCache(category: Category): Promise<void> {
+    try {
+      const categories = await this.getCachedCategories();
+      // Check if category already exists
+      if (!categories.find(c => c.id === category.id)) {
+        categories.push(category);
+        await this.cacheCategories(categories);
+      }
+    } catch (error) {
+      console.error('Error adding category to cache:', error);
+    }
+  }
+
+  // Remove a category from local cache
+  async removeCategoryFromCache(categoryId: string): Promise<void> {
+    try {
+      const categories = await this.getCachedCategories();
+      const filtered = categories.filter(c => c.id !== categoryId);
+      await this.cacheCategories(filtered);
+    } catch (error) {
+      console.error('Error removing category from cache:', error);
     }
   }
 
