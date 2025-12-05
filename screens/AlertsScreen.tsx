@@ -204,10 +204,11 @@ export default function AlertsScreen(): React.JSX.Element {
 
       if (shouldUseOffline) {
         // Queue for later sync and update local state
+        // Use 'id' to match what syncData expects
         await syncService.addPendingOperation({
           id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           type: 'UPDATE_ALERT',
-          data: { alertId, action: 'markAsRead' },
+          data: { id: alertId },
         });
       } else {
         await alertApi.markAsRead(alertId);
@@ -250,17 +251,22 @@ export default function AlertsScreen(): React.JSX.Element {
       const isCurrentlyOnline = await syncService.checkNetworkStatus();
       const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
 
+      // Find the reminder to get current state
+      const reminder = reminders.find(r => r.id === reminderId);
+      if (!reminder) return;
+
       // Update local state first
+      const newCompleted = !reminder.completed;
       setReminders(
-        reminders.map((r) => (r.id === reminderId ? { ...r, completed: !r.completed } : r))
+        reminders.map((r) => (r.id === reminderId ? { ...r, completed: newCompleted } : r))
       );
 
       if (shouldUseOffline) {
-        // Queue for later sync
+        // Queue for later sync - use 'id' and include the update data
         await syncService.addPendingOperation({
           id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           type: 'UPDATE_REMINDER',
-          data: { reminderId, action: 'toggle' },
+          data: { id: reminderId, completed: newCompleted },
         });
       } else {
         await reminderApi.toggle(reminderId);
@@ -288,11 +294,11 @@ export default function AlertsScreen(): React.JSX.Element {
               setReminders(reminders.filter((r) => r.id !== reminderId));
 
               if (shouldUseOffline) {
-                // Queue for later sync
+                // Queue for later sync - use 'id' to match syncData expectations
                 await syncService.addPendingOperation({
                   id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                   type: 'DELETE_REMINDER',
-                  data: { reminderId },
+                  data: { id: reminderId },
                 });
                 Alert.alert(t('app.success'), t('alerts.reminderDeletedOffline') || 'Reminder deleted. Will sync when online.');
               } else {
@@ -381,12 +387,12 @@ export default function AlertsScreen(): React.JSX.Element {
       const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
 
       if (shouldUseOffline) {
-        // Queue for later sync
+        // Queue for later sync - use 'id' to match syncData expectations
         if (editingReminder) {
           await syncService.addPendingOperation({
             id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             type: 'UPDATE_REMINDER',
-            data: { reminderId: editingReminder.id, reminderData },
+            data: { id: editingReminder.id, ...reminderData },
           });
           Alert.alert(t('app.success'), t('alerts.reminderUpdatedOffline') || 'Reminder updated. Will sync when online.');
         } else {
@@ -425,7 +431,7 @@ export default function AlertsScreen(): React.JSX.Element {
           await syncService.addPendingOperation({
             id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             type: 'UPDATE_REMINDER',
-            data: { reminderId: editingReminder.id, reminderData },
+            data: { id: editingReminder.id, ...reminderData },
           });
         } else {
           await syncService.addPendingOperation({
@@ -437,6 +443,8 @@ export default function AlertsScreen(): React.JSX.Element {
         Alert.alert(t('app.success'), t('alerts.reminderSavedOffline') || 'Reminder saved offline. Will sync when online.');
         setShowAddReminderModal(false);
         resetForm();
+        // Bug 3 fix: Refresh UI after offline save
+        await loadData();
       } catch (offlineError) {
         Alert.alert(t('app.error'), t('alerts.errorCreating'));
       }

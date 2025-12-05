@@ -95,7 +95,10 @@ class SyncService {
   private initNetworkListener(): void {
     NetInfo.addEventListener(async (state: NetInfoState) => {
       const wasOnline = this.isOnline;
-      this.isOnline = state.isConnected ?? false;
+      // Check both connection and internet reachability
+      // isConnected checks if device is connected to network (WiFi/cellular)
+      // isInternetReachable checks if that network actually has internet access
+      this.isOnline = (state.isConnected ?? false) && (state.isInternetReachable ?? false);
       
       // Notify listeners of connectivity change
       if (wasOnline !== this.isOnline) {
@@ -188,7 +191,10 @@ class SyncService {
   // Check current network status
   async checkNetworkStatus(): Promise<boolean> {
     const state = await NetInfo.fetch();
-    this.isOnline = state.isConnected ?? false;
+    // Check both connection and internet reachability
+    // isConnected checks if device is connected to network (WiFi/cellular)
+    // isInternetReachable checks if that network actually has internet access
+    this.isOnline = (state.isConnected ?? false) && (state.isInternetReachable ?? false);
     return this.isOnline;
   }
 

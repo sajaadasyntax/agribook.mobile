@@ -51,11 +51,11 @@ export default function ProfileScreen(): React.JSX.Element {
       const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
 
       if (shouldUseOffline) {
-        // Queue for later sync
+        // Queue for later sync - pass updateData directly (Bug 2 fix)
         await syncService.addPendingOperation({
           id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           type: 'UPDATE_SETTINGS',
-          data: { profileUpdate: updateData },
+          data: updateData,
         });
         
         // Update local context with pending changes
@@ -78,11 +78,11 @@ export default function ProfileScreen(): React.JSX.Element {
           await refreshUser();
         } catch (apiError) {
           console.warn('API failed, saving offline:', apiError);
-          // Fallback to offline queue
+          // Fallback to offline queue - pass updateData directly (Bug 2 fix)
           await syncService.addPendingOperation({
             id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             type: 'UPDATE_SETTINGS',
-            data: { profileUpdate: updateData },
+            data: updateData,
           });
           
           // Update local context with pending changes

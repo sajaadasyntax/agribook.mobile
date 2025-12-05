@@ -289,6 +289,8 @@ export default function HomeScreen(): React.JSX.Element {
         setIncomeCategory('');
         setIncomeAmount('');
         setIncomeDescription('');
+        // Bug 3 fix: Refresh UI after offline save
+        await loadData();
       } catch (offlineError) {
         Alert.alert(t('app.error'), t('home.errorSaving'));
       }
@@ -352,6 +354,8 @@ export default function HomeScreen(): React.JSX.Element {
         setExpenseCategory('');
         setExpenseAmount('');
         setExpenseDescription('');
+        // Bug 3 fix: Refresh UI after offline save
+        await loadData();
       } catch (offlineError) {
         Alert.alert(t('app.error'), t('home.errorSaving'));
       }
