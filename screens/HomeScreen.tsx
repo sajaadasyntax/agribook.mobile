@@ -113,20 +113,63 @@ export default function HomeScreen(): React.JSX.Element {
         }
       };
 
+      // Check network status once for all data loading
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
       // Load categories with offline support
       const { income: incomeCats, expense: expenseCats } = await loadCategoriesWithFallback();
-
-      // Load other data in parallel
-      const [summaryData, alertCountData, remindersData] = await Promise.all([
-        reportApi.getSummary(),
-        alertApi.getUnreadCount(),
-        reminderApi.getAll(false), // Get incomplete reminders
-      ]);
-
-      setSummary(summaryData);
       setIncomeCategories(incomeCats);
       setExpenseCategories(expenseCats);
-      setUnreadAlertCount(alertCountData.count);
+
+      // Load summary with offline fallback
+      let summaryData: FinancialSummary | null = null;
+      if (shouldUseOffline) {
+        summaryData = await syncService.getCachedSummary();
+      } else {
+        try {
+          summaryData = await reportApi.getSummary();
+          // Cache summary for offline use
+          if (summaryData) {
+            await syncService.cacheSummary(summaryData);
+          }
+        } catch (apiError) {
+          console.warn('Failed to load summary from API, using cache:', apiError);
+          summaryData = await syncService.getCachedSummary();
+        }
+      }
+      setSummary(summaryData);
+
+      // Load alerts with offline fallback
+      let alertsData: any[] = [];
+      if (shouldUseOffline) {
+        alertsData = await syncService.getCachedAlerts();
+      } else {
+        try {
+          alertsData = await alertApi.getAll(false);
+          // Cache alerts for offline use
+          await syncService.cacheAlerts(alertsData);
+        } catch (apiError) {
+          console.warn('Failed to load alerts from API, using cache:', apiError);
+          alertsData = await syncService.getCachedAlerts();
+        }
+      }
+      setUnreadAlertCount(alertsData.length);
+
+      // Load reminders with offline fallback
+      let remindersData: any[] = [];
+      if (shouldUseOffline) {
+        remindersData = await syncService.getCachedReminders();
+      } else {
+        try {
+          remindersData = await reminderApi.getAll(false);
+          // Cache reminders for offline use
+          await syncService.cacheReminders(remindersData);
+        } catch (apiError) {
+          console.warn('Failed to load reminders from API, using cache:', apiError);
+          remindersData = await syncService.getCachedReminders();
+        }
+      }
       
       // Count upcoming reminders (not completed and due date is today or in the future)
       const now = new Date();
@@ -203,8 +246,25 @@ export default function HomeScreen(): React.JSX.Element {
         description: incomeDescription || undefined,
       };
 
-      await transactionApi.create(data);
-      Alert.alert(t('app.success'), t('home.incomeSaved'));
+      // Check if online
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+      if (shouldUseOffline) {
+        // Save to pending queue for later sync
+        await syncService.addPendingTransaction({
+          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'INCOME',
+          amount: parseFloat(incomeAmount),
+          categoryId: incomeCategory,
+          description: incomeDescription || undefined,
+          createdAt: new Date().toISOString(),
+        });
+        Alert.alert(t('app.success'), t('home.incomeSavedOffline') || 'Income saved offline. Will sync when online.');
+      } else {
+        await transactionApi.create(data);
+        Alert.alert(t('app.success'), t('home.incomeSaved'));
+      }
       
       // Reset form
       setIncomeCategory('');
@@ -215,7 +275,23 @@ export default function HomeScreen(): React.JSX.Element {
       await loadData();
     } catch (error) {
       console.error('Error saving income:', error);
-      Alert.alert(t('app.error'), t('home.errorSaving'));
+      // Try to save offline as fallback
+      try {
+        await syncService.addPendingTransaction({
+          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'INCOME',
+          amount: parseFloat(incomeAmount),
+          categoryId: incomeCategory,
+          description: incomeDescription || undefined,
+          createdAt: new Date().toISOString(),
+        });
+        Alert.alert(t('app.success'), t('home.incomeSavedOffline') || 'Income saved offline. Will sync when online.');
+        setIncomeCategory('');
+        setIncomeAmount('');
+        setIncomeDescription('');
+      } catch (offlineError) {
+        Alert.alert(t('app.error'), t('home.errorSaving'));
+      }
     }
   };
 
@@ -233,8 +309,25 @@ export default function HomeScreen(): React.JSX.Element {
         description: expenseDescription || undefined,
       };
 
-      await transactionApi.create(data);
-      Alert.alert(t('app.success'), t('home.expenseSaved'));
+      // Check if online
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+      if (shouldUseOffline) {
+        // Save to pending queue for later sync
+        await syncService.addPendingTransaction({
+          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'EXPENSE',
+          amount: parseFloat(expenseAmount),
+          categoryId: expenseCategory,
+          description: expenseDescription || undefined,
+          createdAt: new Date().toISOString(),
+        });
+        Alert.alert(t('app.success'), t('home.expenseSavedOffline') || 'Expense saved offline. Will sync when online.');
+      } else {
+        await transactionApi.create(data);
+        Alert.alert(t('app.success'), t('home.expenseSaved'));
+      }
       
       // Reset form
       setExpenseCategory('');
@@ -245,7 +338,23 @@ export default function HomeScreen(): React.JSX.Element {
       await loadData();
     } catch (error) {
       console.error('Error saving expense:', error);
-      Alert.alert(t('app.error'), t('home.errorSaving'));
+      // Try to save offline as fallback
+      try {
+        await syncService.addPendingTransaction({
+          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'EXPENSE',
+          amount: parseFloat(expenseAmount),
+          categoryId: expenseCategory,
+          description: expenseDescription || undefined,
+          createdAt: new Date().toISOString(),
+        });
+        Alert.alert(t('app.success'), t('home.expenseSavedOffline') || 'Expense saved offline. Will sync when online.');
+        setExpenseCategory('');
+        setExpenseAmount('');
+        setExpenseDescription('');
+      } catch (offlineError) {
+        Alert.alert(t('app.error'), t('home.errorSaving'));
+      }
     }
   };
 

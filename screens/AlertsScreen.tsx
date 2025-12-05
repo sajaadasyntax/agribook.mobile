@@ -18,10 +18,11 @@ import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { alertApi, reminderApi, categoryApi } from '../src/services/api.service';
+import syncService from '../src/services/sync.service';
 import { Alert as AlertType, Reminder, Category, CreateReminderDto, ReminderType } from '../src/types';
 
 export default function AlertsScreen(): React.JSX.Element {
-  const { isAuthenticated, settings, updateSettings } = useUser();
+  const { isAuthenticated, isOffline, settings, updateSettings } = useUser();
   const { t, isRTL } = useI18n();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -54,38 +55,72 @@ export default function AlertsScreen(): React.JSX.Element {
     try {
       setLoading(true);
       
-      // Load each data type separately to handle partial failures
+      // Check network status once for all data loading
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+      
+      // Load alerts with offline fallback
       try {
-        const alertsData = await alertApi.getAll(false);
-        setAlerts(alertsData);
+        if (shouldUseOffline) {
+          const cachedAlerts = await syncService.getCachedAlerts();
+          setAlerts(cachedAlerts.filter(a => !a.isRead));
+        } else {
+          const alertsData = await alertApi.getAll(false);
+          setAlerts(alertsData);
+          // Cache alerts for offline use
+          await syncService.cacheAlerts(alertsData);
+        }
       } catch (alertError) {
         console.error('Error loading alerts:', alertError);
-        setAlerts([]);
+        // Fallback to cache
+        const cachedAlerts = await syncService.getCachedAlerts();
+        setAlerts(cachedAlerts.filter(a => !a.isRead));
       }
 
+      // Load reminders with offline fallback
       try {
-        const remindersData = await reminderApi.getAll(false);
-        setReminders(remindersData);
+        if (shouldUseOffline) {
+          const cachedReminders = await syncService.getCachedReminders();
+          setReminders(cachedReminders.filter(r => !r.completed));
+        } else {
+          const remindersData = await reminderApi.getAll(false);
+          setReminders(remindersData);
+          // Cache reminders for offline use
+          await syncService.cacheReminders(remindersData);
+        }
       } catch (reminderError) {
         console.error('Error loading reminders:', reminderError);
-        setReminders([]);
+        // Fallback to cache
+        const cachedReminders = await syncService.getCachedReminders();
+        setReminders(cachedReminders.filter(r => !r.completed));
       }
 
+      // Load categories with offline fallback
       try {
-        const allCategories = await categoryApi.getAll();
-        setCategories(allCategories);
-        setExpenseCategories(allCategories.filter(c => c.type === 'EXPENSE'));
+        if (shouldUseOffline) {
+          const cachedCategories = await syncService.getCachedCategories();
+          setCategories(cachedCategories);
+          setExpenseCategories(cachedCategories.filter(c => c.type === 'EXPENSE'));
+        } else {
+          const allCategories = await categoryApi.getAll();
+          setCategories(allCategories);
+          setExpenseCategories(allCategories.filter(c => c.type === 'EXPENSE'));
+          // Cache categories for offline use
+          await syncService.cacheCategories(allCategories);
+        }
       } catch (categoryError) {
         console.error('Error loading categories:', categoryError);
-        setCategories([]);
-        setExpenseCategories([]);
+        // Fallback to cache
+        const cachedCategories = await syncService.getCachedCategories();
+        setCategories(cachedCategories);
+        setExpenseCategories(cachedCategories.filter(c => c.type === 'EXPENSE'));
       }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isOffline, settings?.offlineMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -164,18 +199,46 @@ export default function AlertsScreen(): React.JSX.Element {
 
   const handleMarkAsRead = async (alertId: string) => {
     try {
-      await alertApi.markAsRead(alertId);
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+      if (shouldUseOffline) {
+        // Queue for later sync and update local state
+        await syncService.addPendingOperation({
+          id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'UPDATE_ALERT',
+          data: { alertId, action: 'markAsRead' },
+        });
+      } else {
+        await alertApi.markAsRead(alertId);
+      }
       setAlerts(alerts.filter((a) => a.id !== alertId));
     } catch (error) {
       console.error('Error marking alert as read:', error);
+      // Still update local state even if API fails
+      setAlerts(alerts.filter((a) => a.id !== alertId));
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
-      await alertApi.markAllAsRead();
-      setAlerts([]);
-      Alert.alert(t('app.success'), t('alerts.allMarkedRead'));
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+      if (shouldUseOffline) {
+        // Queue for later sync
+        await syncService.addPendingOperation({
+          id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'UPDATE_ALERT',
+          data: { action: 'markAllAsRead' },
+        });
+        setAlerts([]);
+        Alert.alert(t('app.success'), t('alerts.allMarkedReadOffline') || 'All marked as read. Will sync when online.');
+      } else {
+        await alertApi.markAllAsRead();
+        setAlerts([]);
+        Alert.alert(t('app.success'), t('alerts.allMarkedRead'));
+      }
     } catch (error) {
       console.error('Error marking all alerts as read:', error);
       Alert.alert(t('app.error'), t('alerts.errorUpdating'));
@@ -184,10 +247,24 @@ export default function AlertsScreen(): React.JSX.Element {
 
   const handleToggleReminder = async (reminderId: string) => {
     try {
-      await reminderApi.toggle(reminderId);
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+      // Update local state first
       setReminders(
         reminders.map((r) => (r.id === reminderId ? { ...r, completed: !r.completed } : r))
       );
+
+      if (shouldUseOffline) {
+        // Queue for later sync
+        await syncService.addPendingOperation({
+          id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'UPDATE_REMINDER',
+          data: { reminderId, action: 'toggle' },
+        });
+      } else {
+        await reminderApi.toggle(reminderId);
+      }
     } catch (error) {
       console.error('Error toggling reminder:', error);
     }
@@ -204,9 +281,24 @@ export default function AlertsScreen(): React.JSX.Element {
           style: 'destructive',
           onPress: async () => {
             try {
-              await reminderApi.delete(reminderId);
+              const isCurrentlyOnline = await syncService.checkNetworkStatus();
+              const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+              // Update local state first
               setReminders(reminders.filter((r) => r.id !== reminderId));
-              Alert.alert(t('app.success'), t('alerts.reminderDeleted'));
+
+              if (shouldUseOffline) {
+                // Queue for later sync
+                await syncService.addPendingOperation({
+                  id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  type: 'DELETE_REMINDER',
+                  data: { reminderId },
+                });
+                Alert.alert(t('app.success'), t('alerts.reminderDeletedOffline') || 'Reminder deleted. Will sync when online.');
+              } else {
+                await reminderApi.delete(reminderId);
+                Alert.alert(t('app.success'), t('alerts.reminderDeleted'));
+              }
             } catch (error) {
               console.error('Error deleting reminder:', error);
               Alert.alert(t('app.error'), t('alerts.errorDeleting'));
@@ -285,12 +377,34 @@ export default function AlertsScreen(): React.JSX.Element {
         }
       }
 
-      if (editingReminder) {
-        await reminderApi.update(editingReminder.id, reminderData);
-        Alert.alert(t('app.success'), t('alerts.reminderUpdated'));
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+      if (shouldUseOffline) {
+        // Queue for later sync
+        if (editingReminder) {
+          await syncService.addPendingOperation({
+            id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'UPDATE_REMINDER',
+            data: { reminderId: editingReminder.id, reminderData },
+          });
+          Alert.alert(t('app.success'), t('alerts.reminderUpdatedOffline') || 'Reminder updated. Will sync when online.');
+        } else {
+          await syncService.addPendingOperation({
+            id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'CREATE_REMINDER',
+            data: reminderData,
+          });
+          Alert.alert(t('app.success'), t('alerts.reminderCreatedOffline') || 'Reminder created. Will sync when online.');
+        }
       } else {
-        await reminderApi.create(reminderData);
-        Alert.alert(t('app.success'), t('alerts.reminderCreated'));
+        if (editingReminder) {
+          await reminderApi.update(editingReminder.id, reminderData);
+          Alert.alert(t('app.success'), t('alerts.reminderUpdated'));
+        } else {
+          await reminderApi.create(reminderData);
+          Alert.alert(t('app.success'), t('alerts.reminderCreated'));
+        }
       }
 
       setShowAddReminderModal(false);
@@ -298,7 +412,34 @@ export default function AlertsScreen(): React.JSX.Element {
       await loadData();
     } catch (error) {
       console.error('Error saving reminder:', error);
-      Alert.alert(t('app.error'), t('alerts.errorCreating'));
+      // Try to save offline as fallback
+      try {
+        const reminderData: CreateReminderDto = {
+          title: reminderTitle.trim(),
+          description: reminderDescription.trim() || undefined,
+          dueDate: reminderDueDate.toISOString(),
+          reminderType,
+        };
+        
+        if (editingReminder) {
+          await syncService.addPendingOperation({
+            id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'UPDATE_REMINDER',
+            data: { reminderId: editingReminder.id, reminderData },
+          });
+        } else {
+          await syncService.addPendingOperation({
+            id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'CREATE_REMINDER',
+            data: reminderData,
+          });
+        }
+        Alert.alert(t('app.success'), t('alerts.reminderSavedOffline') || 'Reminder saved offline. Will sync when online.');
+        setShowAddReminderModal(false);
+        resetForm();
+      } catch (offlineError) {
+        Alert.alert(t('app.error'), t('alerts.errorCreating'));
+      }
     } finally {
       setSaving(false);
     }

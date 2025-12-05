@@ -16,9 +16,10 @@ import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { userApi } from '../src/services/api.service';
+import syncService from '../src/services/sync.service';
 
 export default function ProfileScreen(): React.JSX.Element {
-  const { user, updateUser: updateUserContext, refreshUser } = useUser();
+  const { user, updateUser: updateUserContext, refreshUser, isOffline, settings } = useUser();
   const { t, isRTL } = useI18n();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
@@ -39,17 +40,64 @@ export default function ProfileScreen(): React.JSX.Element {
     try {
       setLoading(true);
       
-      const updatedUser = await userApi.update({
+      const updateData = {
         name: name || undefined,
         phone: phone || undefined,
         companyName: companyName || undefined,
-      });
-      
-      updateUserContext(updatedUser);
-      
-      Alert.alert(t('app.success'), t('profile.updated'));
-      // Refresh user data to ensure consistency
-      await refreshUser();
+      };
+
+      // Check network status
+      const isCurrentlyOnline = await syncService.checkNetworkStatus();
+      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
+
+      if (shouldUseOffline) {
+        // Queue for later sync
+        await syncService.addPendingOperation({
+          id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'UPDATE_SETTINGS',
+          data: { profileUpdate: updateData },
+        });
+        
+        // Update local context with pending changes
+        if (user) {
+          updateUserContext({
+            ...user,
+            name: name || user.name,
+            phone: phone || user.phone,
+            companyName: companyName || user.companyName,
+          });
+        }
+        
+        Alert.alert(t('app.success'), t('profile.updatedOffline') || 'Profile saved offline. Will sync when online.');
+      } else {
+        try {
+          const updatedUser = await userApi.update(updateData);
+          updateUserContext(updatedUser);
+          Alert.alert(t('app.success'), t('profile.updated'));
+          // Refresh user data to ensure consistency
+          await refreshUser();
+        } catch (apiError) {
+          console.warn('API failed, saving offline:', apiError);
+          // Fallback to offline queue
+          await syncService.addPendingOperation({
+            id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'UPDATE_SETTINGS',
+            data: { profileUpdate: updateData },
+          });
+          
+          // Update local context with pending changes
+          if (user) {
+            updateUserContext({
+              ...user,
+              name: name || user.name,
+              phone: phone || user.phone,
+              companyName: companyName || user.companyName,
+            });
+          }
+          
+          Alert.alert(t('app.success'), t('profile.updatedOffline') || 'Profile saved offline. Will sync when online.');
+        }
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
       let errorMessage = t('profile.errorUpdating');
