@@ -218,8 +218,8 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
             text-align: center;
           }
           .summary-card.income {
-            background: linear-gradient(135deg, #FDE8EA 0%, #F5A3AC 100%);
-            border-left: 4px solid #DD1C31;
+            background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+            border-left: 4px solid #4CAF50;
           }
           .summary-card.expense {
             background: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%);
@@ -240,7 +240,7 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
             font-size: 24px;
             font-weight: bold;
           }
-          .summary-value.income { color: #DD1C31; }
+          .summary-value.income { color: #2E7D32; }
           .summary-value.expense { color: #C62828; }
           .summary-value.balance { color: #1565C0; }
           .summary-value.negative { color: #C62828; }
@@ -274,7 +274,7 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
           .text-right {
             text-align: ${isArabic ? 'left' : 'right'};
           }
-          .income-text { color: #DD1C31; font-weight: 600; }
+          .income-text { color: #2E7D32; font-weight: 600; }
           .expense-text { color: #C62828; font-weight: 600; }
           
           /* Breakdown Table */

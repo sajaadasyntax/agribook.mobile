@@ -143,7 +143,7 @@ export default function AlertsScreen(): React.JSX.Element {
       case 'INFO':
         return '#2196F3';
       case 'SUCCESS':
-        return '#DD1C31';
+        return '#4CAF50';
       default:
         return '#666';
     }
