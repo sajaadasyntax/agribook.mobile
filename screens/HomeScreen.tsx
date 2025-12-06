@@ -11,6 +11,7 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -413,7 +414,14 @@ export default function HomeScreen(): React.JSX.Element {
     >
       <View style={styles.container(colors)}>
         <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
-          <Text style={styles.appBarTitle}>{t('app.name')}</Text>
+          <View style={styles.appBarLeft}>
+            <Image 
+              source={require('../assets/logo.png')} 
+              style={styles.appBarLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.appBarTitle}>{t('app.name')}</Text>
+          </View>
           <TouchableOpacity 
             style={styles.notificationButton}
             onPress={() => navigation.navigate('Alerts')}
@@ -638,6 +646,15 @@ const styles = {
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   }),
+  appBarLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+  },
+  appBarLogo: {
+    width: 36,
+    height: 36,
+  },
   appBarTitle: {
     fontSize: 24,
     fontWeight: 'bold' as const,

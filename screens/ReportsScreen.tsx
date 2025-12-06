@@ -156,12 +156,12 @@ export default function ReportsScreen(): React.JSX.Element {
     }
     
     // Use colors with fallbacks - ensure they're always defined
-    const incomeColor = colors.income || '#4CAF50';
-    const expenseColor = colors.expense || '#F44336';
+    const incomeColor = colors.income || '#DD1C31';
+    const expenseColor = colors.expense || '#B71C1C';
     
     // Define shadow colors (lighter variants)
-    const incomeShadow = '#66BB6A'; // Lighter green
-    const expenseShadow = '#EF5350'; // Lighter red
+    const incomeShadow = '#E85A6B'; // Lighter red
+    const expenseShadow = '#EF5350'; // Lighter dark red
     
     // For react-native-charts-wrapper, Android needs processColor, iOS can use strings
     const getChartColor = (color: string) => {

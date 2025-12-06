@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Animated,
   Vibration,
+  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -279,7 +280,11 @@ export default function LockScreen({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Icon name="lock" size={60} color="#4CAF50" />
+        <Image 
+          source={require('../assets/logo.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={[styles.title, { textAlign: 'center' }]}>{t('lock.title') || 'AgriBooks'}</Text>
         <Text style={[styles.subtitle, { textAlign: 'center' }]}>
           {lockedOut 
@@ -312,7 +317,7 @@ export default function LockScreen({
       </Animated.View>
 
       {loading && (
-        <ActivityIndicator size="large" color="#4CAF50" style={styles.loader} />
+        <ActivityIndicator size="large" color="#DD1C31" style={styles.loader} />
       )}
 
       {/* Number pad - always LTR regardless of language */}
@@ -365,7 +370,7 @@ export default function LockScreen({
           onPress={handleBiometricAuth}
           disabled={loading}
         >
-          <Icon name="fingerprint" size={32} color="#4CAF50" />
+          <Icon name="fingerprint" size={32} color="#DD1C31" />
           <Text style={[styles.biometricText, { textAlign }]}>
             {t('lock.useBiometric', { type: biometricType }) || `Use ${biometricType}`}
           </Text>
@@ -385,7 +390,7 @@ export default function LockScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#FDE8EA',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -394,10 +399,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
+  logo: {
+    width: 80,
+    height: 80,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#DD1C31',
     marginTop: 16,
     textAlign: 'center',
   },
@@ -424,13 +433,13 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: '#DD1C31',
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   pinDotFilled: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#DD1C31',
   },
   pinDotDisabled: {
     borderColor: '#ccc',
@@ -502,7 +511,7 @@ const styles = StyleSheet.create({
   },
   biometricText: {
     fontSize: 16,
-    color: '#4CAF50',
+    color: '#DD1C31',
     fontWeight: '600',
     textAlign: 'left',
   },

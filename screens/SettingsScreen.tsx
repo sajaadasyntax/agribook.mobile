@@ -940,7 +940,7 @@ const styles = {
     borderRadius: 6,
   },
   statusOnline: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#DD1C31',
   },
   statusOffline: {
     backgroundColor: '#F44336',

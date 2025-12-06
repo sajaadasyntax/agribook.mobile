@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import PagerView from 'react-native-pager-view';
@@ -110,7 +111,15 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
         {pages.map((page, index) => (
           <View key={index} style={styles.page}>
             <View style={styles.iconContainer}>
-              <Icon name={page.icon as any} size={120} color="#4CAF50" />
+              {index === 0 ? (
+                <Image 
+                  source={require('../assets/logo.png')} 
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Icon name={page.icon as any} size={120} color="#DD1C31" />
+              )}
             </View>
             <Text style={[styles.title, { textAlign: 'center' }]}>{page.title}</Text>
             <Text style={[styles.description, { textAlign: 'center' }]}>
@@ -137,7 +146,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
       <View style={styles.navigation}>
         {currentPage > 0 && (
           <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
-            <Icon name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#4CAF50" />
+            <Icon name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#DD1C31" />
             <Text style={styles.navButtonText}>{t('onboarding.previous')}</Text>
           </TouchableOpacity>
         )}
@@ -161,7 +170,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#FDE8EA',
   },
   skipButton: {
     position: 'absolute',
@@ -175,7 +184,7 @@ const styles = StyleSheet.create({
     left: 20,
   },
   skipButtonText: {
-    color: '#4CAF50',
+    color: '#DD1C31',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -202,6 +211,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  logo: {
+    width: 120,
+    height: 120,
   },
   title: {
     fontSize: 28,
@@ -233,7 +246,7 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 24,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#DD1C31',
   },
   navigation: {
     flexDirection: 'row',
@@ -253,7 +266,7 @@ const styles = StyleSheet.create({
   navButtonRTL: {
   },
   navButtonText: {
-    color: '#4CAF50',
+    color: '#DD1C31',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -263,7 +276,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#DD1C31',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 25,

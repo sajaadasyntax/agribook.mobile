@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useI18n } from '../src/context/I18nContext';
@@ -126,7 +127,11 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <Icon name="agriculture" size={80} color="#4CAF50" />
+            <Image 
+              source={require('../assets/logo.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
           <Text style={[styles.title, { textAlign: 'center' }]}>
             {isSignIn ? t('auth.signIn') : t('auth.welcome')}
@@ -310,7 +315,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#FDE8EA',
   },
   scrollContent: {
     flexGrow: 1,
@@ -324,13 +329,17 @@ const styles = StyleSheet.create({
   iconContainer: {
     backgroundColor: '#fff',
     borderRadius: 100,
-    padding: 30,
+    padding: 20,
     marginBottom: 30,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  logo: {
+    width: 100,
+    height: 100,
   },
   title: {
     fontSize: 32,
@@ -426,7 +435,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#DD1C31',
     paddingVertical: 16,
     borderRadius: 12,
     marginTop: 20,
@@ -490,7 +499,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#DD1C31',
   },
   toggleText: {
     fontSize: 16,
@@ -513,7 +522,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   switchModeLink: {
-    color: '#4CAF50',
+    color: '#DD1C31',
     fontWeight: '600',
   },
   logoUploadButton: {

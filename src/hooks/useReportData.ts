@@ -37,7 +37,7 @@ export interface UseReportDataResult {
   refresh: () => Promise<void>;
 }
 
-const COLORS = ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0', '#00BCD4', '#FF9800', '#795548'];
+const COLORS = ['#DD1C31', '#2196F3', '#FFC107', '#B71C1C', '#9C27B0', '#00BCD4', '#FF9800', '#795548'];
 
 // Calculate nice Y-axis maximum (1.2x of highest value with padding, rounded to nice numbers)
 export const calculateYAxisMax = (income: number, expense: number): number => {
