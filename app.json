@@ -28,8 +28,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#DD1C31"
+        "foregroundImage": "./assets/logo.png"
       },
       "package": "com.agribooks.mobile",
       "versionCode": 1,
