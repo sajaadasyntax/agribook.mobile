@@ -34,12 +34,23 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Reset loading when authentication succeeds
+  // Reset loading when authentication succeeds or component unmounts
   useEffect(() => {
     if (isAuthenticated) {
-      setLoading(false);
+      // Small delay to ensure navigation completes before resetting
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated]);
+
+  // Reset loading state if component unmounts while loading
+  useEffect(() => {
+    return () => {
+      setLoading(false);
+    };
+  }, []);
 
 
   const handleSubmit = async (): Promise<void> => {
@@ -59,11 +70,36 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         return;
       }
 
-      // For registration, require name
-      if (!isSignIn && !name) {
-        Alert.alert(t('app.error'), t('auth.nameRequired'));
-        setLoading(false);
-        return;
+      // For registration, validate all required fields
+      if (!isSignIn) {
+        // Username (name) is mandatory
+        if (!name || name.trim() === '') {
+          Alert.alert(t('app.error'), t('auth.nameRequired') || 'Username is required');
+          setLoading(false);
+          return;
+        }
+
+        // Company name is mandatory
+        if (!companyName || companyName.trim() === '') {
+          Alert.alert(t('app.error'), 'Company name is required');
+          setLoading(false);
+          return;
+        }
+
+        // Mobile number is mandatory and should be validated
+        if (!phone || phone.trim() === '') {
+          Alert.alert(t('app.error'), t('auth.phoneRequired') || 'Mobile number is required');
+          setLoading(false);
+          return;
+        }
+
+        // Basic phone number format validation (at least 8 digits)
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits.length < 8) {
+          Alert.alert(t('app.error'), 'Please enter a valid mobile number');
+          setLoading(false);
+          return;
+        }
       }
 
       // Validate email if provided
@@ -78,7 +114,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         // Login: phone and password required (no email)
         await login(undefined, phone || undefined, password || undefined);
       } else {
-        // Register: name is required, password recommended, other fields optional (no logo)
+        // Register: name, companyName, and phone are required
         await register(
           email || undefined,
           name || undefined,
@@ -91,19 +127,27 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       }
       
       // Navigation will happen automatically when isAuthenticated becomes true
-      // Keep loading state true until navigation happens
-      } catch (error) {
+      // Loading state will be reset by useEffect when isAuthenticated becomes true
+    } catch (error) {
       console.error('Error authenticating:', error);
+      // Always reset loading state on error
+      setLoading(false);
+      
       // Provide more specific error message
       let errorMessage = t('auth.error');
       if (error instanceof Error) {
         const msg = error.message.toLowerCase();
         if (msg.includes('network') || msg.includes('connection')) {
           errorMessage = t('app.networkError') || 'Network error. Please check your connection.';
+        } else if (msg.includes('already exists') || msg.includes('unique')) {
+          errorMessage = 'This mobile number is already registered. Please use a different number or sign in.';
+        } else if (msg.includes('required')) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = error.message || t('auth.error');
         }
       }
       Alert.alert(t('app.error'), errorMessage);
-      setLoading(false);
     }
   };
 
@@ -206,10 +250,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
           {/* Phone Input */}
           <View style={styles.inputContainer}>
-            <View style={styles.labelRow}>
-              <Text style={[styles.label, { textAlign }]}>{t('auth.phone')}</Text>
-              {!isSignIn && <Text style={[styles.optional, { textAlign }]}>{t('auth.optional')}</Text>}
-            </View>
+            <Text style={[styles.label, { textAlign }]}>{t('auth.phone')}</Text>
             <View style={styles.inputWrapper}>
               <Icon name="phone" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
@@ -255,10 +296,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
           {/* Company Name - Only for Sign Up */}
           {!isSignIn && (
             <View style={styles.inputContainer}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, { textAlign }]}>{t('auth.companyName')}</Text>
-                <Text style={[styles.optional, { textAlign }]}>{t('auth.optional')}</Text>
-              </View>
+              <Text style={[styles.label, { textAlign }]}>{t('auth.companyName')}</Text>
               <View style={styles.inputWrapper}>
                 <Icon name="business" size={20} color="#666" style={styles.inputIcon} />
                 <TextInput

@@ -393,7 +393,9 @@ export default function HomeScreen(): React.JSX.Element {
     }
   };
 
-  if (loading && !summary) {
+  // Only show loading screen on initial load (when summary is null and loading is true)
+  // Don't show loading screen if we have categories but no summary yet (partial data loaded)
+  if (loading && !summary && incomeCategories.length === 0 && expenseCategories.length === 0) {
     return (
       <View style={[styles.container(colors), styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
