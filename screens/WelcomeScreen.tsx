@@ -34,7 +34,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
   const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Reset loading when authentication succeeds or component unmounts
+  // Reset loading when authentication succeeds
   useEffect(() => {
     if (isAuthenticated) {
       // Small delay to ensure navigation completes before resetting
@@ -45,13 +45,63 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
     }
   }, [isAuthenticated]);
 
-  // Reset loading state if component unmounts while loading
-  useEffect(() => {
-    return () => {
-      setLoading(false);
-    };
-  }, []);
 
+  // Helper function to get translated error message from error code or message
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      const msg = error.message;
+      const msgLower = msg.toLowerCase();
+      
+      // Check for error codes in the message (backend returns these)
+      const errorCodes = [
+        'PHONE_ALREADY_EXISTS', 'EMAIL_ALREADY_EXISTS', 'CATEGORY_ALREADY_EXISTS',
+        'INVALID_CREDENTIALS', 'USER_NOT_FOUND', 'TOKEN_EXPIRED', 'TOKEN_INVALID',
+        'SESSION_EXPIRED', 'VALIDATION_ERROR', 'MISSING_REQUIRED_FIELD',
+        'INVALID_EMAIL', 'INVALID_PHONE', 'INVALID_PASSWORD', 'PASSWORD_TOO_SHORT',
+        'UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'DATABASE_ERROR', 'INTERNAL_ERROR',
+        'UNIQUE_CONSTRAINT', 'FOREIGN_KEY_CONSTRAINT'
+      ];
+      
+      for (const code of errorCodes) {
+        if (msg.includes(code) || msgLower.includes(code.toLowerCase())) {
+          const translated = t(`errors.${code}`);
+          if (translated && translated !== `errors.${code}`) {
+            return translated;
+          }
+        }
+      }
+      
+      // Pattern matching for common error messages
+      if (msgLower.includes('network') || msgLower.includes('connection') || msgLower.includes('econnrefused')) {
+        return t('errors.networkError');
+      }
+      if (msgLower.includes('timeout')) {
+        return t('errors.timeout');
+      }
+      if (msgLower.includes('phone') && (msgLower.includes('already') || msgLower.includes('exists'))) {
+        return t('errors.PHONE_ALREADY_EXISTS');
+      }
+      if (msgLower.includes('email') && (msgLower.includes('already') || msgLower.includes('exists'))) {
+        return t('errors.EMAIL_ALREADY_EXISTS');
+      }
+      if (msgLower.includes('invalid') && msgLower.includes('password')) {
+        return t('errors.INVALID_CREDENTIALS');
+      }
+      if (msgLower.includes('user') && msgLower.includes('not found')) {
+        return t('errors.USER_NOT_FOUND');
+      }
+      if (msgLower.includes('required')) {
+        return t('errors.MISSING_REQUIRED_FIELD');
+      }
+      if (msgLower.includes('server') || msgLower.includes('500')) {
+        return t('errors.serverError');
+      }
+      
+      // Return the original message if no translation found
+      return msg;
+    }
+    return t('errors.generic');
+  };
 
   const handleSubmit = async (): Promise<void> => {
     try {
@@ -59,13 +109,13 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       
       // For sign in, require phone and password
       if (isSignIn && !phone) {
-        Alert.alert(t('app.error'), t('auth.phoneRequired'));
+        Alert.alert(t('app.error'), t('errors.phoneRequired'));
         setLoading(false);
         return;
       }
 
       if (isSignIn && !password) {
-        Alert.alert(t('app.error'), t('auth.passwordRequired'));
+        Alert.alert(t('app.error'), t('errors.passwordRequired'));
         setLoading(false);
         return;
       }
@@ -74,21 +124,21 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       if (!isSignIn) {
         // Username (name) is mandatory
         if (!name || name.trim() === '') {
-          Alert.alert(t('app.error'), t('auth.nameRequired') || 'Username is required');
+          Alert.alert(t('app.error'), t('errors.nameRequired'));
           setLoading(false);
           return;
         }
 
         // Company name is mandatory
         if (!companyName || companyName.trim() === '') {
-          Alert.alert(t('app.error'), 'Company name is required');
+          Alert.alert(t('app.error'), t('errors.companyNameRequired'));
           setLoading(false);
           return;
         }
 
         // Mobile number is mandatory and should be validated
         if (!phone || phone.trim() === '') {
-          Alert.alert(t('app.error'), t('auth.phoneRequired') || 'Mobile number is required');
+          Alert.alert(t('app.error'), t('errors.phoneRequired'));
           setLoading(false);
           return;
         }
@@ -96,7 +146,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         // Basic phone number format validation (at least 8 digits)
         const phoneDigits = phone.replace(/\D/g, '');
         if (phoneDigits.length < 8) {
-          Alert.alert(t('app.error'), 'Please enter a valid mobile number');
+          Alert.alert(t('app.error'), t('errors.invalidPhoneFormat'));
           setLoading(false);
           return;
         }
@@ -104,7 +154,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
 
       // Validate email if provided
       if (email && !email.includes('@')) {
-        Alert.alert(t('app.error'), t('auth.invalidEmail'));
+        Alert.alert(t('app.error'), t('errors.INVALID_EMAIL'));
         setLoading(false);
         return;
       }
@@ -133,20 +183,8 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
       // Always reset loading state on error
       setLoading(false);
       
-      // Provide more specific error message
-      let errorMessage = t('auth.error');
-      if (error instanceof Error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('network') || msg.includes('connection')) {
-          errorMessage = t('app.networkError') || 'Network error. Please check your connection.';
-        } else if (msg.includes('already exists') || msg.includes('unique')) {
-          errorMessage = 'This mobile number is already registered. Please use a different number or sign in.';
-        } else if (msg.includes('required')) {
-          errorMessage = error.message;
-        } else {
-          errorMessage = error.message || t('auth.error');
-        }
-      }
+      // Get translated error message
+      const errorMessage = getErrorMessage(error);
       Alert.alert(t('app.error'), errorMessage);
     }
   };

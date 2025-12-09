@@ -199,34 +199,58 @@ const analyzeErrorCode = (errorCode: string | undefined, result: ErrorInfo): voi
  * @param error The error to analyze
  * @param context Optional context for better error messages
  * @param isDev Whether to show detailed dev messages
+ * @param t Optional translation function
  */
 export const getUserFriendlyMessage = (
   error: unknown,
   context?: string,
-  isDev: boolean = __DEV__
+  isDev: boolean = __DEV__,
+  t?: (key: string) => string
 ): string => {
   const errorInfo = detectErrorType(error);
   const contextPrefix = context ? `${context}: ` : '';
 
+  // Helper to get translation or fallback
+  const translate = (key: string, fallback: string): string => {
+    if (t) {
+      const translated = t(key);
+      if (translated && translated !== key) {
+        return translated;
+      }
+    }
+    return fallback;
+  };
+
+  // Check if there's an error code we can translate
+  if (errorInfo.errorCode && t) {
+    const translated = t(`errors.${errorInfo.errorCode}`);
+    if (translated && translated !== `errors.${errorInfo.errorCode}`) {
+      return translated;
+    }
+  }
+
   if (errorInfo.isTimeoutError) {
     return isDev
       ? `${contextPrefix}Request timed out. Check your connection and server status.`
-      : 'Request timed out. Please try again.';
+      : translate('errors.timeout', 'Request timed out. Please try again.');
   }
 
   if (errorInfo.isNetworkError) {
     return isDev
       ? `${contextPrefix}Network error: ${errorInfo.errorMessage}`
-      : 'Network error. Please check your connection.';
+      : translate('errors.networkError', 'Network error. Please check your connection.');
   }
 
   if (errorInfo.isAuthError) {
     if (errorInfo.errorMessage.toLowerCase().includes('invalid password')) {
-      return 'Invalid password. Please try again.';
+      return translate('errors.INVALID_CREDENTIALS', 'Invalid password. Please try again.');
+    }
+    if (errorInfo.errorMessage.toLowerCase().includes('not found')) {
+      return translate('errors.USER_NOT_FOUND', 'User not found. Please register first.');
     }
     return isDev
       ? `${contextPrefix}Authentication error: ${errorInfo.errorMessage}`
-      : 'Please log in again.';
+      : translate('errors.UNAUTHORIZED', 'Please log in again.');
   }
 
   if (errorInfo.isValidationError) {
@@ -234,23 +258,35 @@ export const getUserFriendlyMessage = (
   }
 
   if (errorInfo.isDuplicateError) {
+    const msg = errorInfo.errorMessage.toLowerCase();
+    if (msg.includes('phone')) {
+      return translate('errors.PHONE_ALREADY_EXISTS', errorInfo.errorMessage);
+    }
+    if (msg.includes('email')) {
+      return translate('errors.EMAIL_ALREADY_EXISTS', errorInfo.errorMessage);
+    }
+    if (msg.includes('category')) {
+      return translate('errors.CATEGORY_ALREADY_EXISTS', errorInfo.errorMessage);
+    }
     return errorInfo.errorMessage;
   }
 
   if (errorInfo.isNotFoundError) {
     return isDev
       ? `${contextPrefix}Not found: ${errorInfo.errorMessage}`
-      : 'The requested item was not found.';
+      : translate('errors.NOT_FOUND', 'The requested item was not found.');
   }
 
   if (errorInfo.isServerError) {
     return isDev
       ? `${contextPrefix}Server error: ${errorInfo.errorMessage}`
-      : 'Server error. Please try again later.';
+      : translate('errors.serverError', 'Server error. Please try again later.');
   }
 
   // Default message
-  return isDev ? `${contextPrefix}${errorInfo.errorMessage}` : 'An error occurred. Please try again.';
+  return isDev 
+    ? `${contextPrefix}${errorInfo.errorMessage}` 
+    : translate('errors.generic', 'An error occurred. Please try again.');
 };
 
 /**
