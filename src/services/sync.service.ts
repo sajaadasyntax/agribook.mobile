@@ -684,6 +684,15 @@ class SyncService {
     }
   }
 
+  // Clear categories cache only
+  async clearCategoriesCache(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.CACHED_CATEGORIES);
+    } catch (error) {
+      console.error('Error clearing categories cache:', error);
+    }
+  }
+
   // Clear all data including pending items
   async clearAll(): Promise<void> {
     try {

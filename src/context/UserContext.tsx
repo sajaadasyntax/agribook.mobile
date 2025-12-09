@@ -189,6 +189,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       // Cache settings for offline use
       await syncService.cacheUserSettings(result.settings);
+      
+      // Clear category cache after registration to ensure fresh seeded categories are loaded
+      // This prevents stale empty cache from being used before categories are seeded
+      await syncService.clearCategoriesCache();
     } catch (error) {
       console.error('Error registering:', error);
       throw error;
