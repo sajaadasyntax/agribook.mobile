@@ -398,7 +398,24 @@
     "reports": "التقارير",
     "alerts": "التنبيهات",
     "profile": "الملف الشخصي",
-    "settings": "الإعدادات"
+    "settings": "الإعدادات",
+    "latestTransactions": "أحدث المعاملات"
+  },
+  "latestTransactions": {
+    "title": "أحدث المعاملات",
+    "subtitle": "المعاملات المحفوظة على هذا الجهاز",
+    "details": "تفاصيل المعاملة",
+    "payment": "الدفعات",
+    "paid": "المدفوع",
+    "remaining": "المتبقي",
+    "addPayment": "إضافة دفعة",
+    "paymentPlaceholder": "مبلغ الدفعة",
+    "paymentSaved": "تم حفظ الدفعة على هذا الجهاز.",
+    "invalidPayment": "أدخل مبلغاً أكبر من صفر ولا يتجاوز الرصيد المتبقي.",
+    "uncategorized": "غير مصنف",
+    "unpaid": "غير مدفوع",
+    "partial": "مدفوع جزئياً",
+    "empty": "لا توجد معاملات محفوظة بعد."
   },
   "errors": {
     "generic": "حدث خطأ. يرجى المحاولة مرة أخرى.",

@@ -388,6 +388,25 @@ export default function ReportsScreen(): React.JSX.Element {
           <Text style={styles.transactionDate(colors)}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
+          {item.description ? (
+            <View style={styles.noteHighlight(colors)}>
+              <Icon name="sticky-note-2" size={14} color={colors.primary} />
+              <Text style={styles.noteText(colors)} numberOfLines={2}>{item.description}</Text>
+            </View>
+          ) : null}
+          {item.paymentStatus && item.paymentStatus !== 'PAID' ? (
+            <Text style={styles.paymentStatus(colors)}>
+              {item.paymentStatus === 'PARTIAL'
+                ? `Partially paid: ${formatCurrency(parseFloat(String(item.paidAmount || 0)), { locale })}`
+                : 'Unpaid'}
+            </Text>
+          ) : null}
+          {item.receiptUrl ? (
+            <View style={styles.receiptStatus}>
+              <Icon name="receipt-long" size={13} color={colors.success} />
+              <Text style={styles.receiptStatusText(colors)}>Receipt attached</Text>
+            </View>
+          ) : null}
         </View>
       </View>
       <Text style={[
@@ -452,11 +471,8 @@ export default function ReportsScreen(): React.JSX.Element {
                   axisLineColor: colors.border,
                   gridColor: colors.border,
                   avoidFirstLastClipping: true,
-                  centerAxisLabels: true, // Center labels under bar groups
                   axisMinimum: 0, // Start at 0 for proper alignment
                   axisMaximum: chartLabels.length, // End at number of groups
-                  labelCount: chartLabels.length, // Ensure all labels are shown
-                  drawGridLines: true, // Show grid lines for visual anchoring
                 }}
                 yAxis={{
                   left: {
@@ -713,6 +729,41 @@ const styles = {
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'left' as const,
+  }),
+  noteHighlight: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: 4,
+    backgroundColor: colors.primary + '18',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginTop: 6,
+    maxWidth: 210,
+  }),
+  noteText: (colors: any) => ({
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    flexShrink: 1,
+  }),
+  paymentStatus: (colors: any) => ({
+    color: colors.warning,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    marginTop: 4,
+  }),
+  receiptStatus: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    marginTop: 3,
+  },
+  receiptStatusText: (colors: any) => ({
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: '600' as const,
   }),
   transactionDateRTL: {
     textAlign: 'right' as const,

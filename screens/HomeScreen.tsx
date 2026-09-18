@@ -11,21 +11,19 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { reportApi, transactionApi, categoryApi, alertApi, reminderApi } from '../src/services/api.service';
 import syncService from '../src/services/sync.service';
 import { FinancialSummary, Category, CreateTransactionDto } from '../src/types';
 import { formatCurrency } from '../src/utils/currency';
 
 export default function HomeScreen(): React.JSX.Element {
   const navigation = useNavigation<any>();
-  const { user, isAuthenticated, isOffline, settings } = useUser();
+  const { user, isAuthenticated } = useUser();
   const { t, isRTL, locale } = useI18n();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -33,8 +31,6 @@ export default function HomeScreen(): React.JSX.Element {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
-  const [unreadAlertCount, setUnreadAlertCount] = useState<number>(0);
-  const [upcomingReminderCount, setUpcomingReminderCount] = useState<number>(0);
   
   // Form states for income
   const [incomeCategory, setIncomeCategory] = useState<string>('');
@@ -64,145 +60,15 @@ export default function HomeScreen(): React.JSX.Element {
 
     try {
       setLoading(true);
-      
-      // Load categories with offline fallback
-      const loadCategoriesWithFallback = async (): Promise<{ income: Category[]; expense: Category[] }> => {
-        try {
-          // Check actual network status first
-          const isCurrentlyOnline = await syncService.checkNetworkStatus();
-          const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
-          
-          if (shouldUseOffline) {
-            // Load from cache when offline
-            const cachedCategories = await syncService.getCachedCategories();
-            return {
-              income: cachedCategories.filter(cat => cat.type === 'INCOME'),
-              expense: cachedCategories.filter(cat => cat.type === 'EXPENSE'),
-            };
-          } else {
-            // Load from API when online
-            try {
-              // Fetch all categories at once to avoid duplicate calls
-              const allCats = await categoryApi.getAll();
-              
-              // Cache all categories for offline use
-              await syncService.cacheCategories(allCats);
-              
-              return {
-                income: allCats.filter(cat => cat.type === 'INCOME'),
-                expense: allCats.filter(cat => cat.type === 'EXPENSE'),
-              };
-            } catch (apiError) {
-              // API failed, try cache as fallback
-              console.warn('API call failed, falling back to cache:', apiError);
-              const cachedCategories = await syncService.getCachedCategories();
-              
-              if (cachedCategories.length > 0) {
-                return {
-                  income: cachedCategories.filter(cat => cat.type === 'INCOME'),
-                  expense: cachedCategories.filter(cat => cat.type === 'EXPENSE'),
-                };
-              } else {
-                throw apiError; // No cache available, throw original error
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error loading categories:', error);
-          // Return empty arrays as fallback
-          return { income: [], expense: [] };
-        }
-      };
-
-      // Check network status once for all data loading
-      const isCurrentlyOnline = await syncService.checkNetworkStatus();
-      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
-
-      // Load categories with offline support
-      const { income: incomeCats, expense: expenseCats } = await loadCategoriesWithFallback();
+      const cachedCategories = await syncService.getCachedCategories();
+      const incomeCats = cachedCategories.filter(cat => cat.type === 'INCOME');
+      const expenseCats = cachedCategories.filter(cat => cat.type === 'EXPENSE');
       setIncomeCategories(incomeCats);
       setExpenseCategories(expenseCats);
-
-      // Load summary with offline fallback
-      let summaryData: FinancialSummary | null = null;
-      if (shouldUseOffline) {
-        summaryData = await syncService.getCachedSummary();
-        // Include pending transactions in the summary when offline
-        const pendingSummary = await syncService.getPendingTransactionsSummary();
-        if (summaryData && (pendingSummary.income > 0 || pendingSummary.expense > 0)) {
-          summaryData = {
-            ...summaryData,
-            totalIncome: (summaryData.totalIncome || 0) + pendingSummary.income,
-            totalExpense: (summaryData.totalExpense || 0) + pendingSummary.expense,
-            balance: ((summaryData.totalIncome || 0) + pendingSummary.income) - 
-                     ((summaryData.totalExpense || 0) + pendingSummary.expense),
-          };
-        }
-      } else {
-        try {
-          summaryData = await reportApi.getSummary();
-          // Cache summary for offline use
-          if (summaryData) {
-            await syncService.cacheSummary(summaryData);
-          }
-        } catch (apiError) {
-          console.warn('Failed to load summary from API, using cache:', apiError);
-          summaryData = await syncService.getCachedSummary();
-          // Include pending transactions in the summary when API fails
-          const pendingSummary = await syncService.getPendingTransactionsSummary();
-          if (summaryData && (pendingSummary.income > 0 || pendingSummary.expense > 0)) {
-            summaryData = {
-              ...summaryData,
-              totalIncome: (summaryData.totalIncome || 0) + pendingSummary.income,
-              totalExpense: (summaryData.totalExpense || 0) + pendingSummary.expense,
-              balance: ((summaryData.totalIncome || 0) + pendingSummary.income) - 
-                       ((summaryData.totalExpense || 0) + pendingSummary.expense),
-            };
-          }
-        }
-      }
-      setSummary(summaryData);
-
-      // Load alerts with offline fallback
-      let alertsData: any[] = [];
-      if (shouldUseOffline) {
-        alertsData = await syncService.getCachedAlerts();
-      } else {
-        try {
-          alertsData = await alertApi.getAll(false);
-          // Cache alerts for offline use
-          await syncService.cacheAlerts(alertsData);
-        } catch (apiError) {
-          console.warn('Failed to load alerts from API, using cache:', apiError);
-          alertsData = await syncService.getCachedAlerts();
-        }
-      }
-      setUnreadAlertCount(alertsData.length);
-
-      // Load reminders with offline fallback
-      let remindersData: any[] = [];
-      if (shouldUseOffline) {
-        remindersData = await syncService.getCachedReminders();
-      } else {
-        try {
-          remindersData = await reminderApi.getAll(false);
-          // Cache reminders for offline use
-          await syncService.cacheReminders(remindersData);
-        } catch (apiError) {
-          console.warn('Failed to load reminders from API, using cache:', apiError);
-          remindersData = await syncService.getCachedReminders();
-        }
-      }
-      
-      // Count upcoming reminders (not completed and due date is today or in the future)
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const upcomingReminders = remindersData.filter((reminder) => {
-        const dueDate = new Date(reminder.dueDate);
-        dueDate.setHours(0, 0, 0, 0);
-        return !reminder.completed && dueDate >= now;
-      });
-      setUpcomingReminderCount(upcomingReminders.length);
+      const transactions = await syncService.getAllTransactionsIncludingPending();
+      const totalIncome = transactions.filter(item => item.type === 'INCOME').reduce((sum, item) => sum + Number(item.amount), 0);
+      const totalExpense = transactions.filter(item => item.type === 'EXPENSE').reduce((sum, item) => sum + Number(item.amount), 0);
+      setSummary({ totalIncome, totalExpense, balance: totalIncome - totalExpense, incomeCount: transactions.filter(item => item.type === 'INCOME').length, expenseCount: transactions.filter(item => item.type === 'EXPENSE').length });
     } catch (error) {
       console.error('Error loading data:', error);
       
@@ -241,7 +107,7 @@ export default function HomeScreen(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user, isOffline, settings, t]);
+  }, [isAuthenticated, user, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -269,25 +135,15 @@ export default function HomeScreen(): React.JSX.Element {
         description: incomeDescription || undefined,
       };
 
-      // Check if online
-      const isCurrentlyOnline = await syncService.checkNetworkStatus();
-      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
-
-      if (shouldUseOffline) {
-        // Save to pending queue for later sync
-        await syncService.addPendingTransaction({
-          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          type: 'INCOME',
-          amount: parseFloat(incomeAmount),
-          categoryId: incomeCategory,
-          description: incomeDescription || undefined,
-          createdAt: new Date().toISOString(),
-        });
-        Alert.alert(t('app.success'), t('home.incomeSavedOffline') || 'Income saved offline. Will sync when online.');
-      } else {
-        await transactionApi.create(data);
-        Alert.alert(t('app.success'), t('home.incomeSaved'));
-      }
+      await syncService.addPendingTransaction({
+        id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'INCOME',
+        amount: data.amount,
+        categoryId: data.categoryId,
+        description: data.description,
+        createdAt: new Date().toISOString(),
+      });
+      Alert.alert(t('app.success'), t('home.incomeSavedOffline') || 'Income saved on this device.');
       
       // Reset form
       setIncomeCategory('');
@@ -334,25 +190,15 @@ export default function HomeScreen(): React.JSX.Element {
         description: expenseDescription || undefined,
       };
 
-      // Check if online
-      const isCurrentlyOnline = await syncService.checkNetworkStatus();
-      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
-
-      if (shouldUseOffline) {
-        // Save to pending queue for later sync
-        await syncService.addPendingTransaction({
-          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          type: 'EXPENSE',
-          amount: parseFloat(expenseAmount),
-          categoryId: expenseCategory,
-          description: expenseDescription || undefined,
-          createdAt: new Date().toISOString(),
-        });
-        Alert.alert(t('app.success'), t('home.expenseSavedOffline') || 'Expense saved offline. Will sync when online.');
-      } else {
-        await transactionApi.create(data);
-        Alert.alert(t('app.success'), t('home.expenseSaved'));
-      }
+      await syncService.addPendingTransaction({
+        id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'EXPENSE',
+        amount: data.amount,
+        categoryId: data.categoryId,
+        description: data.description,
+        createdAt: new Date().toISOString(),
+      });
+      Alert.alert(t('app.success'), t('home.expenseSavedOffline') || 'Expense saved on this device.');
       
       // Reset form
       setExpenseCategory('');
@@ -417,26 +263,9 @@ export default function HomeScreen(): React.JSX.Element {
       <View style={styles.container(colors)}>
         <View style={[styles.appBar(colors), isRTL && styles.appBarRTL]}>
           <View style={styles.appBarLeft}>
-            <Image 
-              source={require('../assets/logo.png')} 
-              style={styles.appBarLogo}
-              resizeMode="contain"
-            />
+            <Text style={styles.appBarLogo}>ELITE</Text>
             <Text style={styles.appBarTitle}>{t('app.name')}</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('Alerts')}
-          >
-            <Icon name="notifications" size={24} color={colors.textInverse} />
-            {(unreadAlertCount > 0 || upcomingReminderCount > 0) && (
-              <View style={[styles.notificationBadge, isRTL && styles.notificationBadgeRTL]}>
-                <Text style={styles.notificationBadgeText}>
-                  {(unreadAlertCount + upcomingReminderCount) > 99 ? '99+' : (unreadAlertCount + upcomingReminderCount)}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -654,8 +483,10 @@ const styles = {
     gap: 10,
   },
   appBarLogo: {
-    width: 36,
-    height: 36,
+    fontSize: 20,
+    fontWeight: '900' as const,
+    letterSpacing: 1,
+    color: '#fff',
   },
   appBarTitle: {
     fontSize: 24,

@@ -13,13 +13,13 @@ import {
   DimensionValue,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../src/context/UserContext';
 import { useI18n } from '../src/context/I18nContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { categoryApi, transactionApi } from '../src/services/api.service';
 import syncService from '../src/services/sync.service';
-import { Category, CreateTransactionDto, CreateCategoryDto, CategoryType } from '../src/types';
+import { Category, CreateTransactionDto, CreateCategoryDto, CategoryType, Transaction } from '../src/types';
 
 export default function AddScreen(): React.JSX.Element {
   const { isAuthenticated, isOffline, settings, pendingCount } = useUser();
@@ -29,6 +29,8 @@ export default function AddScreen(): React.JSX.Element {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+  const [paidAmount, setPaidAmount] = useState<string>('');
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -96,58 +98,15 @@ export default function AddScreen(): React.JSX.Element {
       setLoadingCategories(true);
       const type = entryType === 'income' ? 'INCOME' : 'EXPENSE';
       
-      // Check actual network status first
-      const isCurrentlyOnline = await syncService.checkNetworkStatus();
-      const shouldUseOffline = !isCurrentlyOnline || isOffline || settings?.offlineMode;
-      
-      if (shouldUseOffline) {
-        // Load from cache when offline
-        const cachedCategories = await syncService.getCachedCategories();
-        const filteredCategories = cachedCategories.filter(cat => cat.type === type);
-        setCategories(filteredCategories);
-        setAllCategories(cachedCategories);
-      } else {
-        // Load from API when online
-        try {
-          const cats = await categoryApi.getAll(type);
-          setCategories(cats);
-          
-          // Cache categories for offline use
-          const allCats = await categoryApi.getAll();
-          setAllCategories(allCats);
-          await syncService.cacheCategories(allCats);
-        } catch (apiError) {
-          // API failed, try cache as fallback
-          console.warn('API call failed, falling back to cache:', apiError);
-          const cachedCategories = await syncService.getCachedCategories();
-          const filteredCategories = cachedCategories.filter(cat => cat.type === type);
-          
-          if (filteredCategories.length > 0) {
-            setCategories(filteredCategories);
-            setAllCategories(cachedCategories);
-            // Don't show error if we successfully loaded from cache
-            return;
-          } else {
-            // No cache available - check if we're actually offline now
-            const currentNetworkStatus = await syncService.checkNetworkStatus();
-            if (!currentNetworkStatus) {
-              // Actually offline, silently fail (UI will show appropriate message)
-              setCategories([]);
-              setAllCategories([]);
-              return;
-            }
-            // Online but API failed and no cache - this is a real error
-            throw apiError;
-          }
-        }
-      }
+      const cachedCategories = await syncService.getCachedCategories();
+      const filteredCategories = cachedCategories.filter(cat => cat.type === type);
+      setCategories(filteredCategories);
+      setAllCategories(cachedCategories);
       
       setSelectedCategory('');
     } catch (error: any) {
       console.error('Error loading categories:', error);
       
-      // Detect error type
-      const errorInfo = detectErrorType(error);
       const type = entryType === 'income' ? 'INCOME' : 'EXPENSE';
       
       // Always try to load from cache as final fallback
@@ -163,24 +122,6 @@ export default function AddScreen(): React.JSX.Element {
       } catch (cacheError) {
         // Cache also failed
         console.error('Cache read failed:', cacheError);
-      }
-      
-      // Only show alert if we're online and have no cache
-      // If offline, the UI will show the appropriate message
-      const currentNetworkStatus = await syncService.checkNetworkStatus();
-      if (currentNetworkStatus && !settings?.offlineMode) {
-        // Provide specific error messages only when online
-        let errorText = t('add.loadCategoriesFailed') || 'Failed to load categories';
-        
-        if (errorInfo.isNetworkError) {
-          errorText = t('add.networkErrorCategories') || 'Network error. Please check your connection.';
-        } else if (errorInfo.isAuthError) {
-          errorText = t('add.authErrorCategories') || 'Authentication required. Please log in again.';
-        } else if (errorInfo.isServerError) {
-          errorText = t('add.serverErrorCategories') || 'Server error. Please try again later.';
-        }
-        
-        Alert.alert(t('app.error') || 'Error', errorText);
       }
       
       // Set empty categories so UI can show appropriate message
@@ -205,6 +146,8 @@ export default function AddScreen(): React.JSX.Element {
     setAmount('');
     setNotes('');
     setSelectedCategory('');
+    setPaidAmount('');
+    setReceiptUri(null);
   };
 
   type OfflineTransactionPayload = {
@@ -212,6 +155,8 @@ export default function AddScreen(): React.JSX.Element {
     amount: number;
     categoryId: string;
     description?: string;
+    paidAmount?: number;
+    receiptUrl?: string;
     categorySnapshot?: Category;
   };
 
@@ -220,18 +165,11 @@ export default function AddScreen(): React.JSX.Element {
     successMessage?: string
   ): Promise<void> => {
     const offlineId = generateOfflineId();
-    await syncService.addPendingTransaction({
-      id: offlineId,
-      type: payload.type,
-      amount: payload.amount,
-      categoryId: payload.categoryId,
-      description: payload.description,
-      createdAt: new Date().toISOString(),
-    });
-
     const cachedTransactions = await syncService.getCachedTransactions();
     const snapshotCategory =
       payload.categorySnapshot || categories.find((c) => c.id === payload.categoryId);
+    const paid = payload.paidAmount ?? payload.amount;
+    const paymentStatus: Transaction['paymentStatus'] = paid <= 0 ? 'UNPAID' : paid < payload.amount ? 'PARTIAL' : 'PAID';
 
     const newTransaction = {
       id: offlineId,
@@ -240,7 +178,9 @@ export default function AddScreen(): React.JSX.Element {
       categoryId: payload.categoryId,
       userId: '',
       description: payload.description ?? null,
-      receiptUrl: null,
+      receiptUrl: payload.receiptUrl ?? null,
+      paidAmount: String(paid),
+      paymentStatus,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       category:
@@ -254,7 +194,7 @@ export default function AddScreen(): React.JSX.Element {
         } as Category),
     };
 
-    await syncService.cacheTransactions([newTransaction, ...cachedTransactions]);
+    await syncService.saveLocalTransaction(newTransaction);
 
     if (successMessage) {
       Alert.alert(t('app.success') || 'Success', successMessage);
@@ -279,6 +219,12 @@ export default function AddScreen(): React.JSX.Element {
       return;
     }
 
+    const paidAmountNum = paidAmount.trim() === '' ? amountNum : parseFloat(paidAmount);
+    if (isNaN(paidAmountNum) || paidAmountNum < 0 || paidAmountNum > amountNum) {
+      Alert.alert(t('app.error') || 'Error', 'Paid amount must be between zero and the total amount.');
+      return;
+    }
+
     const transactionType = entryType.toUpperCase() as 'INCOME' | 'EXPENSE';
 
     try {
@@ -293,89 +239,13 @@ export default function AddScreen(): React.JSX.Element {
         amount: amountNum,
         categoryId: selectedCategory,
         description: notes || undefined,
+        paidAmount: paidAmountNum,
+        receiptUrl: receiptUri || undefined,
         categorySnapshot: categories.find((c) => c.id === selectedCategory),
       };
       
-      if (shouldSaveOffline) {
-        // Save offline immediately
-        await persistOfflineTransaction(
-          offlineSnapshot,
-          t('add.savedOffline') || 'Transaction saved offline. It will sync when you are online.'
-        );
-        resetForm();
-      } else {
-        // Online - save directly to API
-        try {
-          const data: CreateTransactionDto = {
-            type: transactionType,
-            amount: amountNum,
-            categoryId: selectedCategory,
-            description: notes || undefined,
-          };
-
-          await transactionApi.create(data);
-          Alert.alert(
-            t('app.success') || 'Success', 
-            t('add.transactionSaved') || 'Transaction saved successfully'
-          );
-          resetForm();
-        } catch (apiError: any) {
-          // API failed, detect error type
-          const errorInfo = detectErrorType(apiError);
-          
-          if (errorInfo.isNetworkError) {
-            // Network error - auto-save offline
-            await persistOfflineTransaction(
-              offlineSnapshot,
-              t('add.savedOfflineNetworkError') || 'Transaction saved offline due to network error.'
-            );
-            resetForm();
-          } else if (errorInfo.isValidationError) {
-            // Validation error - show specific message
-            Alert.alert(
-              t('app.error') || 'Error',
-              errorInfo.errorMessage || t('add.validationError') || 'Invalid transaction data. Please check your inputs.'
-            );
-          } else {
-            // Other error - offer to save offline
-            Alert.alert(
-              t('app.error') || 'Error',
-              errorInfo.isServerError 
-                ? (t('add.serverErrorSave') || 'Server error. Would you like to save this transaction offline?')
-                : (t('add.saveFailed') || 'Failed to save transaction. Would you like to save it offline?'),
-              [
-                {
-                  text: t('app.cancel') || 'Cancel',
-                  style: 'cancel',
-                },
-                {
-                  text: t('add.saveOffline') || 'Save Offline',
-                  onPress: async () => {
-                    try {
-                      if (!offlineSnapshot.categoryId) {
-                        Alert.alert(t('app.error') || 'Error', t('add.category') || 'Category required');
-                        return;
-                      }
-
-                      await persistOfflineTransaction(
-                        offlineSnapshot,
-                        t('add.savedOffline') || 'Transaction saved offline.'
-                      );
-                      resetForm();
-                    } catch (offlineError) {
-                      console.error('Error saving offline:', offlineError);
-                      Alert.alert(
-                        t('app.error') || 'Error', 
-                        t('add.offlineSaveFailed') || 'Failed to save offline'
-                      );
-                    }
-                  },
-                },
-              ]
-            );
-          }
-        }
-      }
+      await persistOfflineTransaction(offlineSnapshot, 'Transaction saved to this device.');
+      resetForm();
     } catch (error) {
       console.error('Error saving transaction:', error);
       Alert.alert(
@@ -385,6 +255,15 @@ export default function AddScreen(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
+  };
+
+  const pickReceipt = async (): Promise<void> => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: false,
+    });
+    if (!result.canceled && result.assets[0]) setReceiptUri(result.assets[0].uri);
   };
 
   const handleSaveAndNew = async () => {
@@ -406,16 +285,6 @@ export default function AddScreen(): React.JSX.Element {
       return;
     }
 
-    // Check actual network status
-    const isCurrentlyOnline = await syncService.checkNetworkStatus();
-    if (!isCurrentlyOnline || settings?.offlineMode) {
-      Alert.alert(
-        t('app.error'), 
-        t('add.connectToLoadCategories') || 'Connect to internet to add categories'
-      );
-      return;
-    }
-
     try {
       setSavingCategory(true);
       
@@ -425,46 +294,20 @@ export default function AddScreen(): React.JSX.Element {
         description: newCategoryDescription.trim() || undefined,
       };
 
-      // Check network status
-      const isOnline = await syncService.checkNetworkStatus();
-      const shouldUseOffline = !isOnline || settings?.offlineMode;
-
-      if (shouldUseOffline) {
-        // Create category locally for offline use
-        const tempId = `pending_cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const offlineCategory = {
-          id: tempId,
-          name: data.name,
-          type: data.type,
-          description: data.description || null,
-          userId: 'pending',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // Add to local cache so it appears immediately
-        await syncService.addCategoryToCache(offlineCategory);
-        
-        // Queue for sync when online
-        await syncService.addPendingOperation({
-          id: tempId,
-          type: 'CREATE_CATEGORY',
-          data: data,
-        });
-        
-        Alert.alert(t('app.success'), t('add.categoryCreatedOffline') || 'Category created offline. Will sync when online.');
-        setShowCategoryModal(false);
-        setNewCategoryName('');
-        setNewCategoryDescription('');
-        await loadCategories();
-      } else {
-        await categoryApi.create(data);
-        Alert.alert(t('app.success'), t('add.categoryCreated'));
-        setShowCategoryModal(false);
-        setNewCategoryName('');
-        setNewCategoryDescription('');
-        await loadCategories();
-      }
+      const tempId = `local_cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await syncService.addCategoryToCache({
+        id: tempId,
+        name: data.name,
+        type: data.type,
+        description: data.description || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      Alert.alert(t('app.success'), t('add.categoryCreatedOffline') || 'Category created on this device.');
+      setShowCategoryModal(false);
+      setNewCategoryName('');
+      setNewCategoryDescription('');
+      await loadCategories();
     } catch (error: any) {
       console.error('Error creating category:', error);
       
@@ -529,16 +372,6 @@ export default function AddScreen(): React.JSX.Element {
   };
 
   const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
-    // Check actual network status
-    const isCurrentlyOnline = await syncService.checkNetworkStatus();
-    if (!isCurrentlyOnline || settings?.offlineMode) {
-      Alert.alert(
-        t('app.error'), 
-        t('add.connectToLoadCategories') || 'Connect to internet to delete categories'
-      );
-      return;
-    }
-
     Alert.alert(
       t('add.deleteCategory'),
       t('add.confirmDeleteCategory'),
@@ -549,7 +382,7 @@ export default function AddScreen(): React.JSX.Element {
           style: 'destructive',
           onPress: async () => {
             try {
-              await categoryApi.delete(categoryId);
+              await syncService.removeCategoryFromCache(categoryId);
               Alert.alert(t('app.success'), t('add.categoryDeleted'));
               await loadCategories();
             } catch (error: any) {
@@ -717,10 +550,10 @@ export default function AddScreen(): React.JSX.Element {
             <Text style={styles.noCategoriesText(colors)}>
               {t('add.noCategories') || 'No categories available'}
             </Text>
-            {/* Show "connect to internet" message when offline and no cached categories available */}
+            {/* Empty local category state */}
             {(!isNetworkOnline || settings?.offlineMode) && (
               <Text style={styles.noCategoriesHint(colors)}>
-                {t('add.connectToLoadCategories') || 'Connect to internet to load categories'}
+                {t('add.noCategories') || 'No categories saved on this device'}
               </Text>
             )}
             <TouchableOpacity
@@ -774,6 +607,17 @@ export default function AddScreen(): React.JSX.Element {
           textAlign={isRTL ? 'right' : 'left'}
         />
 
+        <Text style={styles.label(colors)}>Paid so far</Text>
+        <TextInput
+          style={[styles.input(colors), isRTL && styles.inputRTL]}
+          placeholder="Leave blank if fully paid"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="numeric"
+          value={paidAmount}
+          onChangeText={setPaidAmount}
+          textAlign={isRTL ? 'right' : 'left'}
+        />
+
         {/* Notes Input */}
         <Text style={styles.label(colors)}>
           {t('add.notes') || 'Notes'}
@@ -788,6 +632,13 @@ export default function AddScreen(): React.JSX.Element {
           onChangeText={setNotes}
           textAlign={isRTL ? 'right' : 'left'}
         />
+
+        <TouchableOpacity style={styles.receiptButton(colors)} onPress={pickReceipt}>
+          <Icon name="receipt-long" size={20} color={colors.primary} />
+          <Text style={styles.receiptButtonText(colors)}>
+            {receiptUri ? 'Receipt attached' : 'Attach payment receipt'}
+          </Text>
+        </TouchableOpacity>
 
         {/* Save Button */}
         <View style={[styles.saveButtons, isRTL && styles.saveButtonsRTL]}>
@@ -1460,4 +1311,18 @@ const styles = {
     color: '#fff',
     fontWeight: '600' as const,
   },
+  receiptButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    padding: 14,
+    borderRadius: 8,
+    marginTop: 8,
+  }),
+  receiptButtonText: (colors: any) => ({
+    color: colors.primary,
+    fontWeight: '600' as const,
+  }),
 };

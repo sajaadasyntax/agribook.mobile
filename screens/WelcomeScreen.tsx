@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useI18n } from '../src/context/I18nContext';
@@ -209,11 +208,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps): React
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <Image 
-              source={require('../assets/logo.png')} 
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <Text style={styles.logo}>ELITE</Text>
           </View>
           <Text style={[styles.title, { textAlign: 'center' }]}>
             {isSignIn ? t('auth.signIn') : t('auth.welcome')}

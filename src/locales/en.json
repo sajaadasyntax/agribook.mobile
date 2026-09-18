@@ -398,7 +398,24 @@
     "reports": "Reports",
     "alerts": "Alerts",
     "profile": "Profile",
-    "settings": "Settings"
+    "settings": "Settings",
+    "latestTransactions": "Latest Transactions"
+  },
+  "latestTransactions": {
+    "title": "Latest Transactions",
+    "subtitle": "Your transactions saved on this device",
+    "details": "Transaction Details",
+    "payment": "Payments",
+    "paid": "Paid",
+    "remaining": "Remaining",
+    "addPayment": "Add Payment",
+    "paymentPlaceholder": "Payment amount",
+    "paymentSaved": "Payment saved on this device.",
+    "invalidPayment": "Enter an amount between zero and the remaining balance.",
+    "uncategorized": "Uncategorized",
+    "unpaid": "Unpaid",
+    "partial": "Partially paid",
+    "empty": "No transactions saved yet."
   },
   "errors": {
     "generic": "An error occurred. Please try again.",

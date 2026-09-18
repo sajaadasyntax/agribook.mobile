@@ -28,6 +28,8 @@ export interface PendingTransaction {
   amount: number;
   categoryId: string;
   description?: string;
+  receiptUrl?: string;
+  paidAmount?: number;
   createdAt: string;
   retryCount?: number;
 }
@@ -191,12 +193,14 @@ class SyncService {
 
   // Check current network status
   async checkNetworkStatus(): Promise<boolean> {
-    const state = await NetInfo.fetch();
+    this.isOnline = false;
+    return false;
+    /* const state = await NetInfo.fetch();
     // Check both connection and internet reachability
     // isConnected checks if device is connected to network (WiFi/cellular)
     // isInternetReachable checks if that network actually has internet access
     this.isOnline = (state.isConnected ?? false) && (state.isInternetReachable ?? false);
-    return this.isOnline;
+    return this.isOnline; */
   }
 
   // Get current online status
@@ -345,11 +349,42 @@ class SyncService {
   async getCachedCategories(): Promise<Category[]> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CATEGORIES);
-      return data ? JSON.parse(data) : [];
+      if (data) return JSON.parse(data);
+
+      const now = new Date().toISOString();
+      const defaults: Category[] = [
+        { id: 'local-income', name: 'Income', type: 'INCOME', createdAt: now, updatedAt: now },
+        { id: 'local-expense', name: 'Expense', type: 'EXPENSE', createdAt: now, updatedAt: now },
+      ];
+      await this.cacheCategories(defaults);
+      return defaults;
     } catch (error) {
       console.error('Error getting cached categories:', error);
       return [];
     }
+  }
+
+  async saveLocalTransaction(transaction: Transaction): Promise<void> {
+    const transactions = await this.getCachedTransactions();
+    await this.cacheTransactions([
+      transaction,
+      ...transactions.filter(existing => existing.id !== transaction.id),
+    ]);
+  }
+
+  async updateLocalTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | null> {
+    const transactions = await this.getCachedTransactions();
+    const index = transactions.findIndex(transaction => transaction.id === id);
+    if (index === -1) return null;
+
+    const updatedTransaction = {
+      ...transactions[index],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    transactions[index] = updatedTransaction;
+    await this.cacheTransactions(transactions);
+    return updatedTransaction;
   }
 
   // Add a category to local cache (for offline-created categories)

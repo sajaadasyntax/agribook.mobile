@@ -338,7 +338,9 @@ export const useReportData = (period: ReportPeriod, date: Date, locale?: string)
         const cachedSummary = await syncService.getCachedSummary();
         if (cachedTransactions.length > 0 || cachedSummary) {
           setData({
-            summary: cachedSummary || { income: 0, expense: 0, balance: 0 },
+            summary: cachedSummary
+              ? { income: cachedSummary.totalIncome, expense: cachedSummary.totalExpense, balance: cachedSummary.balance }
+              : { income: 0, expense: 0, balance: 0 },
             chartData: { labels: [], incomeData: [], expenseData: [] },
             categoryData: processTransactionsForCategories(cachedTransactions),
             transactions: cachedTransactions,

@@ -81,6 +81,8 @@ export interface Transaction {
   categoryId: string;
   userId: string;
   receiptUrl?: string | null;
+  paidAmount?: string | number | null;
+  paymentStatus?: 'UNPAID' | 'PARTIAL' | 'PAID' | null;
   createdAt: string;
   updatedAt: string;
   category: Category;
@@ -92,6 +94,7 @@ export interface CreateTransactionDto {
   categoryId: string;
   description?: string;
   receiptUrl?: string;
+  paidAmount?: number;
 }
 
 // Report Types

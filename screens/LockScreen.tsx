@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Animated,
   Vibration,
-  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -280,11 +279,7 @@ export default function LockScreen({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Image 
-          source={require('../assets/logo.png')} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Text style={styles.logo}>ELITE</Text>
         <Text style={[styles.title, { textAlign: 'center' }]}>{t('lock.title') || 'AgriBooks'}</Text>
         <Text style={[styles.subtitle, { textAlign: 'center' }]}>
           {lockedOut 

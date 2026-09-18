@@ -21,16 +21,13 @@ if (!I18nManager.isRTL) {
 import HomeScreen from './screens/HomeScreen';
 import AddScreen from './screens/AddScreen';
 import ReportsScreen from './screens/ReportsScreen';
-import AlertsScreen from './screens/AlertsScreen';
-import SettingsScreen from './screens/SettingsScreen';
-import OnboardingScreen from './screens/OnboardingScreen';
-import WelcomeScreen from './screens/WelcomeScreen';
-import LockScreen from './screens/LockScreen';
+import LatestTransactionsScreen from './screens/LatestTransactionsScreen';
+import TransactionDetailsScreen from './screens/TransactionDetailsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-function MainTabs(): JSX.Element {
+function MainTabs(): React.JSX.Element {
   const { isRTL, t } = useI18n();
   const { colors } = useTheme();
 
@@ -48,23 +45,20 @@ function MainTabs(): JSX.Element {
             iconName = 'add-circle';
           } else if (route.name === 'Reports') {
             iconName = 'assessment';
-          } else if (route.name === 'Alerts') {
-            iconName = 'notifications';
-          } else if (route.name === 'Settings') {
-            iconName = 'settings';
+          } else if (route.name === 'LatestTransactions') {
+            iconName = 'receipt-long';
           } else {
             iconName = 'help';
           }
 
-          return <Icon name={iconName} size={size} color={color} />;
+          return <Icon name={iconName as React.ComponentProps<typeof Icon>['name']} size={size} color={color} />;
         },
         tabBarLabel: ({ focused, color }) => {
           const labels: Record<string, string> = {
             'Home': t('navigation.home'),
             'Add': t('navigation.add'),
             'Reports': t('navigation.reports'),
-            'Alerts': t('navigation.alerts'),
-            'Settings': t('navigation.settings'),
+            'LatestTransactions': t('navigation.latestTransactions'),
           };
           return labels[route.name] || route.name;
         },
@@ -80,20 +74,13 @@ function MainTabs(): JSX.Element {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Add" component={AddScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
-      <Tab.Screen name="Alerts" component={AlertsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="LatestTransactions" component={LatestTransactionsScreen} />
     </Tab.Navigator>
   );
 }
 
-function AppNavigator(): JSX.Element {
-  const { isAuthenticated, isLoading, settings, user, refreshUser } = useUser();
-  const { isRTL, locale } = useI18n();
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
-  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-  const [isLocked, setIsLocked] = useState(false);
-  const [checkingLock, setCheckingLock] = useState(true);
-  const navigationRef = React.useRef<NavigationContainerRef<any>>(null);
+function AppNavigator(): React.JSX.Element {
+  const { isRTL } = useI18n();
 
   // Handle RTL layout changes - ensure RTL is properly set based on locale
   useEffect(() => {
@@ -106,153 +93,20 @@ function AppNavigator(): JSX.Element {
     }
   }, [isRTL]); // Update when RTL status changes
 
-  // Check onboarding status
-  useEffect(() => {
-    const checkOnboarding = async (): Promise<void> => {
-      try {
-        const completed = await SecureStore.getItemAsync('onboarding_completed');
-        setOnboardingCompleted(completed === 'true');
-      } catch (error) {
-        console.error('Error checking onboarding:', error);
-        setOnboardingCompleted(false);
-      } finally {
-        setCheckingOnboarding(false);
-      }
-    };
-
-    checkOnboarding();
-  }, []);
-
-  // Check if PIN lock is enabled and should lock the app
-  useEffect(() => {
-    const checkLockStatus = async (): Promise<void> => {
-      try {
-        // Only check lock if user is authenticated
-        if (!isAuthenticated || isLoading) {
-          setCheckingLock(false);
-          return;
-        }
-
-        // Check if PIN is enabled in settings
-        if (settings?.pinEnabled) {
-          setIsLocked(true);
-        } else {
-          setIsLocked(false);
-        }
-      } catch (error) {
-        console.error('Error checking lock status:', error);
-        setIsLocked(false);
-      } finally {
-        setCheckingLock(false);
-      }
-    };
-
-    checkLockStatus();
-  }, [isAuthenticated, isLoading, settings?.pinEnabled]);
-
-  // Handle app state changes (background/foreground)
-  useEffect(() => {
-    let lastBackground = Date.now();
-    const LOCK_TIMEOUT = 60000; // 1 minute - lock after this much time in background
-
-    const handleAppStateChange = (nextAppState: AppStateStatus): void => {
-      if (nextAppState === 'background') {
-        lastBackground = Date.now();
-      } else if (nextAppState === 'active') {
-        // Only lock if user has PIN enabled and was in background for a while
-        const timeInBackground = Date.now() - lastBackground;
-        if (settings?.pinEnabled && timeInBackground > LOCK_TIMEOUT) {
-          setIsLocked(true);
-        }
-        
-        // Refresh user data when coming back to foreground
-        if (isAuthenticated && user) {
-          refreshUser();
-        }
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => subscription.remove();
-  }, [settings?.pinEnabled, isAuthenticated, user, refreshUser]);
-
-  // Navigate based on authentication and onboarding status
-  useEffect(() => {
-    if (checkingOnboarding || onboardingCompleted === null) return;
-
-    if (!onboardingCompleted) {
-      navigationRef.current?.navigate('Onboarding');
-    } else if (!isAuthenticated && !isLoading) {
-      navigationRef.current?.navigate('Welcome');
-    } else if (isAuthenticated) {
-      navigationRef.current?.navigate('Main');
-    }
-  }, [onboardingCompleted, isAuthenticated, isLoading, checkingOnboarding]);
-
-  const handleOnboardingComplete = (): void => {
-    setOnboardingCompleted(true);
-  };
-
-  const handleWelcomeComplete = (): void => {
-    // User is created in WelcomeScreen
-    // Navigation will happen automatically when isAuthenticated becomes true
-  };
-
-  const handleUnlock = useCallback((): void => {
-    setIsLocked(false);
-  }, []);
-
-  // Show loading while checking onboarding/lock status
-  if (checkingOnboarding || (isAuthenticated && checkingLock)) {
-    const { colors } = useTheme();
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  // Show lock screen if locked
-  if (isAuthenticated && isLocked && settings?.pinEnabled) {
-    return (
-      <LockScreen 
-        onUnlock={handleUnlock}
-        fingerprintEnabled={settings?.fingerprintEnabled || false}
-      />
-    );
-  }
-
-  // Determine initial route
-  const getInitialRoute = (): string => {
-    if (!onboardingCompleted) return 'Onboarding';
-    if (!isAuthenticated && !isLoading) return 'Welcome';
-    return 'Main';
-  };
-
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={getInitialRoute()}
+        initialRouteName="Main"
         screenOptions={{ headerShown: false }}
       >
-        <Stack.Screen name="Onboarding">
-          {() => <OnboardingScreen onComplete={handleOnboardingComplete} />}
-        </Stack.Screen>
-        <Stack.Screen name="Welcome">
-          {() => <WelcomeScreen onComplete={handleWelcomeComplete} />}
-        </Stack.Screen>
         <Stack.Screen name="Main" component={MainTabs} />
-        <Stack.Screen 
-          name="Settings" 
-          component={SettingsScreen}
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
-export default function App(): JSX.Element {
+export default function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
       <UserProvider>

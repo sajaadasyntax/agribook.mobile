@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import PagerView from 'react-native-pager-view';
@@ -21,7 +20,7 @@ interface OnboardingPage {
   description: string;
 }
 
-export default function OnboardingScreen({ onComplete }: OnboardingScreenProps): JSX.Element {
+export default function OnboardingScreen({ onComplete }: OnboardingScreenProps): React.JSX.Element {
   const { t, isRTL } = useI18n();
   const pagerRef = useRef<PagerView>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -112,11 +111,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps):
           <View key={index} style={styles.page}>
             <View style={styles.iconContainer}>
               {index === 0 ? (
-                <Image 
-                  source={require('../assets/logo.png')} 
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
+                <Text style={styles.logo}>ELITE</Text>
               ) : (
                 <Icon name={page.icon as any} size={120} color="#DD1C31" />
               )}
