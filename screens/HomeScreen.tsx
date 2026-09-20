@@ -457,6 +457,9 @@ const styles = {
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
+    width: '100%' as const,
+    maxWidth: 960,
+    alignSelf: 'center' as const,
   },
   loadingText: (colors: any) => ({
     marginTop: 10,
@@ -469,7 +472,6 @@ const styles = {
     alignItems: 'center' as const,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingTop: 50,
     backgroundColor: colors.primary,
     elevation: 4,
     shadowColor: colors.shadow,

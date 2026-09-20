@@ -24,6 +24,8 @@ import { formatDisplayDate, addDays, addWeeks, addMonths } from '../src/utils/da
 import { formatCurrency } from '../src/utils/currency';
 import { Transaction } from '../src/types';
 import { exportToPDF, exportToExcel } from '../src/utils/exportReport';
+import { exportFullBackupCSV } from '../src/utils/exportReport';
+import syncService from '../src/services/sync.service';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -328,6 +330,23 @@ export default function ReportsScreen(): React.JSX.Element {
     }
   };
 
+  const handleBackup = async () => {
+    try {
+      const [transactions, categories, alerts, reminders, settings] = await Promise.all([
+        syncService.getAllTransactionsIncludingPending(),
+        syncService.getCachedCategories(),
+        syncService.getCachedAlerts(),
+        syncService.getCachedReminders(),
+        syncService.getCachedUserSettings(),
+      ]);
+      await exportFullBackupCSV({ transactions, categories, alerts, reminders, settings, locale });
+      Alert.alert(t('app.success') || 'Success', t('reports.backupSuccess') || 'Backup exported successfully');
+    } catch (error) {
+      console.error('Error exporting backup:', error);
+      Alert.alert(t('app.error') || 'Error', t('reports.backupError') || 'Failed to export backup');
+    }
+  };
+
   const renderExportButtons = () => (
     <View style={[styles.exportContainer, isRTL && styles.exportContainerRTL]}>
       <TouchableOpacity
@@ -343,6 +362,13 @@ export default function ReportsScreen(): React.JSX.Element {
       >
         <Icon name="table-chart" size={20} color="#fff" />
         <Text style={styles.exportButtonText}>CSV</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.exportButton(colors), { backgroundColor: colors.primary }]}
+        onPress={handleBackup}
+      >
+        <Icon name="backup" size={20} color="#fff" />
+        <Text style={styles.exportButtonText}>{t('reports.backup') || 'Backup'}</Text>
       </TouchableOpacity>
     </View>
   );

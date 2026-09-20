@@ -369,9 +369,13 @@ export const useReportData = (period: ReportPeriod, date: Date, locale?: string)
   // Includes pending transactions so they appear in reports while offline
   const getOfflineTransactionsForRange = async (startDate: Date, endDate: Date): Promise<Transaction[]> => {
     const allTransactions = await syncService.getAllTransactionsIncludingPending();
+    const rangeStart = new Date(startDate);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(endDate);
+    rangeEnd.setHours(23, 59, 59, 999);
     return allTransactions.filter(t => {
       const transactionDate = new Date(t.createdAt);
-      return transactionDate >= startDate && transactionDate <= endDate;
+      return transactionDate >= rangeStart && transactionDate <= rangeEnd;
     });
   };
 
@@ -411,10 +415,13 @@ export const useReportData = (period: ReportPeriod, date: Date, locale?: string)
     const weekDays = getWeekDays(locale);
     const incomeData: number[] = Array(7).fill(0);
     const expenseData: number[] = Array(7).fill(0);
+    const normalizedWeekStart = new Date(weekStart);
+    normalizedWeekStart.setHours(0, 0, 0, 0);
     
     transactions.forEach(t => {
       const transactionDate = new Date(t.createdAt);
-      const dayIndex = Math.floor((transactionDate.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
+      transactionDate.setHours(0, 0, 0, 0);
+      const dayIndex = Math.floor((transactionDate.getTime() - normalizedWeekStart.getTime()) / (24 * 60 * 60 * 1000));
       
       if (dayIndex >= 0 && dayIndex < 7) {
         const amount = parseFloat(t.amount.toString());

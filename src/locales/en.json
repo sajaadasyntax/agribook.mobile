@@ -114,6 +114,9 @@
     "loadingData": "Please wait for the report to finish loading.",
     "exportSuccess": "Report exported successfully",
     "exportError": "Failed to export report",
+    "backup": "Backup",
+    "backupSuccess": "Backup exported successfully",
+    "backupError": "Failed to export backup",
     "weekdays": {
       "sat": "Sat",
       "sun": "Sun",

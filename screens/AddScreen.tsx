@@ -887,11 +887,13 @@ const styles = {
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
+    width: '100%' as const,
+    maxWidth: 960,
+    alignSelf: 'center' as const,
   },
   header: (colors: any) => ({
     backgroundColor: colors.primary,
     padding: 16,
-    paddingTop: 50,
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'center' as const,

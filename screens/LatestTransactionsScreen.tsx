@@ -71,11 +71,11 @@ export default function LatestTransactionsScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 22, paddingBottom: 14 },
+  header: { padding: 22, paddingBottom: 14, width: '100%', maxWidth: 960, alignSelf: 'center' },
   title: { fontSize: 26, fontWeight: '700' },
   subtitle: { marginTop: 5, fontSize: 14 },
   loader: { marginTop: 50 },
-  list: { paddingHorizontal: 16, paddingBottom: 24 },
+  list: { paddingHorizontal: 16, paddingBottom: 24, width: '100%', maxWidth: 960, alignSelf: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowContent: { flex: 1, marginHorizontal: 12 },

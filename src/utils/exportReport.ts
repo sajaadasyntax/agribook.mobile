@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { formatCurrency } from './currency';
 import { formatDisplayDate, formatDate } from './date';
-import { Transaction } from '../types';
+import { Alert, Category, Reminder, Transaction } from '../types';
 import enTranslations from '../locales/en.json';
 import arTranslations from '../locales/ar.json';
 
@@ -102,6 +102,73 @@ const escapeCSVValue = (value: string | number | null | undefined): string => {
  */
 const arrayToCSV = (rows: (string | number | null | undefined)[][]): string => {
   return rows.map(row => row.map(escapeCSVValue).join(',')).join('\n');
+};
+
+export interface FullBackupData {
+  transactions: Transaction[];
+  categories: Category[];
+  alerts: Alert[];
+  reminders: Reminder[];
+  settings?: Record<string, unknown> | null;
+  locale?: string;
+}
+
+export const exportFullBackupCSV = async (data: FullBackupData): Promise<void> => {
+  const isArabic = data.locale === 'ar';
+  const rows: (string | number | null | undefined)[][] = [];
+  const addSection = (title: string, headers: string[], values: Array<Array<string | number | null | undefined>>) => {
+    rows.push([title], headers);
+    rows.push(...values);
+    rows.push([]);
+  };
+
+  addSection(
+    isArabic ? 'المعاملات' : 'Transactions',
+    ['id', 'type', 'amount', 'paidAmount', 'paymentStatus', 'category', 'description', 'receiptUrl', 'createdAt', 'updatedAt'],
+    data.transactions.map(transaction => [
+      transaction.id,
+      transaction.type,
+      transaction.amount,
+      transaction.paidAmount,
+      transaction.paymentStatus,
+      transaction.category?.name,
+      transaction.description,
+      transaction.receiptUrl,
+      transaction.createdAt,
+      transaction.updatedAt,
+    ])
+  );
+  addSection(
+    isArabic ? 'التصنيفات' : 'Categories',
+    ['id', 'name', 'type', 'description', 'createdAt', 'updatedAt'],
+    data.categories.map(category => [category.id, category.name, category.type, category.description, category.createdAt, category.updatedAt])
+  );
+  addSection(
+    isArabic ? 'التنبيهات' : 'Alerts',
+    ['id', 'type', 'message', 'isRead', 'createdAt'],
+    data.alerts.map(alert => [alert.id, alert.type, alert.message, alert.isRead ? 'true' : 'false', alert.createdAt])
+  );
+  addSection(
+    isArabic ? 'التذكيرات' : 'Reminders',
+    ['id', 'title', 'description', 'dueDate', 'completed', 'createdAt'],
+    data.reminders.map(reminder => [reminder.id, reminder.title, reminder.description, reminder.dueDate, reminder.completed ? 'true' : 'false', reminder.createdAt])
+  );
+  addSection(
+    isArabic ? 'الإعدادات' : 'Settings',
+    ['key', 'value'],
+    Object.entries(data.settings || {}).map(([key, value]) => [key, typeof value === 'object' ? JSON.stringify(value) : String(value)])
+  );
+
+  const filename = `ELITE_${isArabic ? 'نسخة_احتياطية' : 'backup'}_${new Date().toISOString().slice(0, 10)}.csv`;
+  const fileUri = `${getCacheDirectory()}${filename}`;
+  await safeDeleteFile(fileUri);
+  await FileSystem.writeAsStringAsync(fileUri, '\uFEFF' + arrayToCSV(rows));
+  if (!(await Sharing.isAvailableAsync())) throw new Error(isArabic ? 'المشاركة غير متاحة على هذا الجهاز' : 'Sharing is not available on this device');
+  await Sharing.shareAsync(fileUri, {
+    mimeType: 'text/csv',
+    dialogTitle: isArabic ? 'تصدير نسخة احتياطية' : 'Export backup',
+    UTI: 'public.comma-separated-values-text',
+  });
 };
 
 /**

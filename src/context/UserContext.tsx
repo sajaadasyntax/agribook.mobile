@@ -44,7 +44,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const localSettings: UserSettings = {
     id: 'local-settings',
     userId: 'local-client',
-    language: 'en',
+    language: 'ar',
     darkMode: false,
     autoBackup: false,
     offlineMode: true,
@@ -85,7 +85,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   // Load user data
   const loadUser = useCallback(async (): Promise<void> => {
     const cachedSettings = await loadCachedSettings();
-    if (cachedSettings) setSettings({ ...localSettings, ...cachedSettings, offlineMode: true, autoSync: false });
+    if (cachedSettings) setSettings({ ...localSettings, ...cachedSettings, language: 'ar', offlineMode: true, autoSync: false });
     await syncService.cacheUserSettings(cachedSettings || localSettings);
     setIsOffline(true);
     setIsLoading(false);

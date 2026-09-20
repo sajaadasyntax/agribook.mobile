@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { I18nManager, Platform, View, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { UserProvider, useUser } from './src/context/UserContext';
@@ -94,15 +94,17 @@ function AppNavigator(): React.JSX.Element {
   }, [isRTL]); // Update when RTL status changes
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Main"
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="Main" component={MainTabs} />
-        <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Main"
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="Main" component={MainTabs} />
+          <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaView>
   );
 }
 
