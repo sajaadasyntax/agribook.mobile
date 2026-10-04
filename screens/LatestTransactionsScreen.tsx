@@ -37,6 +37,7 @@ export default function LatestTransactionsScreen(): React.JSX.Element {
         </View>
         <View style={styles.rowContent}>
           <Text style={[styles.category, { color: colors.text }]}>{item.category?.name || t('latestTransactions.uncategorized')}</Text>
+          {!!item.description?.trim() && <Text style={[styles.description, { color: colors.textSecondary }]}>{item.description}</Text>}
           <Text style={[styles.meta, { color: colors.textSecondary }]}>{new Date(item.createdAt).toLocaleDateString(locale)}</Text>
           {status !== 'PAID' && <Text style={[styles.status, { color: colors.warning }]}>{t(`latestTransactions.${status.toLowerCase()}`)}</Text>}
         </View>
@@ -80,6 +81,7 @@ const styles = StyleSheet.create({
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowContent: { flex: 1, marginHorizontal: 12 },
   category: { fontSize: 16, fontWeight: '600' },
+  description: { fontSize: 13, marginTop: 3 },
   meta: { fontSize: 12, marginTop: 4 },
   status: { fontSize: 12, marginTop: 3 },
   amountBlock: { alignItems: 'flex-end', gap: 4 },
